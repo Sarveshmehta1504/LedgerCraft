@@ -95,6 +95,13 @@ export default function DashboardPage() {
     })),
   ].sort((a, b) => b.date.localeCompare(a.date));
 
+  // Capped rather than paged. "Recent" means the latest handful by definition,
+  // and a pager on a dashboard summary invites someone to read the whole ledger
+  // from a panel that was never meant to hold it — the full lists are one click
+  // away and page properly.
+  const RECENT_LIMIT = 10;
+  const recentVisible = recent.slice(0, RECENT_LIMIT);
+
   return (
     <div className="flex flex-col gap-7">
       <div>
@@ -141,11 +148,31 @@ export default function DashboardPage() {
       </div>
 
       <section className="border-t border-[var(--line)] pt-4">
-        <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-          Recent transactions
-        </h2>
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+            Recent transactions
+          </h2>
+          {recent.length > RECENT_LIMIT && (
+            <p className="text-[13px] text-[var(--text-subtle)]">
+              Latest {RECENT_LIMIT} of {recent.length} —{" "}
+              <Link
+                href="/invoices"
+                className="text-[var(--accent)] underline decoration-dotted underline-offset-4"
+              >
+                invoices
+              </Link>{" "}
+              ·{" "}
+              <Link
+                href="/bills"
+                className="text-[var(--accent)] underline decoration-dotted underline-offset-4"
+              >
+                bills
+              </Link>
+            </p>
+          )}
+        </div>
         <ul className="mt-2 divide-y divide-[var(--line)]">
-          {recent.map((row) => (
+          {recentVisible.map((row) => (
             <li key={row.id}>
               {/* Stacks below sm — five columns on a 375px row collide into each other. */}
               <Link

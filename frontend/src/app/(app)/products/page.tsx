@@ -6,18 +6,33 @@ import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ComboboxControl } from "@/components/ui/Combobox";
 import { DataTable, type Column } from "@/components/shared/DataTable";
+import {
+  ClearFilters,
+  FilterBar,
+  SearchInput,
+  SegmentedFilter,
+} from "@/components/shared/FilterBar";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { Pager, usePagination } from "@/components/shared/Pagination";
 import { ViewSwitcher, type ViewMode } from "@/components/shared/ViewSwitcher";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { formatMoney, titleCase } from "@/lib/format";
 import { ProductCategoriesApi, ProductsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
-import type { Product, ProductCategory } from "@/types";
+import type { Product, ProductCategory, ProductType } from "@/types";
+
+const TYPE_FILTERS: { value: ProductType | ""; label: string }[] = [
+  { value: "", label: "All" },
+  { value: "goods", label: "Goods" },
+  { value: "service", label: "Service" },
+  { value: "combo", label: "Combo" },
+];
 
 export default function ProductsPage() {
   const router = useRouter();
   const [view, setView] = useState<ViewMode>("list");
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<ProductType | "">("");
   const [categoryId, setCategoryId] = useState<string>("");
   const fetchData = useCallback(() => ProductsApi.list(), []);
   const { data, loading, error, retry } = useAsyncData<Product[]>(
@@ -36,17 +51,29 @@ export default function ProductsPage() {
   const visible = products.filter((product) => {
     const term = search.trim().toLowerCase();
     const matchesSearch = !term || product.name.toLowerCase().includes(term);
+    const matchesType = !typeFilter || product.type === typeFilter;
     const matchesCategory = !categoryId || String(product.category_id) === categoryId;
-    return matchesSearch && matchesCategory;
+    return matchesSearch && matchesType && matchesCategory;
   });
 
-  const filtered = Boolean(search.trim() || categoryId);
+  const filtered = Boolean(search.trim() || typeFilter || categoryId);
+
+  // The card view needs its own pager: DataTable pages the list view itself,
+  // and only one of the two is ever mounted.
+  const { visible: cards, pager: cardPager } = usePagination(visible);
+
+  function clearFilters() {
+    setSearch("");
+    setTypeFilter("");
+    setCategoryId("");
+  }
 
   const columns: Column<Product>[] = [
     {
       key: "name",
       header: "Product",
       render: (product) => <span className="font-medium">{product.name}</span>,
+      sortValue: (product) => product.name,
     },
     {
       key: "category",
@@ -54,13 +81,20 @@ export default function ProductsPage() {
       render: (product) => (
         <span className="text-[var(--text-muted)]">{product.category?.name ?? "—"}</span>
       ),
+      sortValue: (product) => product.category?.name,
     },
-    { key: "type", header: "Type", render: (product) => titleCase(product.type) },
+    {
+      key: "type",
+      header: "Type",
+      render: (product) => titleCase(product.type),
+      sortValue: (product) => product.type,
+    },
     {
       key: "sales_price",
       header: "Sales price",
       numeric: true,
       render: (product) => formatMoney(product.sales_price),
+      sortValue: (product) => product.sales_price,
     },
     {
       key: "cost_price",
@@ -69,6 +103,7 @@ export default function ProductsPage() {
       render: (product) => (
         <span className="text-[var(--text-muted)]">{formatMoney(product.cost_price)}</span>
       ),
+      sortValue: (product) => product.cost_price,
     },
   ];
 
@@ -87,14 +122,18 @@ export default function ProductsPage() {
         trailing={<ViewSwitcher value={view} onChange={setView} />}
       />
 
-      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] px-5 py-2.5">
-        <input
-          type="search"
+      <FilterBar>
+        <SearchInput
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={setSearch}
           placeholder="Search products"
-          aria-label="Search products"
-          className="h-8 w-64 rounded-md border border-[var(--line-strong)] px-2.5 text-sm transition-colors duration-150 placeholder:text-[var(--text-subtle)] focus:outline-2 focus:-outline-offset-1 focus:outline-[var(--accent)]"
+          label="Search products"
+        />
+        <SegmentedFilter
+          value={typeFilter}
+          options={TYPE_FILTERS}
+          onChange={setTypeFilter}
+          label="Filter by product type"
         />
         <div className="w-56">
           <ComboboxControl
@@ -107,7 +146,8 @@ export default function ProductsPage() {
             clearLabel="All categories"
           />
         </div>
-      </div>
+        {filtered && <ClearFilters onClear={clearFilters} />}
+      </FilterBar>
 
       {view === "list" ? (
         <DataTable
@@ -141,8 +181,9 @@ export default function ProductsPage() {
       ) : visible.length === 0 ? (
         <EmptyState title="No products match" description="Try a different search or category." />
       ) : (
+        <>
         <div className="grid gap-px bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-3">
-          {visible.map((product) => (
+          {cards.map((product) => (
             <Link
               key={product.id}
               href={`/products/${product.id}`}
@@ -167,6 +208,8 @@ export default function ProductsPage() {
             </Link>
           ))}
         </div>
+        <Pager state={cardPager} />
+        </>
       )}
     </div>
   );

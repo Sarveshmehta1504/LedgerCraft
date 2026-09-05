@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/DataTable";
+import { FilterBar, SearchInput, SegmentedFilter } from "@/components/shared/FilterBar";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Combobox } from "@/components/ui/Combobox";
@@ -154,6 +155,7 @@ export default function UsersPage() {
       key: "name",
       header: "Name",
       render: (user) => <span className="font-medium">{user.name}</span>,
+      sortValue: (user) => user.name,
     },
     {
       key: "login_id",
@@ -161,16 +163,24 @@ export default function UsersPage() {
       render: (user) => (
         <span className="tnum font-mono text-[13px] text-[var(--text-muted)]">{user.login_id}</span>
       ),
+      sortValue: (user) => user.login_id,
     },
     {
       key: "email",
       header: "Email",
       render: (user) => <span className="text-[var(--text-muted)]">{user.email}</span>,
+      sortValue: (user) => user.email,
     },
-    { key: "role", header: "Role", render: (user) => <RoleBadge role={user.role} /> },
+    {
+      key: "role",
+      header: "Role",
+      render: (user) => <RoleBadge role={user.role} />,
+      sortValue: (user) => user.role,
+    },
     {
       key: "contact",
       header: "Linked contact",
+      sortValue: (user) => user.contact?.name,
       render: (user) =>
         user.role === "user" ? (
           <button
@@ -246,32 +256,20 @@ export default function UsersPage() {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] px-5 py-2.5">
-        <input
-          type="search"
+      <FilterBar>
+        <SearchInput
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={setSearch}
           placeholder="Search name, login ID or email"
-          aria-label="Search users"
-          className="h-8 w-72 rounded-md border border-[var(--line-strong)] px-2.5 text-sm transition-colors duration-150 placeholder:text-[var(--text-subtle)] focus:outline-2 focus:-outline-offset-1 focus:outline-[var(--accent)]"
+          label="Search users"
+          width="w-72"
         />
-        <div className="flex items-center gap-1">
-          {ROLE_FILTERS.map((filter) => (
-            <button
-              key={filter.value || "all"}
-              type="button"
-              onClick={() => setRoleFilter(filter.value)}
-              aria-pressed={roleFilter === filter.value}
-              className={`h-8 cursor-pointer rounded-md px-2.5 text-[13px] font-medium transition-colors duration-150 ${
-                roleFilter === filter.value
-                  ? "bg-[var(--surface-raised)] text-[var(--text)]"
-                  : "text-[var(--text-muted)] hover:bg-[var(--surface-raised)]"
-              }`}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedFilter
+          value={roleFilter}
+          options={ROLE_FILTERS}
+          onChange={setRoleFilter}
+          label="Filter by role"
+        />
         <button
           type="button"
           onClick={() => setShowDeactivated((value) => !value)}
@@ -284,7 +282,7 @@ export default function UsersPage() {
         >
           {showDeactivated ? "Showing deactivated" : "Show deactivated"}
         </button>
-      </div>
+      </FilterBar>
 
       {actionError && (
         <div className="border-b border-[var(--line)] p-5">

@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { Pager, usePagination } from "@/components/shared/Pagination";
 import { TableSkeleton, EmptyState, ErrorState } from "@/components/ui/States";
+
+/** What a cell sorts on. Dates sort correctly as the ISO strings the API sends. */
+export type SortValue = string | number | null | undefined;
 
 export interface Column<T> {
   key: string;
@@ -10,7 +14,15 @@ export interface Column<T> {
   numeric?: boolean;
   width?: string;
   render: (row: T) => ReactNode;
+  /**
+   * Makes the column sortable. `render` returns a ReactNode, which cannot be
+   * compared, so a sortable column has to say what its underlying value is —
+   * a number for money and counts, a string for names, an ISO string for dates.
+   */
+  sortValue?: (row: T) => SortValue;
 }
+
+type SortDirection = "asc" | "desc";
 
 interface DataTableProps<T> {
   columns: Column<T>[];
@@ -31,18 +43,21 @@ interface DataTableProps<T> {
   pageSizeOptions?: number[];
 }
 
-const DEFAULT_PAGE_SIZES = [10, 25, 50, 100];
-
 /**
  * Dense list surface shared by every screen. No card wrapper — rows are
  * separated by 1px rules, which is what keeps an accounting table readable.
  *
- * Paging is done here, over the rows the caller already holds, rather than
- * against the API. Every screen filters and searches its list in the browser,
- * so server-side paging would silently narrow those to the current page; and
- * the dashboard counts statuses by reducing over whole lists, which would start
- * reporting page-one figures with nothing on screen to say so. The largest list
- * the API returns is 22 KB, so there is nothing to win by splitting it up.
+ * Sorting and paging are both done here, over the rows the caller already
+ * holds, rather than against the API. Every screen filters and searches its
+ * list in the browser, so server-side paging would silently narrow those to the
+ * current page; and the dashboard counts statuses by reducing over whole lists,
+ * which would start reporting page-one figures with nothing on screen to say
+ * so. The largest list the API returns is 22 KB, so there is nothing to win by
+ * splitting it up.
+ *
+ * Order matters: sort the whole list, then slice. Sorting only the visible page
+ * would reorder twenty-five rows within that page and leave every other row
+ * where it was, which looks like a bug and is one.
  */
 export function DataTable<T>({
   columns,
@@ -55,22 +70,27 @@ export function DataTable<T>({
   emptyTitle = "Nothing here yet",
   emptyDescription = "Records you create will appear in this list.",
   emptyAction,
-  pageSize: initialPageSize = 25,
-  pageSizeOptions = DEFAULT_PAGE_SIZES,
+  pageSize,
+  pageSizeOptions,
 }: DataTableProps<T>) {
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [sort, setSort] = useState<{ key: string; direction: SortDirection } | null>(null);
 
-  // Filtering happens in the caller, so the row count changes under us when the
-  // user types in a search box. Snapping back to the first page here - during
-  // render, the pattern React documents for adjusting state on a prop change -
-  // avoids both an effect and the blank page you would otherwise land on after
-  // searching from page three.
-  const [countAtLastReset, setCountAtLastReset] = useState(rows.length);
-  if (countAtLastReset !== rows.length) {
-    setCountAtLastReset(rows.length);
-    setPage(1);
-  }
+  const sortedRows = useMemo(() => {
+    if (!sort) return rows;
+
+    const column = columns.find((candidate) => candidate.key === sort.key);
+    if (!column?.sortValue) return rows;
+
+    const read = column.sortValue;
+    const factor = sort.direction === "asc" ? 1 : -1;
+
+    // Copied before sorting: `rows` belongs to the caller, and sorting in place
+    // would reorder an array a parent is holding in state.
+    return [...rows].sort((a, b) => factor * compare(read(a), read(b)));
+  }, [rows, columns, sort]);
+
+  // Paging runs on the sorted list, never the other way round.
+  const { visible, pager, resetPage } = usePagination(sortedRows, pageSize, pageSizeOptions);
 
   if (loading) return <TableSkeleton columns={columns.length} />;
   if (error) return <ErrorState message={error} onRetry={onRetry} />;
@@ -78,17 +98,16 @@ export function DataTable<T>({
     return <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} />;
   }
 
-  const paged = pageSize > 0;
-  const pageCount = paged ? Math.max(1, Math.ceil(rows.length / pageSize)) : 1;
-  // Clamped rather than corrected in state: shrinking the list must never leave
-  // the table pointing past the end of it, even for one render.
-  const current = Math.min(page, pageCount);
-  const start = paged ? (current - 1) * pageSize : 0;
-  const visible = paged ? rows.slice(start, start + pageSize) : rows;
-  // The footer appears only when paging actually does something. Gating on the
-  // smallest *option* instead of the current page size put a dead pager under
-  // every list of 11-25 rows: one page, both arrows disabled, nothing to click.
-  const showPager = paged && rows.length > pageSize;
+  /** Ascending, then descending, then back to whatever order the caller sent. */
+  function toggleSort(key: string) {
+    // A new order makes the current page number meaningless.
+    resetPage();
+    setSort((previous) => {
+      if (previous?.key !== key) return { key, direction: "asc" };
+      if (previous.direction === "asc") return { key, direction: "desc" };
+      return null;
+    });
+  }
 
   return (
     <div>
@@ -96,18 +115,39 @@ export function DataTable<T>({
         <table className="w-full min-w-[720px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-[var(--line)] bg-[var(--surface-sunken)]">
-              {columns.map((column) => (
-                <th
-                  key={column.key}
-                  scope="col"
-                  style={column.width ? { width: column.width } : undefined}
-                  className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] ${
-                    column.numeric ? "text-right" : "text-left"
-                  }`}
-                >
-                  {column.header}
-                </th>
-              ))}
+              {columns.map((column) => {
+                const sortable = Boolean(column.sortValue);
+                const active = sort?.key === column.key;
+
+                return (
+                  <th
+                    key={column.key}
+                    scope="col"
+                    style={column.width ? { width: column.width } : undefined}
+                    aria-sort={
+                      active ? (sort.direction === "asc" ? "ascending" : "descending") : undefined
+                    }
+                    className={`text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] ${
+                      column.numeric ? "text-right" : "text-left"
+                    } ${sortable ? "p-0" : "px-4 py-2"}`}
+                  >
+                    {sortable ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(column.key)}
+                        className={`group flex w-full cursor-pointer items-center gap-1 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide transition-colors duration-150 hover:text-[var(--text)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)] ${
+                          column.numeric ? "justify-end" : "justify-start"
+                        } ${active ? "text-[var(--text)]" : "text-[var(--text-muted)]"}`}
+                      >
+                        {column.header}
+                        <SortMarker direction={active ? sort.direction : null} />
+                      </button>
+                    ) : (
+                      column.header
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--line)]">
@@ -145,83 +185,40 @@ export function DataTable<T>({
         </table>
       </div>
 
-      {showPager && (
-        <nav
-          aria-label="Pagination"
-          className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] px-4 py-2.5 text-[13px] text-[var(--text-muted)]"
-        >
-          <p aria-live="polite" className="tnum">
-            Showing <span className="font-medium text-[var(--text)]">{start + 1}</span>–
-            <span className="font-medium text-[var(--text)]">{start + visible.length}</span> of{" "}
-            <span className="font-medium text-[var(--text)]">{rows.length}</span>
-          </p>
-
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-1.5">
-              <span>Rows</span>
-              <select
-                value={pageSize}
-                onChange={(event) => {
-                  setPageSize(Number(event.target.value));
-                  setPage(1);
-                }}
-                className="h-7 rounded-md border border-[var(--line-strong)] bg-white px-1.5 text-[13px] text-[var(--text)]"
-              >
-                {pageSizeOptions.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="flex items-center gap-1">
-              <PagerButton
-                label="Previous page"
-                disabled={current === 1}
-                onClick={() => setPage(current - 1)}
-              >
-                ‹
-              </PagerButton>
-              <span className="tnum px-1.5">
-                Page <span className="font-medium text-[var(--text)]">{current}</span> of{" "}
-                <span className="font-medium text-[var(--text)]">{pageCount}</span>
-              </span>
-              <PagerButton
-                label="Next page"
-                disabled={current === pageCount}
-                onClick={() => setPage(current + 1)}
-              >
-                ›
-              </PagerButton>
-            </div>
-          </div>
-        </nav>
-      )}
+      <Pager state={pager} />
     </div>
   );
 }
 
-function PagerButton({
-  label,
-  disabled,
-  onClick,
-  children,
-}: {
-  label: string;
-  disabled: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
+/**
+ * Blanks always sort last, in both directions: a contact with no mobile number
+ * belongs at the bottom of the list whichever way the column points, not
+ * floated to the top by an empty string.
+ *
+ * Strings go through localeCompare with the numeric option, which is what keeps
+ * Bill/2026/0009 ahead of Bill/2026/0010 instead of sorting them lexically.
+ */
+function compare(a: SortValue, b: SortValue): number {
+  const aBlank = a === null || a === undefined || a === "";
+  const bBlank = b === null || b === undefined || b === "";
+  if (aBlank || bBlank) return aBlank && bBlank ? 0 : aBlank ? 1 : -1;
+
+  if (typeof a === "number" && typeof b === "number") return a - b;
+
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+}
+
+function SortMarker({ direction }: { direction: SortDirection | null }) {
+  // Held at zero opacity rather than unmounted, so a header does not change
+  // width the moment its column becomes sorted.
   return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="grid h-7 w-7 cursor-pointer place-items-center rounded-md border border-[var(--line-strong)] bg-white text-[var(--text)] transition-colors duration-150 hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+    <span
+      aria-hidden
+      className={
+        direction === null ? "opacity-0 transition-opacity group-hover:opacity-40" : undefined
+      }
     >
-      {children}
-    </button>
+      {direction === "desc" ? "↓" : "↑"}
+    </span>
   );
 }
