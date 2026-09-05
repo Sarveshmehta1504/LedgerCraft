@@ -6,11 +6,15 @@ use App\Http\Concerns\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CustomerInvoiceRequest;
 use App\Http\Requests\PaymentRequest;
+use App\Http\Requests\SendDocumentRequest;
 use App\Models\CustomerInvoice;
 use App\Services\CustomerInvoiceService;
+use App\Services\DocumentMailService;
+use App\Services\DocumentPdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
+use Throwable;
 
 class CustomerInvoiceController extends Controller
 {
@@ -122,6 +126,33 @@ class CustomerInvoiceController extends Controller
             'payment' => $payment,
             'invoice' => $this->withTotals($customerInvoice->fresh()),
         ], 201);
+    }
+
+    public function pdf(CustomerInvoice $customerInvoice)
+    {
+        $this->authorize('view', $customerInvoice);
+
+        return app(DocumentPdfService::class)->invoice($customerInvoice)
+            ->download(str_replace('/', '-', $customerInvoice->invoice_number).'.pdf');
+    }
+
+    public function send(SendDocumentRequest $request, CustomerInvoice $customerInvoice): JsonResponse
+    {
+        $this->authorize('update', $customerInvoice);
+
+        try {
+            $recipient = app(DocumentMailService::class)->sendInvoice(
+                $customerInvoice,
+                $request->validated('to'),
+                $request->validated('subject'),
+            );
+        } catch (RuntimeException $e) {
+            return $this->fail($e->getMessage(), 422);
+        } catch (Throwable $e) {
+            return $this->fail('Could not send the invoice: '.$e->getMessage(), 500);
+        }
+
+        return $this->ok("Invoice sent to {$recipient}");
     }
 
     public function destroy(CustomerInvoice $customerInvoice): JsonResponse
