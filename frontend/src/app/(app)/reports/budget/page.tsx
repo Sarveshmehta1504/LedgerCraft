@@ -7,7 +7,8 @@ import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { formatMoney } from "@/lib/format";
 import { useAsyncData } from "@/lib/use-async-data";
 import { ReportsApi } from "@/lib/resources";
-import type { BudgetReportRow } from "@/types";
+import { titleCase } from "@/lib/format";
+import type { BudgetReport, BudgetReportRow } from "@/types";
 
 /**
  * Planned versus achieved per budget. Paired bars rather than a pie — the question
@@ -62,11 +63,14 @@ function BudgetChart({ rows }: { rows: BudgetReportRow[] }) {
 
 export default function BudgetReportPage() {
   const fetchData = useCallback(() => ReportsApi.budget(), []);
-  const { data, loading, error, retry } = useAsyncData<BudgetReportRow[]>(
+  const { data, loading, error, retry } = useAsyncData<BudgetReport>(
     fetchData,
     "The reporting service did not respond.",
   );
-  const rows = data ?? [];
+  const rows = data?.rows ?? [];
+  // A revised budget is superseded by its replacement and a cancelled one never
+  // ran, so both are listed for the audit trail but kept out of every figure.
+  const live = rows.filter((row) => row.counted_in_totals);
 
   return (
     <ReportShell
@@ -86,22 +90,22 @@ export default function BudgetReportPage() {
       ) : (
         <>
           <div className="grid divide-y divide-[var(--line)] lg:grid-cols-2 lg:divide-x lg:divide-y-0">
-            <BudgetChart rows={rows} />
+            <BudgetChart rows={live} />
             <BudgetPie
-              data={rows.map((row) => ({ name: row.analytic_account, value: row.planned_amount }))}
+              data={live.map((row) => ({ name: row.analytic_account, value: row.planned_amount }))}
             />
           </div>
           <div className="overflow-x-auto border-t border-[var(--line)]">
             <table className="w-full min-w-[640px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-[var(--line)] bg-[var(--surface-sunken)]">
-                  {["Budget", "Analytic account", "Planned", "Achieved", "Variance"].map(
+                  {["Budget", "Analytic account", "Status", "Planned", "Achieved", "Variance"].map(
                     (header, index) => (
                       <th
                         key={header}
                         scope="col"
                         className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] ${
-                          index >= 2 ? "text-right" : "text-left"
+                          index >= 3 ? "text-right" : "text-left"
                         }`}
                       >
                         {header}
@@ -112,9 +116,25 @@ export default function BudgetReportPage() {
               </thead>
               <tbody className="divide-y divide-[var(--line)]">
                 {rows.map((row) => (
-                  <tr key={row.budget_id}>
+                  <tr key={row.budget_id} className={row.counted_in_totals ? "" : "opacity-55"}>
                     <td className="px-4 py-2.5 font-medium">{row.name}</td>
                     <td className="px-4 py-2.5 text-[var(--text-muted)]">{row.analytic_account}</td>
+                    <td className="px-4 py-2.5">
+                      <span
+                        className={`inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wide ${
+                          row.counted_in_totals
+                            ? "bg-[var(--accent-wash,#eef2ff)] text-[var(--accent)]"
+                            : "bg-[var(--surface-raised)] text-[var(--text-muted)]"
+                        }`}
+                        title={
+                          row.counted_in_totals
+                            ? undefined
+                            : "Listed for the record, excluded from every total"
+                        }
+                      >
+                        {titleCase(row.status)}
+                      </span>
+                    </td>
                     <td className="tnum px-4 py-2.5 text-right font-mono text-[13px]">
                       {formatMoney(row.planned_amount)}
                     </td>
@@ -132,6 +152,27 @@ export default function BudgetReportPage() {
                   </tr>
                 ))}
               </tbody>
+              {data && (
+                <tfoot>
+                  <tr className="border-t-2 border-[var(--line-strong)] bg-[var(--surface-sunken)]">
+                    <td className="px-4 py-2.5 text-[13px] font-semibold" colSpan={3}>
+                      Total{" "}
+                      <span className="font-normal text-[var(--text-muted)]">
+                        (live budgets only)
+                      </span>
+                    </td>
+                    <td className="tnum px-4 py-2.5 text-right font-mono text-[13px] font-semibold">
+                      {formatMoney(data.total_planned)}
+                    </td>
+                    <td className="tnum px-4 py-2.5 text-right font-mono text-[13px] font-semibold">
+                      {formatMoney(data.total_actual)}
+                    </td>
+                    <td className="tnum px-4 py-2.5 text-right font-mono text-[13px] font-semibold">
+                      {formatMoney(data.total_remaining)} left
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </>

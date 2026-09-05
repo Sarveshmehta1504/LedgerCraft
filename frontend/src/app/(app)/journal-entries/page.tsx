@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
-import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -63,16 +61,11 @@ export default function JournalEntriesPage() {
 
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-white">
+      {/* No New action: the ledger has no create route. Entries are written by
+          the system when a bill, invoice or payment is posted. */}
       <PageHeader
         title="Journal Entries"
         subtitle="The ledger — every posted debit and credit"
-        actions={
-          <Link href="/journal-entries/new">
-            <Button variant="primary" size="sm">
-              New
-            </Button>
-          </Link>
-        }
       />
       <DataTable
         columns={columns}

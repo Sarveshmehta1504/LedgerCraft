@@ -10,6 +10,7 @@ import type {
   AnalyticAccount,
   BalanceSheet,
   Budget,
+  BudgetReport,
   BudgetReportRow,
   ChartOfAccount,
   Contact,
@@ -77,6 +78,23 @@ export function mapBudgetReportRow(raw: Raw): BudgetReportRow {
     planned_amount: planned,
     actual_amount: actual,
     variance: actual - planned,
+    status: raw.status,
+    // Absent means countable: only a superseded or cancelled row is flagged off.
+    counted_in_totals: raw.counted_in_totals !== false,
+  };
+}
+
+/**
+ * The whole budget report. The API's totals already exclude superseded and
+ * cancelled budgets, so they are taken as given rather than re-summed here.
+ */
+export function mapBudgetReport(raw: Raw): BudgetReport {
+  return {
+    rows: (raw.budgets ?? []).map(mapBudgetReportRow),
+    total_planned: num(raw.total_committed),
+    total_actual: num(raw.total_achieved),
+    total_remaining: num(raw.total_remaining),
+    achieved_percent: num(raw.overall_achieved_percent),
   };
 }
 
@@ -111,6 +129,9 @@ export function mapJournalEntry(raw: Raw): JournalEntry {
     total_debit: num(raw.total_debit),
     total_credit: num(raw.total_credit),
     balanced: Boolean(raw.balanced),
+    partner: raw.partner
+      ? { id: raw.partner.id, name: raw.partner.name, type: raw.partner.type }
+      : null,
     lines: Array.isArray(raw.lines) ? raw.lines.map(mapJournalEntryLine) : [],
   };
 }

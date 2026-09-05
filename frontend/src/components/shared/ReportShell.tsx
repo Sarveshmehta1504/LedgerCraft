@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { TextField } from "@/components/ui/Field";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ApiError } from "@/lib/api";
 import { ReportsApi, type ReportName, type ReportParams } from "@/lib/resources";
@@ -35,6 +36,22 @@ export function ReportShell({
   const [notice, setNotice] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
+  // A report has no contact of its own, so a recipient has to be asked for.
+  // It is asked for in the page's own dialog — a browser prompt() is not part
+  // of this design and blocks the tab while it is open.
+  const [askOpen, setAskOpen] = useState(false);
+  const [to, setTo] = useState("");
+  const [toError, setToError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!askOpen) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setAskOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [askOpen]);
+
   async function onPrint() {
     setPrinting(true);
     setNotice(null);
@@ -49,19 +66,24 @@ export function ReportShell({
     }
   }
 
-  async function onSend() {
-    // A report has no contact of its own, so the API requires a recipient.
-    const to = window.prompt(`Email ${title} to which address?`)?.trim();
-    if (!to) return;
+  async function onSend(event: React.FormEvent) {
+    event.preventDefault();
+    const recipient = to.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(recipient)) {
+      setToError("Enter a valid email address.");
+      return;
+    }
 
     setSending(true);
     setNotice(null);
     setProblem(null);
+    setToError(null);
     try {
-      await ReportsApi.send(report, to, params);
-      setNotice(`${title} sent to ${to}.`);
+      await ReportsApi.send(report, recipient, params);
+      setAskOpen(false);
+      setNotice(`${title} sent to ${recipient}.`);
     } catch (err) {
-      setProblem(err instanceof ApiError ? err.message : "Could not send the report.");
+      setToError(err instanceof ApiError ? err.message : "Could not send the report.");
     } finally {
       setSending(false);
     }
@@ -77,7 +99,16 @@ export function ReportShell({
             <Button size="sm" onClick={onPrint} disabled={printing}>
               {printing ? "Preparing…" : "Print"}
             </Button>
-            <Button size="sm" onClick={onSend} disabled={sending}>
+            <Button
+              size="sm"
+              onClick={() => {
+                setToError(null);
+                setNotice(null);
+                setProblem(null);
+                setAskOpen(true);
+              }}
+              disabled={sending}
+            >
               {sending ? "Sending…" : "Send"}
             </Button>
             <Button size="sm" onClick={() => router.push("/dashboard")}>
@@ -106,6 +137,54 @@ export function ReportShell({
       )}
 
       {children}
+
+      {askOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setAskOpen(false);
+          }}
+        >
+          <form
+            onSubmit={onSend}
+            noValidate
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Email ${title}`}
+            className="w-full max-w-lg rounded-lg border border-[var(--line)] bg-white shadow-lg [&>header:first-child]:rounded-t-lg"
+          >
+            <PageHeader
+              title="Email this report"
+              subtitle={`${title} — attached as a PDF for the period on screen`}
+              actions={
+                <Button type="submit" variant="primary" size="sm" disabled={sending}>
+                  {sending ? "Sending…" : "Send"}
+                </Button>
+              }
+              trailing={
+                <Button size="sm" onClick={() => setAskOpen(false)}>
+                  Cancel
+                </Button>
+              }
+            />
+            <div className="p-5">
+              <TextField
+                label="Send to"
+                type="email"
+                autoComplete="off"
+                value={to}
+                onChange={(event) => {
+                  setTo(event.target.value);
+                  setToError(null);
+                }}
+                error={toError ?? undefined}
+                hint="A report has no customer of its own, so it needs an address."
+                required
+              />
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

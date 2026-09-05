@@ -30,12 +30,21 @@ export default function AnalyticAccountsPage() {
   const accounts = data?.[0] ?? [];
   const budgets = data?.[1] ?? [];
 
-  /** Budgets referencing an analytic account — surfaced on the list and kanban card. */
+  /**
+   * Budgets referencing an analytic account — surfaced on the list and kanban card.
+   *
+   * Committed counts only live budgets: a `revised` one has been superseded by
+   * its replacement and a `cancelled` one never ran, so including either would
+   * add the same money to the account twice.
+   */
   function budgetSummary(accountId: number) {
     const matching = budgets.filter((budget) => budget.analytic_account_id === accountId);
+    const live = matching.filter(
+      (budget) => budget.status === "draft" || budget.status === "confirmed",
+    );
     return {
       count: matching.length,
-      committed: matching.reduce((sum, budget) => sum + budget.committed_amount, 0),
+      committed: live.reduce((sum, budget) => sum + budget.committed_amount, 0),
     };
   }
 
