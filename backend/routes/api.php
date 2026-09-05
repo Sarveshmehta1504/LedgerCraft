@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\JournalController;
 use App\Http\Controllers\Api\ProductCategoryController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -55,6 +56,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('accounts', ChartOfAccountController::class);
     Route::patch('accounts/{account}/archive', [ChartOfAccountController::class, 'archive']);
     Route::patch('accounts/{account}/unarchive', [ChartOfAccountController::class, 'unarchive']);
+
+    // User management. Admin-only via UserPolicy; this is the only way an
+    // admin or accountant account is ever created.
+    Route::apiResource('users', UserController::class)->except('update');
+    Route::match(['put', 'patch'], 'users/{user}', [UserController::class, 'update']);
+    Route::put('users/{user}/role', [UserController::class, 'assignRole']);
+    Route::patch('users/{user}/reactivate', [UserController::class, 'reactivate']);
 
     Route::apiResource('journals', JournalController::class);
     Route::patch('journals/{journal}/archive', [JournalController::class, 'archive']);

@@ -33,6 +33,12 @@ class AuthController extends Controller
             return $this->fail('Invalid Login Id or Password', 401);
         }
 
+        // Without this check deactivation is cosmetic: the row stays valid and
+        // the credentials keep working.
+        if ($user->isDeactivated()) {
+            return $this->fail('This account has been deactivated. Contact your administrator.', 403);
+        }
+
         return $this->ok('Login successful', [
             'user' => $this->userPayload($user),
             'token' => $user->createToken('api')->plainTextToken,
