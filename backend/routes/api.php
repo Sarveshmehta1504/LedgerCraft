@@ -6,7 +6,9 @@ use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\JournalController;
 use App\Http\Controllers\Api\ProductCategoryController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\PurchaseOrderController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\VendorBillController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -63,6 +65,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::match(['put', 'patch'], 'users/{user}', [UserController::class, 'update']);
     Route::put('users/{user}/role', [UserController::class, 'assignRole']);
     Route::patch('users/{user}/reactivate', [UserController::class, 'reactivate']);
+
+    // Purchase flow: PO -> confirm -> convert to bill.
+    Route::apiResource('purchase-orders', PurchaseOrderController::class)
+        ->parameters(['purchase-orders' => 'purchaseOrder']);
+    Route::post('purchase-orders/{purchaseOrder}/confirm', [PurchaseOrderController::class, 'confirm']);
+    Route::post('purchase-orders/{purchaseOrder}/convert-to-bill', [PurchaseOrderController::class, 'convertToBill']);
+
+    // Vendor bills: draft -> posted (creates the journal entry) -> paid.
+    Route::apiResource('vendor-bills', VendorBillController::class)
+        ->parameters(['vendor-bills' => 'vendorBill']);
+    Route::post('vendor-bills/{vendorBill}/post', [VendorBillController::class, 'post']);
+    Route::post('vendor-bills/{vendorBill}/payments', [VendorBillController::class, 'registerPayment']);
 
     Route::apiResource('journals', JournalController::class);
     Route::patch('journals/{journal}/archive', [JournalController::class, 'archive']);

@@ -94,10 +94,27 @@ All return `403` for Accountant and User. This is the only route to an `admin` o
 ---
 
 ## POST `/auth/forgot-password`
-Request `{ "email": "owner@urbanfurniture.test" }`. Generates a token in
-`password_reset_tokens` and emails a reset link. **Always returns 200** with
-`"If the email exists, a reset link has been sent"` — never reveal whether an
-account exists.
+Send **exactly one** identifier — `login_id` or `email`:
+
+```json
+{ "login_id": "adminuser" }
+```
+```json
+{ "email": "admin_ledgercraft@yopmail.com" }
+```
+
+`login_id` is accepted because login is by login id, so that is what a user who
+has just failed to sign in has to hand; the server resolves it to that account's
+email address and sends there. Sending both, or neither, is a `422`.
+
+Generates a token in `password_reset_tokens` and emails a reset link.
+**Always returns 200** with `"If the email exists, a reset link has been sent"` —
+identical body for a known identifier, an unknown one, and a mail transport
+failure. Never reveal whether an account exists.
+
+The reset link is `FRONTEND_URL/reset-password?token=…&email=…`, so the reset
+form reads both values from the query string and the user never re-types an
+identifier.
 
 ## POST `/auth/reset-password`
 Request `{ "email": "...", "token": "...", "password": "...", "password_confirmation": "..." }`.
@@ -171,6 +188,52 @@ can badge archived rows.
   its related category so the list view can render the name in one request.
 * `POST /products` / `PUT /products/{id}` / `PATCH /products/{id}/archive`
 * `category_id` is required — validated with `required|exists:product_categories,id`
+
+---
+
+# Purchase Orders
+
+* `GET /purchase-orders` — filters: `status`, `contact_id`, `search` (by number)
+* `POST /purchase-orders` — body `{contact_id, date, lines:[{product_id, account_id?, analytic_account_id?, quantity, unit_price}]}`.
+  `number` is generated (`P00001`); `account_id` defaults to the Purchase
+  Expense account; `subtotal = quantity * unit_price` and the header `total` is
+  the sum of lines — both are computed server-side and ignored if sent.
+* `GET /purchase-orders/{id}` — includes lines with product/account/analytic, and
+  `bill` (id, number, status) when one exists
+* `PUT /purchase-orders/{id}` — **draft only**, replaces the whole line set; `409` otherwise
+* `DELETE /purchase-orders/{id}` — draft only (`409` otherwise), Admin only; lines cascade
+* `POST /purchase-orders/{id}/confirm` — draft → confirmed. `409` if already confirmed or billed
+* `POST /purchase-orders/{id}/convert-to-bill` — confirmed → billed, creates a
+  draft Vendor Bill copying vendor, products, prices and quantities. `409` if the
+  order is still draft or has already been converted
+
+Status transitions are strict: `draft → confirmed → billed`, one way only.
+Adding an archived product to a new document returns `422`, though documents
+that already reference it keep resolving it.
+
+---
+
+# Vendor Bills
+
+* `GET /vendor-bills` — filters: `status`, `contact_id`, `search` (number or reference)
+* `POST /vendor-bills` — standalone bill; `bill_number` generated (`Bill/2026/0001`).
+  Same line shape as a purchase order. `due_date` must not precede `bill_date`.
+* `GET /vendor-bills/{id}` — lines, contact, `purchase_order` (when converted
+  from one), and the generated `journal_entry` with its lines
+* `PUT /vendor-bills/{id}` — **draft only** (`409` otherwise)
+* `DELETE /vendor-bills/{id}` — draft only; a posted bill is part of the ledger
+* `POST /vendor-bills/{id}/post` — draft → posted. Creates the journal entry
+  **Debit Purchase Expense / Credit Creditors** for the bill total, via
+  `JournalEntryService`. `409` if already posted or if the bill has no lines.
+* `POST /vendor-bills/{id}/payments` — body `{amount, payment_via?, date?, note?}`.
+  `payment_via` defaults to `bank`. Creates **Debit Creditors / Credit Cash|Bank**
+  and flips the bill to `paid` once fully settled.
+  `422` if the amount is zero/negative, exceeds the amount due, or the bill is
+  still draft or already paid.
+
+Every bill payload carries derived footer totals — `amount_paid`,
+`paid_via_cash`, `paid_via_bank`, `amount_due` — computed from payments and
+never stored, so they cannot drift.
 
 ---
 
