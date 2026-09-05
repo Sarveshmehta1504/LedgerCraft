@@ -13,6 +13,7 @@ import type {
   CustomerInvoice,
   DocumentLine,
   Journal,
+  ManagedUser,
   Payment,
   Product,
   ProductCategory,
@@ -37,6 +38,16 @@ export function mapUser(raw: Raw): User {
     email: raw.email,
     contact_id: raw.contact_id,
     role: raw.role,
+  };
+}
+
+export function mapManagedUser(raw: Raw): ManagedUser {
+  return {
+    ...mapUser(raw),
+    // The API sends the whole contact record; the directory only shows its name.
+    contact: raw.contact ? { id: raw.contact.id, name: raw.contact.name } : null,
+    deactivated_at: raw.deactivated_at ?? null,
+    created_at: raw.created_at ?? null,
   };
 }
 

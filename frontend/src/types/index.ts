@@ -21,6 +21,17 @@ export interface User {
   role: Role;
 }
 
+/**
+ * A row from the admin user directory. Richer than the signed-in `User`: the
+ * admin screens also need the linked contact and whether the account is
+ * currently deactivated.
+ */
+export interface ManagedUser extends User {
+  contact: { id: number; name: string } | null;
+  deactivated_at: string | null;
+  created_at: string | null;
+}
+
 /* ---- Master data ---- */
 
 export type ContactType = "customer" | "vendor" | "both";

@@ -41,6 +41,7 @@ const NAV: { id: string; label: string; items: { label: string; href: string }[]
       { label: "Chart of Accounts", href: "/accounts" },
       { label: "Journals", href: "/journals" },
       { label: "Journal Entries", href: "/journal-entries" },
+      { label: "Users", href: "/users" },
     ],
   },
   {
