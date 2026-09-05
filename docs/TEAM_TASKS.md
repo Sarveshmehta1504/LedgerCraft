@@ -65,7 +65,7 @@ the next lane:
 
 ## Backend — owner: member-2 (Transaction Flow + Reports)
 
-* [ ] BE-007 Migrations: purchase_orders(+lines), vendor_bills(+lines), sales_orders(+lines), customer_invoices(+lines), payments
+* [x] BE-007 Migrations: purchase_orders(+lines), vendor_bills(+lines), sales_orders(+lines), customer_invoices(+lines), payments — 9 tables, all reversible; line tables cascade, everything else restrict; `tax_percent` on sales lines only; every line carries `account_id` + `analytic_account_id`
 * [ ] BE-008 PO create/confirm/convert-to-bill endpoints
 * [ ] BE-009 Vendor bill post (→ JournalEntryService) + payment endpoints
 * [ ] BE-010 SO create/confirm/convert-to-invoice endpoints
