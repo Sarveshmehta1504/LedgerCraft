@@ -8,7 +8,7 @@ import { TextField } from "@/components/ui/Field";
 import { InlineAlert } from "@/components/ui/States";
 import { ApiError } from "@/lib/api";
 import { PASSWORD_HINT, validatePassword } from "@/lib/password";
-import { signup, POST_LOGIN_PATH } from "@/lib/auth";
+import { landingPathFor, signup } from "@/lib/auth";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -46,8 +46,8 @@ export default function SignupPage() {
     setSubmitting(true);
     try {
       // The backend always assigns role `user` and creates the linked customer contact.
-      await signup(form);
-      router.push(POST_LOGIN_PATH);
+      const user = await signup(form);
+      router.push(landingPathFor(user));
     } catch (err) {
       if (err instanceof ApiError && err.errors) {
         const fieldErrors: Record<string, string> = {};

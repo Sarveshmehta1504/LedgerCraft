@@ -1,9 +1,16 @@
 "use client";
 
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ApiError } from "@/lib/api";
-import { fetchAuthenticatedUser } from "@/lib/auth";
-import { endSession, getToken, onSessionChangeInOtherTab, redirectToLogin } from "@/lib/session";
+import { fetchAuthenticatedUser, PORTAL_PATH } from "@/lib/auth";
+import {
+  endSession,
+  getCurrentUser,
+  getToken,
+  onSessionChangeInOtherTab,
+  redirectToLogin,
+} from "@/lib/session";
 
 /**
  * Gate for every screen behind the login wall.
@@ -17,7 +24,19 @@ import { endSession, getToken, onSessionChangeInOtherTab, redirectToLogin } from
  *    string in localStorage can be stale, revoked elsewhere, or hand-typed.
  */
 export function RequireAuth({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [authorized, setAuthorized] = useState(false);
+
+  // A portal account is scoped to its own contact and gets 403 from every
+  // back-office route, so keep it on the portal rather than on a screen of
+  // zeros. The server is still the authority; this only avoids a dead end.
+  useEffect(() => {
+    const user = getCurrentUser();
+    if (user?.role === "user" && !pathname.startsWith(PORTAL_PATH)) {
+      router.replace(PORTAL_PATH);
+    }
+  }, [pathname, router]);
 
   useEffect(() => {
     let cancelled = false;

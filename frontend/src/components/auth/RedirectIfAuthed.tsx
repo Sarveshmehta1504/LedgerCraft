@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { POST_LOGIN_PATH } from "@/lib/auth";
-import { getToken, onSessionChangeInOtherTab } from "@/lib/session";
+import { landingPathFor } from "@/lib/auth";
+import { getCurrentUser, getToken, onSessionChangeInOtherTab } from "@/lib/session";
 
 /**
  * Inverse of RequireAuth, wrapping the whole (auth) route group: login, signup,
@@ -18,7 +18,7 @@ export function RedirectIfAuthed({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Same constraint as RequireAuth: localStorage only exists after mount.
     if (getToken()) {
-      router.replace(POST_LOGIN_PATH);
+      router.replace(landingPathFor(getCurrentUser()));
       return;
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -28,7 +28,7 @@ export function RedirectIfAuthed({ children }: { children: ReactNode }) {
   // Signing in from another tab should move this one off the auth form too.
   useEffect(() => {
     return onSessionChangeInOtherTab(() => {
-      if (getToken()) router.replace(POST_LOGIN_PATH);
+      if (getToken()) router.replace(landingPathFor(getCurrentUser()));
     });
   }, [router]);
 
