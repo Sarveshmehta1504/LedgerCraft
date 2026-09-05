@@ -118,6 +118,19 @@ a spinner and stay disabled until it resolves.
 * `PUT /contacts/{id}` — Admin, Accountant
 * `DELETE /contacts/{id}` — Admin only, blocked (422) if contact has any transactions — archive instead via `PATCH /contacts/{id}/archive`
 
+## Archiving
+
+Every master resource (`contacts`, `products`, `product-categories`, `accounts`,
+`journals`) supports:
+
+* `PATCH /{resource}/{id}/archive` — sets `archived_at` to now
+* `PATCH /{resource}/{id}/unarchive` — clears `archived_at` back to null
+
+Both are Admin only. List endpoints **exclude archived rows by default**; pass
+`?archived=1` to include them, or `?archived=only` for just the archived ones.
+Every record carries `archived_at` in its JSON (`null` when active) so the client
+can badge archived rows.
+
 ---
 
 # Product Categories
