@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useCallback } from "react";
-import { JournalEntryForm } from "@/components/forms/JournalEntryForm";
+import { JournalEntryView } from "@/components/forms/JournalEntryView";
 import { ErrorState, TableSkeleton } from "@/components/ui/States";
 import { JournalEntriesApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
@@ -19,5 +19,5 @@ export default function JournalEntryPage() {
   if (loading) return <TableSkeleton rows={4} columns={4} />;
   if (error || !entry)
     return <ErrorState message={error ?? "Journal entry not found."} onRetry={retry} />;
-  return <JournalEntryForm entry={entry} />;
+  return <JournalEntryView entry={entry} />;
 }

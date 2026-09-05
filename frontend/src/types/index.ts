@@ -134,6 +134,11 @@ export interface JournalEntry {
   total_debit: number;
   total_credit: number;
   balanced: boolean;
+  /**
+   * Derived by the API from the source document, so there is nothing to submit.
+   * Opening-balance entries have no partner by design.
+   */
+  partner: { id: number; name: string; type: ContactType } | null;
   /** Only populated by the detail endpoint; the list omits lines. */
   lines: JournalEntryLine[];
 }
@@ -306,4 +311,20 @@ export interface BudgetReportRow {
   planned_amount: number;
   actual_amount: number;
   variance: number;
+  status: BudgetStatus;
+  /**
+   * False for a superseded (`revised`) or `cancelled` budget. Those stay on the
+   * report so the original commitment is auditable, but they must never be
+   * added to a total or weighted in a chart.
+   */
+  counted_in_totals: boolean;
+}
+
+/** The budget report as the API returns it: rows plus its own correct totals. */
+export interface BudgetReport {
+  rows: BudgetReportRow[];
+  total_planned: number;
+  total_actual: number;
+  total_remaining: number;
+  achieved_percent: number;
 }
