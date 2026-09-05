@@ -17,7 +17,7 @@ const TYPES: JournalType[] = ["sales", "purchase", "bank", "cash"];
 
 export function JournalForm({ journal }: { journal?: Journal }) {
   const router = useRouter();
-  const [form, setForm] = useState<Omit<Journal, "id">>(
+  const [form, setForm] = useState<Omit<Journal, "id" | "archived_at">>(
     journal ?? {
       name: "",
       type: "sales",

@@ -11,7 +11,7 @@ import { ApiError } from "@/lib/api";
 import { ContactsApi } from "@/lib/resources";
 import type { Contact, ContactType } from "@/types";
 
-const EMPTY: Omit<Contact, "id"> = {
+const EMPTY: Omit<Contact, "id" | "archived_at"> = {
   name: "",
   type: "customer",
   email: "",
@@ -26,7 +26,7 @@ const EMPTY: Omit<Contact, "id"> = {
 
 export function ContactForm({ contact }: { contact?: Contact }) {
   const router = useRouter();
-  const [form, setForm] = useState<Omit<Contact, "id">>(contact ?? EMPTY);
+  const [form, setForm] = useState<Omit<Contact, "id" | "archived_at">>(contact ?? EMPTY);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

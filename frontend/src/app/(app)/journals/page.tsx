@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { FilterBar, SearchInput, SegmentedFilter } from "@/components/shared/FilterBar";
+import { ArchiveAction, ShowArchivedToggle, useArchive } from "@/components/shared/Archive";
+import { InlineAlert } from "@/components/ui/States";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { titleCase } from "@/lib/format";
 import { AccountsApi, JournalsApi } from "@/lib/resources";
@@ -25,11 +27,27 @@ export default function JournalsPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<JournalType | "">("");
 
-  const fetchData = useCallback(() => JournalsApi.list(), []);
+  // useAsyncData's retry is defined below the hook that needs it, so the
+  // hook refreshes through a ref rather than reordering the file.
+  const retryRef = useRef<() => void>(() => {});
+  const {
+    isAdmin,
+    showArchived,
+    setShowArchived,
+    busyId,
+    error: archiveError,
+    toggle: toggleArchived,
+    listParam: archiveListParam,
+  } = useArchive(JournalsApi, () => retryRef.current());
+
+  const fetchData = useCallback(() => JournalsApi.list(archiveListParam), [archiveListParam]);
   const { data, loading, error, retry } = useAsyncData<Journal[]>(
     fetchData,
     "The journals service did not respond.",
   );
+  useEffect(() => {
+    retryRef.current = retry;
+  });
   const journals = data ?? [];
 
   const fetchAccounts = useCallback(() => AccountsApi.list(), []);
@@ -77,6 +95,17 @@ export default function JournalsPage() {
       ),
       sortValue: (journal) => accountName(journal.default_credit_account),
     },
+     ...(isAdmin
+      ? [
+          {
+            key: "archive",
+            header: "",
+            render: (row: Journal) => (
+              <ArchiveAction row={row} busy={busyId === row.id} onToggle={toggleArchived} />
+            ),
+          } satisfies Column<Journal>,
+        ]
+      : []),
   ];
 
   return (
@@ -91,7 +120,18 @@ export default function JournalsPage() {
             </Button>
           </Link>
         }
+        trailing={
+          isAdmin ? (
+            <ShowArchivedToggle value={showArchived} onChange={setShowArchived} />
+          ) : undefined
+        }
       />
+
+      {archiveError && (
+        <div className="border-b border-[var(--line)] p-5">
+          <InlineAlert title={archiveError} />
+        </div>
+      )}
 
       <FilterBar>
         <SearchInput
@@ -116,11 +156,31 @@ export default function JournalsPage() {
         loading={loading}
         error={error}
         onRetry={retry}
-        emptyTitle={filtered ? "No journals match" : "No journals configured"}
+        emptyTitle={
+
+          showArchived
+
+            ? "No archived journals"
+
+            : filtered
+
+              ? "No journals match"
+
+              : "No journals configured"
+
+        }
         emptyDescription={
-          filtered
-            ? "Try a different search term or journal type."
-            : "Sales, purchase, bank and cash journals are normally seeded up front."
+
+          showArchived
+
+            ? "Every one of your journals is currently active."
+
+            : filtered
+
+                          ? "Try a different search term or journal type."
+
+                          : "Sales, purchase, bank and cash journals are normally seeded up front."
+
         }
       />
     </div>

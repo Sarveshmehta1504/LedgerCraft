@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ComboboxControl } from "@/components/ui/Combobox";
 import { DataTable, type Column } from "@/components/shared/DataTable";
@@ -12,10 +12,11 @@ import {
   SearchInput,
   SegmentedFilter,
 } from "@/components/shared/FilterBar";
+import { ArchiveAction, ShowArchivedToggle, useArchive } from "@/components/shared/Archive";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Pager, usePagination } from "@/components/shared/Pagination";
 import { ViewSwitcher, type ViewMode } from "@/components/shared/ViewSwitcher";
-import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
+import { EmptyState, ErrorState, InlineAlert, TableSkeleton } from "@/components/ui/States";
 import { formatMoney, titleCase } from "@/lib/format";
 import { ProductCategoriesApi, ProductsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
@@ -34,11 +35,27 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<ProductType | "">("");
   const [categoryId, setCategoryId] = useState<string>("");
-  const fetchData = useCallback(() => ProductsApi.list(), []);
+  // useAsyncData's retry is defined below the hook that needs it, so the
+  // hook refreshes through a ref rather than reordering the file.
+  const retryRef = useRef<() => void>(() => {});
+  const {
+    isAdmin,
+    showArchived,
+    setShowArchived,
+    busyId,
+    error: archiveError,
+    toggle: toggleArchived,
+    listParam: archiveListParam,
+  } = useArchive(ProductsApi, () => retryRef.current());
+
+  const fetchData = useCallback(() => ProductsApi.list(archiveListParam), [archiveListParam]);
   const { data, loading, error, retry } = useAsyncData<Product[]>(
     fetchData,
     "The products service did not respond.",
   );
+  useEffect(() => {
+    retryRef.current = retry;
+  });
   const products = data ?? [];
 
   const fetchCategories = useCallback(() => ProductCategoriesApi.list(), []);
@@ -105,6 +122,17 @@ export default function ProductsPage() {
       ),
       sortValue: (product) => product.cost_price,
     },
+     ...(isAdmin
+      ? [
+          {
+            key: "archive",
+            header: "",
+            render: (row: Product) => (
+              <ArchiveAction row={row} busy={busyId === row.id} onToggle={toggleArchived} />
+            ),
+          } satisfies Column<Product>,
+        ]
+      : []),
   ];
 
   return (
@@ -119,8 +147,21 @@ export default function ProductsPage() {
             </Button>
           </Link>
         }
-        trailing={<ViewSwitcher value={view} onChange={setView} />}
+        trailing={
+          <>
+            {isAdmin && (
+              <ShowArchivedToggle value={showArchived} onChange={setShowArchived} />
+            )}
+            <ViewSwitcher value={view} onChange={setView} />
+          </>
+        }
       />
+
+      {archiveError && (
+        <div className="border-b border-[var(--line)] p-5">
+          <InlineAlert title={archiveError} />
+        </div>
+      )}
 
       <FilterBar>
         <SearchInput
@@ -158,13 +199,35 @@ export default function ProductsPage() {
           loading={loading}
           error={error}
           onRetry={retry}
-          emptyTitle={filtered ? "No products match" : "No products yet"}
+          emptyTitle={
+
+            showArchived
+
+              ? "No archived products"
+
+              : filtered
+
+                ? "No products match"
+
+                : "No products yet"
+
+          }
           emptyDescription={
-            filtered
-              ? "Try a different search term or category."
-              : "Add the items you trade before creating orders."
+
+            showArchived
+
+              ? "Every one of your products is currently active."
+
+              : filtered
+
+                              ? "Try a different search term or category."
+
+                              : "Add the items you trade before creating orders."
+
           }
           emptyAction={
+
+            showArchived ? undefined : (
             filtered ? undefined : (
               <Link href="/products/new">
                 <Button variant="primary" size="sm">
@@ -172,6 +235,9 @@ export default function ProductsPage() {
                 </Button>
               </Link>
             )
+
+            )
+
           }
         />
       ) : loading ? (
@@ -182,12 +248,12 @@ export default function ProductsPage() {
         <EmptyState title="No products match" description="Try a different search or category." />
       ) : (
         <>
-        <div className="grid gap-px bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((product) => (
             <Link
               key={product.id}
               href={`/products/${product.id}`}
-              className="bg-white p-4 transition-colors duration-150 hover:bg-[var(--surface-sunken)]"
+              className="rounded-lg border border-[var(--line)] bg-white p-4 transition-colors duration-150 hover:border-[var(--line-strong)] hover:bg-[var(--surface-sunken)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
             >
               <p className="text-sm font-medium text-[var(--text)]">{product.name}</p>
               <p className="mt-0.5 text-xs text-[var(--text-subtle)]">

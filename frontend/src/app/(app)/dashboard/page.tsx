@@ -1,8 +1,8 @@
 "use client";
 
+import { ArrowUpRight, Plus } from "lucide-react";
 import Link from "next/link";
 import { useCallback } from "react";
-import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, formatMoney } from "@/lib/format";
 import { BudgetsApi, ContactsApi, CustomerInvoicesApi, PurchaseOrdersApi, SalesOrdersApi, VendorBillsApi } from "@/lib/resources";
@@ -13,38 +13,61 @@ function countBy<T extends { status: string }>(rows: T[], status: string) {
   return rows.filter((row) => row.status === status).length;
 }
 
+/**
+ * One module's summary: a headline count with its supporting splits beside it.
+ *
+ * Three equal 2xl numbers read as three equally important facts, which they are
+ * not — "how many are there" is the question, and confirmed/draft only qualify
+ * it. The action is a quiet outlined control rather than a solid black pill:
+ * on a summary screen the figures are the content, and a filled button beside
+ * a label out-shouts every number on the row.
+ */
 function Panel({
   title,
   action,
-  metrics,
+  primary,
+  splits,
 }: {
   title: string;
-  action: { label: string; href: string };
-  metrics: { label: string; value: string }[];
+  action: { label: string; href: string; kind: "create" | "open" };
+  primary: { label: string; value: string };
+  splits: { label: string; value: string }[];
 }) {
+  const ActionIcon = action.kind === "create" ? Plus : ArrowUpRight;
+
   return (
-    <section className="border-t border-[var(--line)] pt-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+    <section className="border-t border-[var(--line)] pt-3.5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-subtle)]">
           {title}
         </h2>
-        <Link href={action.href}>
-          <Button size="sm" variant="primary">
-            {action.label}
-          </Button>
+        <Link
+          href={action.href}
+          className="inline-flex items-center gap-1 rounded-md border border-[var(--line-strong)] bg-white px-2 py-1 text-[12px] font-medium text-[var(--text-muted)] transition-colors duration-150 hover:border-[var(--text-subtle)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-[0.5px]"
+        >
+          <ActionIcon size={12} strokeWidth={2} aria-hidden="true" />
+          {action.label}
         </Link>
       </div>
 
-      <dl className="mt-3 grid grid-cols-3 gap-x-6">
-        {metrics.map((metric) => (
-          <div key={metric.label}>
-            <dt className="text-xs text-[var(--text-subtle)]">{metric.label}</dt>
-            <dd className="tnum mt-0.5 font-mono text-2xl font-medium tracking-tight text-[var(--text)]">
-              {metric.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <div className="mt-3 flex items-end justify-between gap-6">
+        <div>
+          <p className="tnum font-mono text-[32px] font-medium leading-none tracking-tight text-[var(--text)]">
+            {primary.value}
+          </p>
+          <p className="mt-1.5 text-xs text-[var(--text-subtle)]">{primary.label}</p>
+        </div>
+        <dl className="flex gap-5 pb-1">
+          {splits.map((split) => (
+            <div key={split.label} className="text-right">
+              <dd className="tnum font-mono text-[15px] font-medium leading-none text-[var(--text-muted)]">
+                {split.value}
+              </dd>
+              <dt className="mt-1.5 text-[11px] text-[var(--text-subtle)]">{split.label}</dt>
+            </div>
+          ))}
+        </dl>
+      </div>
     </section>
   );
 }
@@ -114,34 +137,34 @@ export default function DashboardPage() {
       <div className="grid gap-7 lg:grid-cols-3">
         <Panel
           title="Sales"
-          action={{ label: "New", href: "/sales/new" }}
-          metrics={[
-            { label: "All", value: String(salesOrders.length) },
+          action={{ label: "New order", href: "/sales/new", kind: "create" }}
+          primary={{ label: "Sales orders", value: String(salesOrders.length) }}
+          splits={[
             { label: "Confirmed", value: String(countBy(salesOrders, "confirmed")) },
             { label: "Draft", value: String(countBy(salesOrders, "draft")) },
           ]}
         />
         <Panel
           title="Purchase"
-          action={{ label: "New", href: "/purchases/new" }}
-          metrics={[
-            { label: "All", value: String(purchaseOrders.length) },
+          action={{ label: "New order", href: "/purchases/new", kind: "create" }}
+          primary={{ label: "Purchase orders", value: String(purchaseOrders.length) }}
+          splits={[
             { label: "Confirmed", value: String(countBy(purchaseOrders, "confirmed")) },
             { label: "Draft", value: String(countBy(purchaseOrders, "draft")) },
           ]}
         />
         <Panel
-          title="Budget Reports"
-          action={{ label: "Report", href: "/reports/budget" }}
-          metrics={[
+          title="Budgets"
+          action={{ label: "Open report", href: "/reports/budget", kind: "open" }}
+          primary={{ label: "Budgets", value: String(budgets.length) }}
+          splits={[
             {
-              label: "Achieved",
-              value: String(budgets.filter((budget) => budget.actual_amount > 0).length),
-            },
-            { label: "Budget", value: String(budgets.length) },
-            {
-              label: "Committed",
+              label: "Confirmed",
               value: String(budgets.filter((budget) => budget.status === "confirmed").length),
+            },
+            {
+              label: "Achieving",
+              value: String(budgets.filter((budget) => budget.actual_amount > 0).length),
             },
           ]}
         />

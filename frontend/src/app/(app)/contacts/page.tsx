@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { FilterBar, SearchInput, SegmentedFilter } from "@/components/shared/FilterBar";
+import { ArchiveAction, ShowArchivedToggle, useArchive } from "@/components/shared/Archive";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Pager, usePagination } from "@/components/shared/Pagination";
 import { ViewSwitcher, type ViewMode } from "@/components/shared/ViewSwitcher";
-import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
+import { EmptyState, ErrorState, InlineAlert, TableSkeleton } from "@/components/ui/States";
 import { titleCase } from "@/lib/format";
 import { ContactsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
@@ -61,11 +62,27 @@ export default function ContactsPage() {
   const [view, setView] = useState<ViewMode>("list");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"" | ContactType>("");
-  const fetchData = useCallback(() => ContactsApi.list(), []);
+  // useAsyncData's retry is defined below the hook that needs it, so the
+  // hook refreshes through a ref rather than reordering the file.
+  const retryRef = useRef<() => void>(() => {});
+  const {
+    isAdmin,
+    showArchived,
+    setShowArchived,
+    busyId,
+    error: archiveError,
+    toggle: toggleArchived,
+    listParam: archiveListParam,
+  } = useArchive(ContactsApi, () => retryRef.current());
+
+  const fetchData = useCallback(() => ContactsApi.list(archiveListParam), [archiveListParam]);
   const { data, loading, error, retry } = useAsyncData<Contact[]>(
     fetchData,
     "The contacts service did not respond.",
   );
+  useEffect(() => {
+    retryRef.current = retry;
+  });
   const contacts = data ?? [];
 
   const visible = contacts.filter((contact) => {
@@ -128,6 +145,17 @@ export default function ContactsPage() {
       ),
       sortValue: (contact) => contact.address_city,
     },
+     ...(isAdmin
+      ? [
+          {
+            key: "archive",
+            header: "",
+            render: (row: Contact) => (
+              <ArchiveAction row={row} busy={busyId === row.id} onToggle={toggleArchived} />
+            ),
+          } satisfies Column<Contact>,
+        ]
+      : []),
   ];
 
   return (
@@ -142,8 +170,21 @@ export default function ContactsPage() {
             </Button>
           </Link>
         }
-        trailing={<ViewSwitcher value={view} onChange={setView} />}
+        trailing={
+          <>
+            {isAdmin && (
+              <ShowArchivedToggle value={showArchived} onChange={setShowArchived} />
+            )}
+            <ViewSwitcher value={view} onChange={setView} />
+          </>
+        }
       />
+
+      {archiveError && (
+        <div className="border-b border-[var(--line)] p-5">
+          <InlineAlert title={archiveError} />
+        </div>
+      )}
 
       <FilterBar>
         <SearchInput
@@ -169,13 +210,35 @@ export default function ContactsPage() {
           loading={loading}
           error={error}
           onRetry={retry}
-          emptyTitle={filtered ? "No contacts match" : "No contacts yet"}
+          emptyTitle={
+
+            showArchived
+
+              ? "No archived contacts"
+
+              : filtered
+
+                ? "No contacts match"
+
+                : "No contacts yet"
+
+          }
           emptyDescription={
-            filtered
-              ? "Adjust the search term or type filter to see more records."
-              : "Add the customers and vendors you trade with to start recording transactions."
+
+            showArchived
+
+              ? "Every one of your contacts is currently active."
+
+              : filtered
+
+                              ? "Adjust the search term or type filter to see more records."
+
+                              : "Add the customers and vendors you trade with to start recording transactions."
+
           }
           emptyAction={
+
+            showArchived ? undefined : (
             filtered ? undefined : (
               <Link href="/contacts/new">
                 <Button variant="primary" size="sm">
@@ -183,6 +246,9 @@ export default function ContactsPage() {
                 </Button>
               </Link>
             )
+
+            )
+
           }
         />
       ) : loading ? (
@@ -196,12 +262,12 @@ export default function ContactsPage() {
         />
       ) : (
         <>
-        <div className="grid gap-px bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((contact) => (
             <Link
               key={contact.id}
               href={`/contacts/${contact.id}`}
-              className="bg-white p-4 transition-colors duration-150 hover:bg-[var(--surface-sunken)]"
+              className="rounded-lg border border-[var(--line)] bg-white p-4 transition-colors duration-150 hover:border-[var(--line-strong)] hover:bg-[var(--surface-sunken)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
             >
               <div className="flex items-start gap-3">
                 <Avatar contact={contact} size={40} />

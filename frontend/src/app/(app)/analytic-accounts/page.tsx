@@ -250,14 +250,14 @@ export default function AnalyticAccountsPage() {
         />
       ) : (
         <>
-        <div className="grid gap-px bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((account) => {
             const summary = budgetSummary(account.id);
             return (
               <Link
                 key={account.id}
                 href={`/analytic-accounts/${account.id}`}
-                className="bg-white p-4 transition-colors duration-150 hover:bg-[var(--surface-sunken)]"
+                className="rounded-lg border border-[var(--line)] bg-white p-4 transition-colors duration-150 hover:border-[var(--line-strong)] hover:bg-[var(--surface-sunken)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               >
                 <p className="text-sm font-medium text-[var(--text)]">{account.name}</p>
                 <p className="mt-0.5 text-xs text-[var(--text-subtle)]">

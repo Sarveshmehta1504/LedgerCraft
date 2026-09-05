@@ -12,7 +12,7 @@ import { ProductCategoriesApi, ProductsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
 import type { Product, ProductCategory, ProductType } from "@/types";
 
-const EMPTY: Omit<Product, "id"> = {
+const EMPTY: Omit<Product, "id" | "archived_at"> = {
   name: "",
   type: "goods",
   sales_price: 0,
@@ -22,7 +22,7 @@ const EMPTY: Omit<Product, "id"> = {
 
 export function ProductForm({ product }: { product?: Product }) {
   const router = useRouter();
-  const [form, setForm] = useState<Omit<Product, "id">>(product ?? EMPTY);
+  const [form, setForm] = useState<Omit<Product, "id" | "archived_at">>(product ?? EMPTY);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
