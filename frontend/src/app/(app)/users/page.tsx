@@ -1,23 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { Combobox } from "@/components/ui/Combobox";
+import { SelectField } from "@/components/ui/Field";
 import { EmptyState, InlineAlert } from "@/components/ui/States";
 import { ApiError } from "@/lib/api";
 import { titleCase } from "@/lib/format";
-import { UsersApi } from "@/lib/resources";
+import { ContactsApi, UsersApi } from "@/lib/resources";
 import { getCurrentUser } from "@/lib/session";
 import { useAsyncData } from "@/lib/use-async-data";
-import type { ManagedUser, Role } from "@/types";
+import type { Contact, ManagedUser, Role } from "@/types";
 
 const ROLE_FILTERS: { value: "" | Role; label: string }[] = [
   { value: "", label: "All" },
   { value: "admin", label: "Admin" },
   { value: "accountant", label: "Accountant" },
   { value: "user", label: "Portal" },
+];
+
+const ROLE_OPTIONS: { value: Role; label: string }[] = [
+  { value: "admin", label: "Admin" },
+  { value: "accountant", label: "Accountant" },
+  { value: "user", label: "Portal user" },
 ];
 
 const ROLE_TONE: Record<Role, string> = {
@@ -42,6 +50,14 @@ export default function UsersPage() {
   const [showDeactivated, setShowDeactivated] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+
+  // Role editor. `target` doubles as the open/closed flag for the dialog.
+  const [target, setTarget] = useState<ManagedUser | null>(null);
+  const [nextRole, setNextRole] = useState<Role>("accountant");
+  const [nextContactId, setNextContactId] = useState<number | null>(null);
+  const [savingRole, setSavingRole] = useState(false);
+  const [roleError, setRoleError] = useState<string | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
 
   // The signed-in user is read once for the self-deactivation guard below.
   const currentUser = typeof window === "undefined" ? null : getCurrentUser();
@@ -68,6 +84,60 @@ export default function UsersPage() {
   });
 
   const filtered = Boolean(search.trim() || roleFilter);
+
+  // Contacts are only needed by the portal branch of the dialog, so they load
+  // on first open rather than on every visit to this screen.
+  useEffect(() => {
+    if (target === null || contacts.length > 0) return;
+    let cancelled = false;
+    ContactsApi.list()
+      .then((rows) => {
+        if (!cancelled) setContacts(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setRoleError("Could not load contacts to link a portal user.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [target, contacts.length]);
+
+  useEffect(() => {
+    if (target === null) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setTarget(null);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [target]);
+
+  function openRoleEditor(user: ManagedUser) {
+    setTarget(user);
+    setNextRole(user.role);
+    setNextContactId(user.contact?.id ?? null);
+    setRoleError(null);
+    setActionError(null);
+  }
+
+  async function saveRole(event: React.FormEvent) {
+    event.preventDefault();
+    if (!target) return;
+    setSavingRole(true);
+    setRoleError(null);
+    try {
+      // contact_id only travels with the portal role; for the others the
+      // backend keeps whatever link the account already had.
+      await UsersApi.assignRole(target.id, nextRole, nextRole === "user" ? nextContactId : null);
+      setTarget(null);
+      retry();
+    } catch (err) {
+      // Self-demotion, last-admin and missing-contact all come back as 422 with
+      // a message worth reading — show it as written.
+      setRoleError(err instanceof ApiError ? err.message : "Could not change this user's role.");
+    } finally {
+      setSavingRole(false);
+    }
+  }
 
   async function toggleActive(user: ManagedUser) {
     setActionError(null);
@@ -119,20 +189,25 @@ export default function UsersPage() {
         // An admin deactivating themselves would lock the session they are using.
         const isSelf = currentUser?.id === user.id;
         return (
-          <Button
-            size="sm"
-            variant={user.deactivated_at ? "secondary" : "danger"}
-            disabled={busyId === user.id || isSelf}
-            onClick={() => toggleActive(user)}
-          >
-            {busyId === user.id
-              ? "Working…"
-              : user.deactivated_at
-                ? "Reactivate"
-                : isSelf
-                  ? "You"
-                  : "Deactivate"}
-          </Button>
+          <div className="flex items-center justify-end gap-2">
+            <Button size="sm" disabled={busyId === user.id} onClick={() => openRoleEditor(user)}>
+              Change role
+            </Button>
+            <Button
+              size="sm"
+              variant={user.deactivated_at ? "secondary" : "danger"}
+              disabled={busyId === user.id || isSelf}
+              onClick={() => toggleActive(user)}
+            >
+              {busyId === user.id
+                ? "Working…"
+                : user.deactivated_at
+                  ? "Reactivate"
+                  : isSelf
+                    ? "You"
+                    : "Deactivate"}
+            </Button>
+          </div>
         );
       },
     },
@@ -243,6 +318,76 @@ export default function UsersPage() {
           )
         }
       />
+
+      {target && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setTarget(null);
+          }}
+        >
+          <form
+            onSubmit={saveRole}
+            noValidate
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Change role for ${target.name}`}
+            className="w-full max-w-md rounded-lg border border-[var(--line)] bg-white shadow-lg [&>header:first-child]:rounded-t-lg"
+          >
+            <PageHeader
+              title="Change role"
+              subtitle={`${target.name} · ${target.login_id}`}
+              actions={
+                <Button type="submit" variant="primary" size="sm" disabled={savingRole}>
+                  {savingRole ? "Saving…" : "Save role"}
+                </Button>
+              }
+              trailing={
+                <Button size="sm" onClick={() => setTarget(null)}>
+                  Cancel
+                </Button>
+              }
+            />
+
+            {roleError && (
+              <div className="border-b border-[var(--line)] p-5">
+                <InlineAlert title={roleError} />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-5 p-5">
+              <SelectField
+                label="Role"
+                value={nextRole}
+                onChange={(event) => {
+                  setNextRole(event.target.value as Role);
+                  setRoleError(null);
+                }}
+                options={ROLE_OPTIONS}
+                required
+              />
+
+              {nextRole === "user" && (
+                <Combobox
+                  label="Linked contact"
+                  value={nextContactId}
+                  onChange={(value) => {
+                    setNextContactId(value);
+                    setRoleError(null);
+                  }}
+                  options={contacts.map((contact) => ({
+                    value: contact.id,
+                    label: contact.name,
+                  }))}
+                  placeholder="Search contacts…"
+                  hint="The portal account can only see this contact's documents."
+                  required
+                />
+              )}
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

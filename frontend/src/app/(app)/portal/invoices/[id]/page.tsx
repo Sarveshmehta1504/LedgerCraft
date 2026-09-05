@@ -78,29 +78,34 @@ export default function PortalInvoicePage() {
           subtitle={`Billed to ${current.contact_name}`}
           actions={
             due > 0 && (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => {
-                  setAmount(due);
-                  setPayOpen((open) => !open);
-                }}
-              >
-                Pay {formatMoney(due)}
-              </Button>
+              <span className="no-print">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    setAmount(due);
+                    setPayOpen((open) => !open);
+                  }}
+                >
+                  Pay {formatMoney(due)}
+                </Button>
+              </span>
             )
           }
           trailing={
             <>
               <StatusBadge status={current.status} />
-              {/* The server PDF route is staff-only, so this prints the page the
-                  customer is already looking at — same content, no 403. */}
-              <Button size="sm" onClick={() => window.print()}>
-                Print
-              </Button>
-              <Button size="sm" onClick={() => router.push("/portal")}>
-                Back
-              </Button>
+              {/* The server PDF route is staff-only (403 for this role) and the
+                  portal prefix has no pdf/send of its own, so Print is the
+                  browser's own print of this sheet. */}
+              <span className="no-print flex items-center gap-2">
+                <Button size="sm" onClick={() => window.print()}>
+                  Print
+                </Button>
+                <Button size="sm" onClick={() => router.push("/portal")}>
+                  Back
+                </Button>
+              </span>
             </>
           }
         />
