@@ -1,17 +1,18 @@
 "use client";
 
+import { useCallback } from "react";
 import { BillList } from "@/components/shared/BillList";
-import { MOCK_CUSTOMER_INVOICES } from "@/lib/mock-data";
+import { CustomerInvoicesApi } from "@/lib/resources";
 
 export default function CustomerInvoicesPage() {
-  // TODO: replace with real API once backend/customer-invoices is ready (GET /api/customer-invoices).
+  const fetcher = useCallback(() => CustomerInvoicesApi.list(), []);
   return (
     <BillList
       title="Customer Invoices"
       subtitle="Post to the ledger, then collect"
       partnerLabel="Customer"
       basePath="/invoices"
-      source={MOCK_CUSTOMER_INVOICES}
+      fetcher={fetcher}
     />
   );
 }

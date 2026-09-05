@@ -1,11 +1,22 @@
-import { notFound } from "next/navigation";
-import { BillForm } from "@/components/forms/BillForm";
-import { MOCK_VENDOR_BILLS } from "@/lib/mock-data";
+"use client";
 
-export default async function VendorBillPage({ params }: PageProps<"/bills/[id]">) {
-  const { id } = await params;
-  // TODO: replace with real API once backend/vendor-bills is ready (GET /api/vendor-bills/{id}).
-  const bill = MOCK_VENDOR_BILLS.find((record) => String(record.id) === id);
-  if (!bill) notFound();
+import { useParams } from "next/navigation";
+import { useCallback } from "react";
+import { BillForm } from "@/components/forms/BillForm";
+import { ErrorState, TableSkeleton } from "@/components/ui/States";
+import { VendorBillsApi } from "@/lib/resources";
+import type { VendorBillDetail } from "@/lib/resources";
+import { useAsyncData } from "@/lib/use-async-data";
+
+export default function VendorBillPage() {
+  const { id } = useParams<{ id: string }>();
+  const fetchData = useCallback(() => VendorBillsApi.get(Number(id)), [id]);
+  const { data: bill, loading, error, retry } = useAsyncData<VendorBillDetail>(
+    fetchData,
+    "Could not load this vendor bill.",
+  );
+
+  if (loading) return <TableSkeleton rows={4} columns={2} />;
+  if (error || !bill) return <ErrorState message={error ?? "Vendor bill not found."} onRetry={retry} />;
   return <BillForm side="bill" document={bill} />;
 }
