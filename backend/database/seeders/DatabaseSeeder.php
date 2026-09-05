@@ -45,5 +45,19 @@ class DatabaseSeeder extends Seeder
             ],
         );
         $accountant->syncRoles(['accountant']);
+
+        // Master data, then opening balances, then the transactions that
+        // reference them - see docs/SEEDING.md for why each of these posts
+        // through a service rather than a raw insert.
+        $this->call([
+            ContactSeeder::class,
+            ProductSeeder::class,
+            AnalyticAccountSeeder::class,
+            PortalUserSeeder::class,
+            OpeningBalanceSeeder::class,
+            BudgetSeeder::class,
+            PurchaseDemoSeeder::class,
+            SalesDemoSeeder::class,
+        ]);
     }
 }
