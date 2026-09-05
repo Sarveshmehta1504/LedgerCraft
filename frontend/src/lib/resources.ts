@@ -12,6 +12,7 @@ import {
   mapCustomerInvoice,
   mapCustomerInvoiceDetail,
   mapJournal,
+  mapManagedUser,
   mapPayment,
   mapProduct,
   mapProductCategory,
@@ -22,7 +23,7 @@ import {
   mapVendorBillDetail,
 } from "./normalize";
 export type { VendorBillDetail, CustomerInvoiceDetail } from "./normalize";
-import type { ChartOfAccount, Contact, ContactType, DocumentLine, Journal, JournalType, PaymentVia, Product, ProductType } from "@/types";
+import type { ChartOfAccount, Contact, ContactType, DocumentLine, Journal, JournalType, PaymentVia, Product, ProductType, Role } from "@/types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Raw = any;
@@ -38,6 +39,40 @@ function toLinePayload(line: DocumentLine) {
     ...(line.tax_percent !== undefined ? { tax_percent: line.tax_percent } : {}),
   };
 }
+
+/**
+ * Admin-only user directory. The backend guards every one of these with
+ * UserPolicy, and this is the only route by which an admin or accountant
+ * account can be created — signup always produces a portal `user`.
+ */
+export const UsersApi = {
+  list: (params?: { search?: string; role?: Role; deactivated?: "only" }) => {
+    const query = new URLSearchParams();
+    if (params?.search) query.set("search", params.search);
+    if (params?.role) query.set("role", params.role);
+    if (params?.deactivated) query.set("deactivated", params.deactivated);
+    const suffix = query.toString() ? `?${query}` : "";
+    return apiFetch<Raw[]>(`/users${suffix}`).then((rows) => rows.map(mapManagedUser));
+  },
+  create: (input: {
+    name: string;
+    login_id: string;
+    email: string;
+    password: string;
+    role: Role;
+    contact_id?: number | null;
+  }) => apiFetch<Raw>("/users", { method: "POST", body: JSON.stringify(input) }).then(mapManagedUser),
+  assignRole: (id: number, role: Role, contactId?: number | null) =>
+    apiFetch<Raw>(`/users/${id}/role`, {
+      method: "PUT",
+      body: JSON.stringify({ role, contact_id: contactId ?? null }),
+    }).then(mapManagedUser),
+  /** Deactivate, not delete — the backend also revokes the account's tokens. */
+  deactivate: (id: number) =>
+    apiFetch<Raw>(`/users/${id}`, { method: "DELETE" }).then(mapManagedUser),
+  reactivate: (id: number) =>
+    apiFetch<Raw>(`/users/${id}/reactivate`, { method: "PATCH" }).then(mapManagedUser),
+};
 
 export const ContactsApi = {
   list: () => apiFetch<Raw[]>("/contacts").then((rows) => rows.map(mapContact)),
