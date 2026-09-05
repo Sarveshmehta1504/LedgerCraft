@@ -247,6 +247,45 @@ Keep API responses predictable across the backend.
 
 ---
 
+# 🔌 Backend API (integration quick reference)
+
+Full contract: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
+
+Base URL `http://127.0.0.1:8000/api`. Every endpoint except `/health` and the
+public auth routes needs `Authorization: Bearer <token>`.
+
+**Login is by `login_id`, not email.** Seeded accounts:
+
+| login_id      | password      | role       |
+| ------------- | ------------- | ---------- |
+| `adminuser`   | `Admin@123`   | admin      |
+| `accountant1` | `Account@123` | accountant |
+
+No portal (`user`) account is seeded — create one with `POST /auth/signup`,
+which also creates its linked customer contact.
+
+```text
+auth        POST /auth/login | /auth/signup | /auth/logout | /auth/forgot-password
+            POST /auth/reset-password   GET /auth/me
+master      /contacts  /products  /product-categories  /accounts  /journals
+            + PATCH {id}/archive and {id}/unarchive on each
+users       /users (admin only) + PUT /users/{id}/role + PATCH {id}/reactivate
+purchase    /purchase-orders + {id}/confirm + {id}/convert-to-bill
+            /vendor-bills    + {id}/post    + {id}/payments
+sales       /sales-orders    + {id}/confirm + {id}/convert-to-invoice
+            /customer-invoices + {id}/post  + {id}/payments
+portal      GET /my/invoices | /my/bills    POST /my/invoices/{id}/pay
+reports     GET /reports/profit-and-loss | /reports/balance-sheet | /reports/trial-balance
+```
+
+Every response uses the `{code, message, data?}` envelope, and `code` mirrors the
+HTTP status.
+
+Adding seeders? Read [`docs/SEEDING.md`](docs/SEEDING.md) first — journal entries
+must never be inserted by hand.
+
+---
+
 # 🧪 Initial Integration Test
 
 Before implementing the actual problem statement, the repository should prove that frontend and backend communicate correctly.
