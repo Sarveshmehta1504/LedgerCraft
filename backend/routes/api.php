@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\JournalController;
 use App\Http\Controllers\Api\ProductCategoryController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\PurchaseOrderController;
+use App\Http\Controllers\Api\SalesOrderController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VendorBillController;
 use Illuminate\Http\Request;
@@ -71,6 +72,12 @@ Route::middleware('auth:sanctum')->group(function () {
         ->parameters(['purchase-orders' => 'purchaseOrder']);
     Route::post('purchase-orders/{purchaseOrder}/confirm', [PurchaseOrderController::class, 'confirm']);
     Route::post('purchase-orders/{purchaseOrder}/convert-to-bill', [PurchaseOrderController::class, 'convertToBill']);
+
+    // Sales flow: SO -> confirm -> convert to invoice.
+    Route::apiResource('sales-orders', SalesOrderController::class)
+        ->parameters(['sales-orders' => 'salesOrder']);
+    Route::post('sales-orders/{salesOrder}/confirm', [SalesOrderController::class, 'confirm']);
+    Route::post('sales-orders/{salesOrder}/convert-to-invoice', [SalesOrderController::class, 'convertToInvoice']);
 
     // Vendor bills: draft -> posted (creates the journal entry) -> paid.
     Route::apiResource('vendor-bills', VendorBillController::class)
