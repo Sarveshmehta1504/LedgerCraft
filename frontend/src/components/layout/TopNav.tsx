@@ -3,15 +3,25 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/brand/Logo";
-import { logout } from "@/lib/auth";
+import { landingPathFor, logout } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/session";
+import type { Role, User } from "@/types";
 import { useEffect, useRef, useState } from "react";
 
 /**
  * Nav structure is taken verbatim from the design board: four tabs, each opening
  * a mega menu on click.
  */
-const NAV: { id: string; label: string; items: { label: string; href: string }[] }[] = [
+interface NavItem {
+  label: string;
+  href: string;
+  /** Omitted = visible to every signed-in role. */
+  roles?: Role[];
+}
+
+const NAV: { id: string; label: string; items: NavItem[] }[] = [
   {
     id: "sales",
     label: "Sales",
@@ -41,7 +51,9 @@ const NAV: { id: string; label: string; items: { label: string; href: string }[]
       { label: "Chart of Accounts", href: "/accounts" },
       { label: "Journals", href: "/journals" },
       { label: "Journal Entries", href: "/journal-entries" },
-      { label: "Users", href: "/users" },
+      // User management is admin-only in UserPolicy; showing it to anyone else
+      // just leads to a 403 screen.
+      { label: "Users", href: "/users", roles: ["admin"] },
     ],
   },
   {
@@ -59,9 +71,29 @@ export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [openTab, setOpenTab] = useState<string | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
 
+  // localStorage is unreadable during SSR, so the signed-in user resolves after mount.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setUser(getCurrentUser());
+  }, []);
+
+  // Menus are filtered to what the signed-in role can actually reach. A portal
+  // account gets 403 from every back-office route, so it sees no menus at all.
+  const isPortal = user?.role === "user";
+  const visibleNav = isPortal
+    ? []
+    : NAV.map((tab) => ({
+        ...tab,
+        items: tab.items.filter((item) => !item.roles || (user && item.roles.includes(user.role))),
+      })).filter((tab) => tab.items.length > 0);
+
   async function onLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
     await logout();
     router.replace("/login");
   }
@@ -87,12 +119,12 @@ export function TopNav() {
       {/* Below sm the logo sits on its own row and the tabs become a scrollable
           strip — shrinking four labels to fit 375px makes them unreadable. */}
       <div className="flex flex-col px-4 sm:flex-row sm:items-center sm:gap-1 sm:px-5">
-        <Link href="/dashboard" className="flex items-center py-2.5 sm:mr-4">
+        <Link href={landingPathFor(user)} className="flex items-center py-2.5 sm:mr-4">
           <Logo size={20} />
         </Link>
 
         <div className="no-scrollbar -mx-4 flex items-center gap-1 overflow-x-auto px-4 sm:mx-0 sm:overflow-x-visible sm:px-0">
-        {NAV.map((tab) => {
+        {visibleNav.map((tab) => {
           const isOpen = openTab === tab.id;
           const isActive = tab.items.some((item) => pathname.startsWith(item.href));
           return (
@@ -117,20 +149,34 @@ export function TopNav() {
         })}
         </div>
 
-        <button
-          type="button"
-          onClick={onLogout}
-          className="mb-1 flex shrink-0 items-center gap-1.5 self-start px-3 py-2.5 text-sm font-medium text-[var(--text-muted)] transition-colors duration-150 hover:text-[var(--text)] sm:mb-0 sm:ml-auto sm:self-auto"
-        >
-          <LogOut size={15} />
-          Log out
-        </button>
+        <div className="mb-1.5 flex shrink-0 items-center gap-2.5 self-start sm:mb-0 sm:ml-auto sm:self-auto">
+          {/* Who is signed in, and as what — the three roles see different menus,
+              so the badge makes the active role obvious rather than inferred. */}
+          {user && (
+            <span className="hidden items-center gap-2 md:flex">
+              <span className="text-[13px] font-medium text-[var(--text)]">{user.name}</span>
+              <span className="rounded bg-[var(--surface-raised)] px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-[var(--text-muted)]">
+                {user.role === "user" ? "Portal" : user.role}
+              </span>
+            </span>
+          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onLogout}
+            disabled={loggingOut}
+            aria-label="Log out"
+          >
+            <LogOut size={14} />
+            {loggingOut ? "Signing out…" : "Log out"}
+          </Button>
+        </div>
       </div>
 
       {openTab && (
         <div className="absolute inset-x-0 top-full border-b border-[var(--line)] bg-white shadow-[0_12px_24px_-16px_rgba(24,24,27,0.25)]">
           <div className="grid grid-cols-2 gap-x-8 gap-y-0.5 px-5 py-4 sm:grid-cols-3 lg:grid-cols-4">
-            {NAV.find((tab) => tab.id === openTab)?.items.map((item) => (
+            {visibleNav.find((tab) => tab.id === openTab)?.items.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

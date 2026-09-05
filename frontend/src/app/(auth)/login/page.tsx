@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
 import { InlineAlert } from "@/components/ui/States";
 import { ApiError } from "@/lib/api";
-import { login, POST_LOGIN_PATH } from "@/lib/auth";
+import { landingPathFor, login } from "@/lib/auth";
 
 function LoginForm() {
   const router = useRouter();
@@ -29,8 +29,8 @@ function LoginForm() {
 
     setSubmitting(true);
     try {
-      await login(loginId, password);
-      router.push(POST_LOGIN_PATH);
+      const user = await login(loginId, password);
+      router.push(landingPathFor(user));
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Could not reach the server. Try again.",

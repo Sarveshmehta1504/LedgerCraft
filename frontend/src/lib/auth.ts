@@ -58,6 +58,16 @@ export async function logout(): Promise<void> {
   }
 }
 
-// FRONTEND_REQUIREMENTS.md sends a `user`-role account to /portal, but that screen
-// doesn't exist yet, so everyone lands on /dashboard for now.
-export const POST_LOGIN_PATH = "/dashboard";
+export const PORTAL_PATH = "/portal";
+export const BACK_OFFICE_PATH = "/dashboard";
+
+/**
+ * A `user` account is scoped to its own contact and gets 403 from every
+ * back-office route, so it lands on the portal instead of an empty dashboard.
+ */
+export function landingPathFor(user: Pick<User, "role"> | null): string {
+  return user?.role === "user" ? PORTAL_PATH : BACK_OFFICE_PATH;
+}
+
+/** Default landing when the role isn't known yet (e.g. a guard redirect). */
+export const POST_LOGIN_PATH = BACK_OFFICE_PATH;

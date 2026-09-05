@@ -78,6 +78,16 @@ export const UsersApi = {
     apiFetch<Raw>(`/users/${id}/reactivate`, { method: "PATCH" }).then(mapManagedUser),
 };
 
+/**
+ * Contact portal. Scope comes from the signed-in user's contact_id server-side,
+ * so these are the only endpoints a `user` role can reach — every back-office
+ * route returns 403 for them.
+ */
+export const PortalApi = {
+  invoices: () => apiFetch<Raw[]>("/my/invoices").then((rows) => rows.map(mapCustomerInvoice)),
+  bills: () => apiFetch<Raw[]>("/my/bills").then((rows) => rows.map(mapVendorBill)),
+};
+
 export const AnalyticAccountsApi = {
   list: () => apiFetch<Raw[]>("/analytic-accounts").then((rows) => rows.map(mapAnalyticAccount)),
   get: (id: number) => apiFetch<Raw>(`/analytic-accounts/${id}`).then(mapAnalyticAccount),
