@@ -12,10 +12,10 @@ class BudgetSeeder extends Seeder
 {
     /**
      * Depends on AnalyticAccountSeeder and ContactSeeder. Achieved amount is
-     * derived on read from journal_entry_lines - see docs/DB_SCHEMA.md - so it
-     * is never set here; it becomes non-zero once PurchaseDemoSeeder /
-     * SalesDemoSeeder post lines tagged with these analytic accounts inside
-     * this same period.
+     * derived on read from posted invoice/bill LINES carrying the analytic
+     * account - see docs/DB_SCHEMA.md - so it is never set here; it becomes
+     * non-zero once PurchaseDemoSeeder / SalesDemoSeeder post lines tagged with
+     * these analytic accounts inside this same period.
      */
     public function run(): void
     {
@@ -63,6 +63,57 @@ class BudgetSeeder extends Seeder
                 'committed_amount' => 20000,
                 'responsible_id' => $responsibleLogistics->id,
                 'status' => 'draft',
+            ],
+        );
+
+        $this->seedRevisionPair($factoryOverheads->id, $responsibleVendor->id, $periodStart, $periodEnd);
+        $this->seedCancelled($logistics->id, $responsibleLogistics->id, $periodStart, $periodEnd);
+    }
+
+    /**
+     * A superseded budget and the replacement that supersedes it, so the
+     * revision flow is visible in the demo without anyone having to click
+     * Revise first. The report lists both but only counts the replacement.
+     */
+    private function seedRevisionPair(int $analyticId, int $responsibleId, string $start, string $end): void
+    {
+        $original = Budget::firstOrCreate(
+            ['name' => 'Showroom Refit Budget'],
+            [
+                'analytic_account_id' => $analyticId,
+                'period_start' => $start,
+                'period_end' => $end,
+                'committed_amount' => 150000,
+                'responsible_id' => $responsibleId,
+                'status' => 'revised',
+            ],
+        );
+
+        Budget::firstOrCreate(
+            ['name' => 'Showroom Refit Budget Revised'],
+            [
+                'analytic_account_id' => $analyticId,
+                'period_start' => $start,
+                'period_end' => $end,
+                'committed_amount' => 225000,
+                'responsible_id' => $responsibleId,
+                'status' => 'confirmed',
+                'revision_of_id' => $original->id,
+            ],
+        );
+    }
+
+    private function seedCancelled(int $analyticId, int $responsibleId, string $start, string $end): void
+    {
+        Budget::firstOrCreate(
+            ['name' => 'Trade Show Stand (cancelled)'],
+            [
+                'analytic_account_id' => $analyticId,
+                'period_start' => $start,
+                'period_end' => $end,
+                'committed_amount' => 40000,
+                'responsible_id' => $responsibleId,
+                'status' => 'cancelled',
             ],
         );
     }
