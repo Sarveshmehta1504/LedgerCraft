@@ -9,15 +9,15 @@ behind them.
 # Authentication & Roles
 
 * [ ] Sanctum token login/logout
-* [ ] Spatie roles: `admin`, `invoicing_user`, `contact`, seeded in
+* [ ] Spatie roles: `admin`, `accountant`, `user`, seeded in
       `RoleSeeder` at project setup
-* [ ] A `contact`-role user is always linked to exactly one `contacts` row via
-      `users.contact_id` — create this link when an Admin/Invoicing User
+* [ ] A `user`-role account is always linked to exactly one `contacts` row via
+      `users.contact_id` — create this link when an Admin/Accountant
       generates portal access for a contact (bonus: "Invite Contact" action)
 
 ## Role Matrix
 
-| Action                                  | Admin | Invoicing User | Contact |
+| Action                                  | Admin | Accountant | User |
 | ---------------------------------------- | ----- | ---------------- | -------- |
 | CRUD master data (Contacts/Products/CoA) | ✅    | ✅ create/edit only | ❌     |
 | Archive/delete master data               | ✅    | ❌                | ❌       |
@@ -53,7 +53,7 @@ See API_DOCUMENTATION.md → Chart of Accounts, Journals, Journal Entries.
 * `journal_entry_lines`: debit and credit are never both non-zero on the same line
 
 ## Authorization
-Admin + Invoicing User read/write; Contact has no access.
+Admin + Accountant read/write; portal User has no access.
 
 ## Database
 `chart_of_accounts`, `journals`, `journal_entries`, `journal_entry_lines`
@@ -84,10 +84,11 @@ Admin + Invoicing User read/write; Contact has no access.
 
 ## Validation
 * Every line must reference an existing, non-archived product
+* Every product must reference an existing product category (`category_id`, required)
 * `quantity > 0`, `unit_price >= 0`
 
 ## Authorization
-Admin, Invoicing User only.
+Admin, Accountant only.
 
 ## Database
 `purchase_orders`, `purchase_order_lines`, `vendor_bills`, `vendor_bill_lines`,
@@ -105,8 +106,10 @@ Admin, Invoicing User only.
 ## Business Rules
 Mirror of Purchase Flow. Posting an invoice creates: Debit `Debtors/AR`, Credit
 `Sale Income`. Payment creates: Debit `Cash`/`Bank`, Credit `Debtors/AR`.
-Tax (if applied) is added to the line subtotal and posted to `Sale Income` as a
-simple percentage add-on (no separate tax liability account in P0 scope).
+Tax is a **required PS field on Sales Order** (and carries to the Customer
+Invoice); it is added to the line subtotal and posted to `Sale Income` as a simple
+percentage add-on (no separate tax liability account in P0 scope). Purchase-side
+documents have no tax field.
 
 ## Endpoints
 `POST /sales-orders`, `.../confirm`, `.../convert-to-invoice`,
@@ -117,7 +120,7 @@ simple percentage add-on (no separate tax liability account in P0 scope).
 Same shape as Purchase Flow.
 
 ## Authorization
-Admin/Invoicing User for full CRUD; Contact restricted to `GET /my/invoices`
+Admin/Accountant for full CRUD; portal User restricted to `GET /my/invoices`
 and `POST /my/invoices/{id}/pay` where `contact_id == auth()->user()->contact_id`
 — enforce this in a policy, not just a query scope, so a crafted request to
 someone else's invoice ID returns 403.
@@ -146,7 +149,7 @@ someone else's invoice ID returns 403.
 `GET/POST /analytic-accounts`, `GET/POST /budgets`, `GET /reports/budget`
 
 ## Authorization
-Admin, Invoicing User only.
+Admin, Accountant only.
 
 ---
 
@@ -154,8 +157,11 @@ Admin, Invoicing User only.
 
 ## Business Rules
 1. Balance Sheet: for each account, balance = sum(debit) - sum(credit) for
-   Asset/Expense-type accounts, sum(credit) - sum(debit) for
-   Liability/Income/Capital-type accounts, as of the given date.
+   **debit-normal** types (`asset`, `bank`, `cash`, `expense`, `other_expense`),
+   and sum(credit) - sum(debit) for **credit-normal** types (`liability`,
+   `income`, `capital`), as of the given date.
+   Balance Sheet sections: Assets = `asset` + `bank` + `cash`;
+   Liabilities = `liability` + `capital`.
 2. Assets must equal Liabilities + Capital — if they don't in testing, the bug
    is in the posting logic, not the report; fix it there.
 3. P&L: Income accounts minus Expense accounts within the date range = net
@@ -166,7 +172,7 @@ Admin, Invoicing User only.
 See API_DOCUMENTATION.md → Reports.
 
 ## Authorization
-Admin, Invoicing User only.
+Admin, Accountant only.
 
 ## Important Error Cases
 * `as_of` date in the future relative to server time is allowed (still valid —

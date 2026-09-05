@@ -22,7 +22,7 @@ computes financial reports live from the ledger rather than from stored snapshot
 ## Target Users
 
 * Admin (Business Owner) — full control: master data, transactions, reports
-* Invoicing User (Accountant) — creates master data, records transactions, views reports
+* Accountant (`accountant`, the PS's "Invoicing User") — creates master data, records transactions, views reports
 * Contact (Customer/Vendor portal user) — views only their own invoices/bills, pays them
 
 ## Why This Matters

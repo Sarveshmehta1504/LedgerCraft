@@ -33,7 +33,7 @@ names once assigned).
 
 * [ ] BE-001 Migrations: users(+contact_id), contacts, products, chart_of_accounts, journals
 * [ ] BE-002 Migrations: journal_entries, journal_entry_lines, analytic_accounts, budgets
-* [ ] BE-003 RoleSeeder (admin/invoicing_user/contact) + CoA seeder (Cash, Bank, Debtors, Creditors, Sale Income, Purchase Expense, Capital) + Journal seeder (Sales/Purchase/Bank/Cash)
+* [ ] BE-003 RoleSeeder (admin/accountant/user) + CoA seeder using the 8 account types — Cash (`cash`), Bank (`bank`), Debtors (`asset`), Creditors (`liability`), Sale Income (`income`), Purchase Expense (`expense`), Capital (`capital`), plus at least one `other_expense` account so P&L has all three expense rows + Journal seeder (Sales/Purchase/Bank/Cash)
 * [ ] BE-004 Contacts CRUD API + Products CRUD API + policies
 * [ ] BE-005 Chart of Accounts CRUD API + Journals CRUD API
 * [ ] BE-006 JournalEntryService: create balanced entry in a DB transaction, reject if debit != credit — this is the single most important class in the codebase, write it once and reuse it everywhere below

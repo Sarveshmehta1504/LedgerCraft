@@ -11,7 +11,7 @@
 Laravel Sanctum, token-based (SPA or personal access token — token is simplest for a
 hackathon: return it on login, frontend sends `Authorization: Bearer <token>`).
 Every route below except `/auth/login` requires auth. Role checks use Spatie
-middleware (`role:admin`, `role:admin,invoicing_user`, etc.) per the matrix in
+middleware (`role:admin`, `role:admin,accountant`, etc.) per the matrix in
 `BACKEND_REQUIREMENTS.md`.
 
 ---
@@ -44,18 +44,30 @@ Returns current user + role + linked contact_id (if role=contact).
 
 # Contacts
 
-* `GET /contacts` — filters: `type`, `search` — Admin, Invoicing User
-* `POST /contacts` — Admin, Invoicing User
-* `GET /contacts/{id}` — Admin, Invoicing User, or Contact viewing self
-* `PUT /contacts/{id}` — Admin, Invoicing User
+* `GET /contacts` — filters: `type`, `search` — Admin, Accountant
+* `POST /contacts` — Admin, Accountant
+* `GET /contacts/{id}` — Admin, Accountant, or a portal User viewing their own contact
+* `PUT /contacts/{id}` — Admin, Accountant
 * `DELETE /contacts/{id}` — Admin only, blocked (422) if contact has any transactions — archive instead via `PATCH /contacts/{id}/archive`
+
+---
+
+# Product Categories
+
+* `GET /product-categories` — populates the Category dropdown on the product form
+* `GET /product-categories/{id}`
+* `POST /product-categories` / `PUT /product-categories/{id}` — Admin, Accountant
+* `DELETE /product-categories/{id}` — Admin only, blocked (409) if the category is
+  referenced by any product or has child categories
 
 ---
 
 # Products
 
-* `GET /products` — filters: `type`, `category`, `search`
+* `GET /products` — filters: `type`, `category_id`, `search`. Each product embeds
+  its related category so the list view can render the name in one request.
 * `POST /products` / `PUT /products/{id}` / `PATCH /products/{id}/archive`
+* `category_id` is required — validated with `required|exists:product_categories,id`
 
 ---
 

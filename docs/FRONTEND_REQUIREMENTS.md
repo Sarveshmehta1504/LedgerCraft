@@ -9,12 +9,12 @@
 Login form, error message, loading state.
 
 ## API
-`POST /api/auth/login` — store token, redirect by role: admin/invoicing_user →
+`POST /api/auth/login` — store token, redirect by role: admin/accountant →
 `/dashboard`, contact → `/portal`.
 
 ---
 
-# 2. Dashboard (Admin / Invoicing User home)
+# 2. Dashboard (Admin / Accountant home)
 
 ## Route
 `/dashboard`
@@ -40,7 +40,7 @@ Loading, Empty, Error, Success
 ## User Actions
 1. List/search/filter contacts by type
 2. Create/edit contact (name, type, email, mobile, address, profile image)
-3. Archive contact (Admin only — button hidden for Invoicing User)
+3. Archive contact (Admin only — button hidden for Accountant)
 
 ## API Dependencies
 `GET/POST/PUT /api/contacts`, `PATCH /api/contacts/{id}/archive`
@@ -53,12 +53,16 @@ Inline field errors from 422 `errors` payload; toast for 403/500.
 
 ---
 
-# 4. Master Data — Products, Chart of Accounts, Journals
+# 4. Master Data — Product Categories, Products, Chart of Accounts, Journals
 
 Same pattern as Contacts: list + form + (archive for Admin). Routes:
-`/products`, `/accounts`, `/journals`. Chart of Accounts list should visually
-group by `type` (Assets/Liabilities/Income/Expense/Capital) — this doubles as a
-mini reference screen during the demo.
+`/product-categories`, `/products`, `/accounts`, `/journals`. Product categories
+need their own list + create/edit screens, since a category must exist before a
+product can be created. On the Product form, `Category` is a required
+searchable select populated from `GET /product-categories` — never a text input;
+the product list shows the category name and supports filtering by it. Chart of Accounts list should visually
+group by `type` — all eight: Asset, Liability, Bank, Capital, Cash, Income,
+Expense, Other Expense — this doubles as a mini reference screen during the demo.
 
 ---
 
