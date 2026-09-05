@@ -48,8 +48,20 @@ the next lane:
   `UnbalancedJournalEntryException`, which renders itself as a 422.
 * Money is compared in integer paise, not floats. Keep it that way.
 * Master data uses `archived_at` + the `active()` scope, not soft deletes.
-* Seeded logins (login is by `login_id`, not email): `adminuser` / `Admin@123`,
-  `accountant1` / `Account@123`.
+* Seeded logins (login is by `login_id`, **not** email):
+
+  | login_id      | password       | role       | email                                |
+  | ------------- | -------------- | ---------- | ------------------------------------ |
+  | `adminuser`   | `Admin@123`    | admin      | admin_ledgercraft@yopmail.com        |
+  | `accountant1` | `Account@123`  | accountant | accountant_ledgercraft@yopmail.com   |
+
+  No portal (`user`) account is seeded — create one via `POST /api/auth/signup`,
+  which also creates its linked customer Contact.
+
+  Addresses are real yopmail.com inboxes (read them at yopmail.com, no login
+  needed) so password reset and Send-by-mail can be shown working in the demo.
+  `example.com` / `.test` addresses are rejected outright by Resend.
+* `php artisan migrate:fresh --seed` rebuilds everything; all seeders are idempotent.
 
 ## Backend — owner: member-2 (Transaction Flow + Reports)
 
@@ -107,7 +119,7 @@ the next lane:
 * [x] BE-024 Public signup endpoint — role `user` hardcoded server-side, `role` in payload ignored; creates + links a `customer` Contact in the same transaction (reuse an existing contact with the same email)
 * [ ] BE-025 Admin Users CRUD + role assignment endpoints behind `role:admin`
 * [ ] FE-022 Signup page (no role selector) + Admin Users screen with role dropdown
-* [ ] BE-021 SMTP configured in `.env` (MAIL_MAILER=smtp, Mailtrap or Gmail app password) — default `log` sends nothing. Send synchronously: no `ShouldQueue`, no queue worker to run during the demo
+* [x] BE-021 Mail configured — Resend via `resend/resend-laravel` (`MAIL_MAILER=resend`, `RESEND_API_KEY`), domain verified, live send verified. Sent synchronously: no `ShouldQueue`, no queue worker needed
 * [ ] BE-022 Invoice/Bill PDF + `POST .../send` Mailable with the PDF attached
 * [ ] BE-023 Report PDF (`GET /reports/{report}/pdf`) + `POST /reports/{report}/send`
 * [ ] FE-020 Forgot Password + Reset Password pages wired to the auth endpoints
