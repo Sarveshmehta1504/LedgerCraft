@@ -29,6 +29,7 @@ include them.
 | email       | string    | No       | —       | Unique                                |
 | password    | string    | No       | —       | Hashed                                |
 | contact_id  | bigint FK | Yes      | null    | Links a role-`user` account to its Contact — **always set for role `user`**, null for admins/accountants |
+| deactivated_at | timestamp | Yes   | null    | Set when the account is deactivated; null = active. Deactivated users cannot log in. Accounts are **never** deleted — `journal_entries.created_by` references them |
 | created_at  | timestamp | No       | —       | Created                               |
 | updated_at  | timestamp | No       | —       | Updated                               |
 
