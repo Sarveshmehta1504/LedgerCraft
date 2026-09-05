@@ -75,3 +75,5 @@ test-results/
 CLAUDE.md
 AGENTS.md
 docs/agents
+# ---- Design reference (local only) ----
+/design-file.png

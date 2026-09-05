@@ -1,26 +1,83 @@
 @import "tailwindcss";
 
+/*
+  LedgerCraft design tokens.
+  Direction: dense, light, back-office ERP (see docs/UI_GUIDELINES.md).
+  Chrome is monochrome zinc; one restrained brand accent (teal) is reserved for
+  active nav, focus rings and links. Status colour lives only inside badges so it
+  never competes with the chrome.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --surface: #ffffff;
+  --surface-sunken: #fafafa;
+  --surface-raised: #f4f4f5;
+
+  --text: #18181b;
+  --text-muted: #52525b;
+  --text-subtle: #a1a1aa;
+
+  --line: #e4e4e7;
+  --line-strong: #d4d4d8;
+
+  --accent: #0f766e;
+  --accent-hover: #115e59;
+  --accent-wash: #f0fdfa;
+
+  --status-draft: #52525b;
+  --status-draft-wash: #f4f4f5;
+  --status-confirmed: #1d4ed8;
+  --status-confirmed-wash: #eff6ff;
+  --status-posted: #1d4ed8;
+  --status-posted-wash: #eff6ff;
+  --status-paid: #047857;
+  --status-paid-wash: #ecfdf5;
+  --status-billed: #4338ca;
+  --status-billed-wash: #eef2ff;
+  --status-overdue: #b91c1c;
+  --status-overdue-wash: #fef2f2;
+
+  --danger: #b91c1c;
+  --danger-wash: #fef2f2;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-raised: var(--surface-raised);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-subtle: var(--text-subtle);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-wash: var(--accent-wash);
+  --color-danger: var(--danger);
+  --color-danger-wash: var(--danger-wash);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--surface-sunken);
+  color: var(--text);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Numbers are read in columns — always tabular, never proportional. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
