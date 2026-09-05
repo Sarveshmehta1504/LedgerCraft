@@ -42,11 +42,56 @@ export default function PortalInvoicePage() {
   const [payError, setPayError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const [printing, setPrinting] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
+
   if (loading && !current) return <TableSkeleton rows={5} columns={4} />;
   if (error && !current) return <ErrorState message={error} onRetry={retry} />;
   if (!current) return <ErrorState message="Invoice not found." onRetry={retry} />;
 
   const due = current.amount_due;
+
+  /**
+   * Prefers the server's own PDF so the customer gets the same document the
+   * back office sends. That route is not published under /my yet, so a 404 or
+   * 403 falls through to the browser printing this sheet, which the print
+   * stylesheet already formats as an invoice.
+   */
+  async function printInvoice() {
+    if (!current) return;
+    setPrinting(true);
+    setDocError(null);
+    try {
+      await PortalApi.pdf(current.id, current.invoice_number);
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 404 || err.status === 403)) window.print();
+      else setDocError(err instanceof ApiError ? err.message : "Could not produce this invoice.");
+    } finally {
+      setPrinting(false);
+    }
+  }
+
+  async function sendInvoice() {
+    if (!current) return;
+    setSending(true);
+    setDocError(null);
+    setNotice(null);
+    try {
+      await PortalApi.send(current.id);
+      setNotice(`${current.invoice_number} has been emailed to you.`);
+    } catch (err) {
+      setDocError(
+        err instanceof ApiError && err.status === 404
+          ? "Emailing an invoice is not available on this account yet. Use Print to save a copy."
+          : err instanceof ApiError
+            ? err.message
+            : "Could not email this invoice.",
+      );
+    } finally {
+      setSending(false);
+    }
+  }
 
   async function pay(event: React.FormEvent) {
     event.preventDefault();
@@ -99,8 +144,11 @@ export default function PortalInvoicePage() {
                   portal prefix has no pdf/send of its own, so Print is the
                   browser's own print of this sheet. */}
               <span className="no-print flex items-center gap-2">
-                <Button size="sm" onClick={() => window.print()}>
-                  Print
+                <Button size="sm" disabled={printing} onClick={printInvoice}>
+                  {printing ? "Preparing…" : "Print"}
+                </Button>
+                <Button size="sm" disabled={sending} onClick={sendInvoice}>
+                  {sending ? "Sending…" : "Send"}
                 </Button>
                 <Button size="sm" onClick={() => router.push("/portal")}>
                   Back
@@ -114,6 +162,12 @@ export default function PortalInvoicePage() {
           <p className="border-b border-[var(--line)] bg-[var(--status-paid-wash)] px-5 py-2 text-[13px] text-[var(--status-paid)]">
             {notice}
           </p>
+        )}
+
+        {docError && (
+          <div className="no-print border-b border-[var(--line)] p-5">
+            <InlineAlert title={docError} />
+          </div>
         )}
 
         <dl className="grid gap-x-8 gap-y-4 border-b border-[var(--line)] p-5 sm:grid-cols-3">

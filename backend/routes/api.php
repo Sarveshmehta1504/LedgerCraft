@@ -108,6 +108,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('invoices', [PortalController::class, 'invoices']);
         Route::get('bills', [PortalController::class, 'bills']);
         Route::get('invoices/{invoice}', [PortalController::class, 'showInvoice']);
+        Route::get('invoices/{invoice}/pdf', [PortalController::class, 'invoicePdf']);
+        Route::post('invoices/{invoice}/send', [PortalController::class, 'sendInvoice']);
         Route::post('invoices/{invoice}/pay', [PortalController::class, 'payInvoice']);
     });
 

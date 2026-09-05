@@ -100,6 +100,18 @@ export const PortalApi = {
     });
     return apiFetch<Raw>(`/my/invoices/${id}`).then(mapPortalInvoice);
   },
+  /**
+   * The server-rendered PDF and the emailed copy of the customer's own
+   * invoice. Both sit under `/my` so the scope comes from the session rather
+   * than the request, exactly like the reads above.
+   *
+   * These two routes do not exist yet — the staff equivalents are 403 for this
+   * role — so callers must handle a 404 and fall back. See PortalInvoicePage.
+   */
+  pdf: (id: number, number: string) =>
+    downloadFile(`/my/invoices/${id}/pdf`, `${number.replace(/\//g, "-")}.pdf`),
+  /** No recipient: the API mails the contact this account is linked to. */
+  send: (id: number) => apiFetch<null>(`/my/invoices/${id}/send`, { method: "POST" }),
 };
 
 export const AnalyticAccountsApi = {
