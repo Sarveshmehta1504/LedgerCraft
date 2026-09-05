@@ -16,7 +16,8 @@ import type { AnalyticAccount, Budget } from "@/types";
 
 export function AnalyticAccountForm({ account }: { account?: AnalyticAccount }) {
   const router = useRouter();
-  const [form, setForm] = useState<Omit<AnalyticAccount, "id">>(
+  // Only the editable fields — `archived_at` is set by the archive routes, never here.
+  const [form, setForm] = useState<Pick<AnalyticAccount, "name" | "type">>(
     account ?? { name: "", type: "expense" },
   );
   const [errors, setErrors] = useState<Record<string, string>>({});

@@ -83,6 +83,9 @@ export function BillForm({
   const [paymentAmount, setPaymentAmount] = useState(doc.amount_due);
   const [paymentVia, setPaymentVia] = useState<PaymentVia>("bank");
   const [paymentDate, setPaymentDate] = useState(today());
+  // The bank's identifier for the transfer, kept apart from `note`, which is
+  // free commentary — a UTR is looked up, a note is read.
+  const [paymentReference, setPaymentReference] = useState("");
   const [paymentNote, setPaymentNote] = useState("");
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
@@ -146,7 +149,13 @@ export function BillForm({
     setPaymentError(null);
     setBusy(true);
     try {
-      const input = { amount: paymentAmount, payment_via: paymentVia, date: paymentDate, note: paymentNote || undefined };
+      const input = {
+        amount: paymentAmount,
+        payment_via: paymentVia,
+        date: paymentDate,
+        reference: paymentReference || undefined,
+        note: paymentNote || undefined,
+      };
       // The payment response's nested document omits contact/journal_entry relations
       // that show/post include — re-fetch the full detail rather than lose them on screen.
       if (isBill(doc)) {
@@ -156,6 +165,10 @@ export function BillForm({
         await CustomerInvoicesApi.registerPayment(doc.id, input);
         setDoc(await CustomerInvoicesApi.get(doc.id));
       }
+      // Cleared so a second payment on the same document does not inherit the
+      // first one's cheque number.
+      setPaymentReference("");
+      setPaymentNote("");
       setShowPayment(false);
     } catch (err) {
       // The backend rejects overpayment (and other business-rule violations) with a 422.
@@ -329,12 +342,19 @@ export function BillForm({
               onChange={(event) => setPaymentDate(event.target.value)}
               hint="Defaults to today."
             />
+            <TextField
+              label="Reference"
+              value={paymentReference}
+              onChange={(event) => setPaymentReference(event.target.value)}
+              placeholder="Cheque no., bank UTR, card auth code"
+              hint="Optional. How the bank identifies this transfer."
+            />
             <div className="md:col-span-2">
               <TextField
                 label="Note"
                 value={paymentNote}
                 onChange={(event) => setPaymentNote(event.target.value)}
-                placeholder="Optional reference"
+                placeholder="Anything worth recording about this payment"
               />
             </div>
           </div>

@@ -7,21 +7,30 @@ import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ViewSwitcher, type ViewMode } from "@/components/shared/ViewSwitcher";
-import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
+import { EmptyState, ErrorState, InlineAlert, TableSkeleton } from "@/components/ui/States";
+import { ApiError } from "@/lib/api";
 import { formatMoney, titleCase } from "@/lib/format";
 import { AnalyticAccountsApi, BudgetsApi } from "@/lib/resources";
+import { getCurrentUser } from "@/lib/session";
 import { useAsyncData } from "@/lib/use-async-data";
 import type { AnalyticAccount, Budget } from "@/types";
 
 export default function AnalyticAccountsPage() {
   const router = useRouter();
   const [view, setView] = useState<ViewMode>("list");
+  const [showArchived, setShowArchived] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  // Archiving is admin-only on the backend; showing the control to an
+  // accountant would just render a 403.
+  const isAdmin = typeof window !== "undefined" && getCurrentUser()?.role === "admin";
 
   // The accounts endpoint carries a budgets_count but not the committed total,
   // so the budgets list is fetched alongside it and both figures come from there.
   const fetchData = useCallback(
-    () => Promise.all([AnalyticAccountsApi.list(), BudgetsApi.list()]),
-    [],
+    () => Promise.all([AnalyticAccountsApi.list(showArchived ? "only" : undefined), BudgetsApi.list()]),
+    [showArchived],
   );
   const { data, loading, error, retry } = useAsyncData<[AnalyticAccount[], Budget[]]>(
     fetchData,
@@ -48,6 +57,23 @@ export default function AnalyticAccountsPage() {
     };
   }
 
+  async function toggleArchived(account: AnalyticAccount) {
+    setActionError(null);
+    setBusyId(account.id);
+    try {
+      if (account.archived_at) await AnalyticAccountsApi.unarchive(account.id);
+      else await AnalyticAccountsApi.archive(account.id);
+      retry();
+    } catch (err) {
+      // The backend refuses to archive an account a live budget still needs.
+      setActionError(
+        err instanceof ApiError ? err.message : "Could not change this account's status.",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const columns: Column<AnalyticAccount>[] = [
     {
       key: "name",
@@ -67,6 +93,34 @@ export default function AnalyticAccountsPage() {
       numeric: true,
       render: (account) => formatMoney(budgetSummary(account.id).committed),
     },
+    ...(isAdmin
+      ? [
+          {
+            key: "actions",
+            header: "",
+            render: (account: AnalyticAccount) => (
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  variant={account.archived_at ? "secondary" : "danger"}
+                  disabled={busyId === account.id}
+                  onClick={(event) => {
+                    // The row itself navigates to the account.
+                    event.stopPropagation();
+                    void toggleArchived(account);
+                  }}
+                >
+                  {busyId === account.id
+                    ? "Working…"
+                    : account.archived_at
+                      ? "Restore"
+                      : "Archive"}
+                </Button>
+              </div>
+            ),
+          } satisfies Column<AnalyticAccount>,
+        ]
+      : []),
   ];
 
   return (
@@ -81,8 +135,26 @@ export default function AnalyticAccountsPage() {
             </Button>
           </Link>
         }
-        trailing={<ViewSwitcher value={view} onChange={setView} />}
+        trailing={
+          <>
+            <Button
+              size="sm"
+              onClick={() => setShowArchived((value) => !value)}
+              aria-pressed={showArchived}
+              className={showArchived ? "bg-[var(--surface-raised)]" : undefined}
+            >
+              {showArchived ? "Showing archived" : "Show archived"}
+            </Button>
+            <ViewSwitcher value={view} onChange={setView} />
+          </>
+        }
       />
+
+      {actionError && (
+        <div className="border-b border-[var(--line)] p-5">
+          <InlineAlert title={actionError} />
+        </div>
+      )}
 
       {view === "list" ? (
         <DataTable
@@ -93,14 +165,20 @@ export default function AnalyticAccountsPage() {
           loading={loading}
           error={error}
           onRetry={retry}
-          emptyTitle="No analytic accounts yet"
-          emptyDescription="Create cost centres to track budget against actual spend."
+          emptyTitle={showArchived ? "No archived accounts" : "No analytic accounts yet"}
+          emptyDescription={
+            showArchived
+              ? "Every cost centre is currently active."
+              : "Create cost centres to track budget against actual spend."
+          }
           emptyAction={
+            showArchived ? undefined : (
             <Link href="/analytic-accounts/new">
               <Button variant="primary" size="sm">
                 New analytic account
               </Button>
             </Link>
+            )
           }
         />
       ) : loading ? (

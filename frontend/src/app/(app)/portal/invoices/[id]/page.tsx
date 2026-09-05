@@ -1,10 +1,12 @@
 "use client";
 
+import { Banknote, Check, Landmark } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/Button";
-import { SelectField, TextField } from "@/components/ui/Field";
+import { TextField } from "@/components/ui/Field";
+import { Modal } from "@/components/ui/Modal";
 import { ErrorState, InlineAlert, TableSkeleton } from "@/components/ui/States";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ApiError } from "@/lib/api";
@@ -35,8 +37,12 @@ export default function PortalInvoicePage() {
   const current = invoice ?? data;
 
   const [payOpen, setPayOpen] = useState(false);
+  // Most customers clear the whole balance, so "in full" is the default and the
+  // amount box only appears when they choose otherwise.
+  const [mode, setMode] = useState<"full" | "part">("full");
   const [amount, setAmount] = useState(0);
   const [via, setVia] = useState<PaymentVia>("bank");
+  const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
@@ -93,21 +99,37 @@ export default function PortalInvoicePage() {
     }
   }
 
+  /** What the confirm button will actually send. */
+  const payable = mode === "full" ? due : amount;
+
+  function openPayment() {
+    setMode("full");
+    setAmount(due);
+    setReference("");
+    setNote("");
+    setPayError(null);
+    setPayOpen(true);
+  }
+
   async function pay(event: React.FormEvent) {
     event.preventDefault();
     if (!current) return;
-    if (amount <= 0 || amount > due) {
+    if (payable <= 0 || payable > due) {
       setPayError(`Enter an amount between 0 and ${formatMoney(due)}.`);
       return;
     }
     setPaying(true);
     setPayError(null);
     try {
-      const updated = await PortalApi.pay(current.id, { amount, payment_via: via, note: note || undefined });
+      const updated = await PortalApi.pay(current.id, {
+        amount: payable,
+        payment_via: via,
+        reference: reference || undefined,
+        note: note || undefined,
+      });
       setInvoice(updated);
       setPayOpen(false);
-      setNote("");
-      setNotice(`Payment of ${formatMoney(amount)} received. Thank you.`);
+      setNotice(`Payment of ${formatMoney(payable)} received. Thank you.`);
     } catch (err) {
       setPayError(err instanceof ApiError ? err.message : "Could not record that payment.");
     } finally {
@@ -124,14 +146,7 @@ export default function PortalInvoicePage() {
           actions={
             due > 0 && (
               <span className="no-print">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    setAmount(due);
-                    setPayOpen((open) => !open);
-                  }}
-                >
+                <Button variant="primary" size="sm" onClick={openPayment}>
                   Pay {formatMoney(due)}
                 </Button>
               </span>
@@ -240,60 +255,193 @@ export default function PortalInvoicePage() {
         </div>
       </div>
 
-      {payOpen && due > 0 && (
-        <form
-          onSubmit={pay}
-          noValidate
-          className="no-print overflow-hidden rounded-lg border border-[var(--line)] bg-white"
-        >
-          <PageHeader
-            title="Pay this invoice"
-            subtitle={`Outstanding ${formatMoney(due)}`}
-            actions={
-              <Button type="submit" variant="primary" size="sm" disabled={paying}>
-                {paying ? "Sending…" : "Confirm payment"}
-              </Button>
-            }
-            trailing={
-              <Button size="sm" onClick={() => setPayOpen(false)}>
-                Cancel
-              </Button>
-            }
-          />
-          {payError && (
-            <div className="border-b border-[var(--line)] p-5">
-              <InlineAlert title={payError} />
+      <Modal
+        open={payOpen && due > 0}
+        onClose={() => setPayOpen(false)}
+        as="form"
+        onSubmit={pay}
+        width="lg"
+        padded={false}
+        title="Confirm payment"
+        description={`${current.invoice_number} · billed to ${current.contact_name}`}
+        footer={
+          <>
+            <span className="mr-auto text-[13px] text-[var(--text-muted)]">
+              You&rsquo;ll pay{" "}
+              <span className="tnum font-mono font-semibold text-[var(--text)]">
+                {formatMoney(payable > 0 ? payable : 0)}
+              </span>
+            </span>
+            <Button size="sm" onClick={() => setPayOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" size="sm" disabled={paying || payable <= 0}>
+              {paying ? "Recording…" : `Pay ${formatMoney(payable > 0 ? payable : 0)}`}
+            </Button>
+          </>
+        }
+      >
+        {/* The figure is the whole point of a checkout, so it leads — mono and
+            tabular so the digits do not shift as the amount changes. */}
+        <div className="border-y border-[var(--line)] bg-[var(--surface-sunken)] px-5 py-4">
+          <p className="text-[11px] uppercase tracking-wide text-[var(--text-subtle)]">
+            Amount due
+          </p>
+          <p className="tnum mt-0.5 font-mono text-[28px] font-semibold leading-none tracking-tight text-[var(--text)]">
+            {formatMoney(due)}
+          </p>
+          <p className="mt-2 text-[12px] text-[var(--text-muted)]">
+            {formatMoney(current.amount_paid)} of {formatMoney(current.total)} already paid
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-5 px-5 py-5">
+          {payError && <InlineAlert title={payError} />}
+
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-2 text-[13px] font-medium text-[var(--text-muted)]">
+              How much are you paying?
+            </legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <ChoiceCard
+                selected={mode === "full"}
+                onSelect={() => {
+                  setMode("full");
+                  setPayError(null);
+                }}
+                title="Pay in full"
+                caption={formatMoney(due)}
+              />
+              <ChoiceCard
+                selected={mode === "part"}
+                onSelect={() => {
+                  setMode("part");
+                  setPayError(null);
+                }}
+                title="Part payment"
+                caption="Choose an amount"
+              />
             </div>
-          )}
-          <div className="grid gap-5 p-5 md:grid-cols-3">
+            {mode === "part" && (
+              <div className="mt-1">
+                <TextField
+                  label="Amount to pay"
+                  type="number"
+                  min={0}
+                  max={due}
+                  step="0.01"
+                  value={amount}
+                  onChange={(event) => {
+                    setAmount(Number(event.target.value));
+                    setPayError(null);
+                  }}
+                  className="tnum font-mono"
+                  hint={`Anything up to ${formatMoney(due)}. The balance stays on the invoice.`}
+                  required
+                />
+              </div>
+            )}
+          </fieldset>
+
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-2 text-[13px] font-medium text-[var(--text-muted)]">
+              How are you paying?
+            </legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <ChoiceCard
+                selected={via === "bank"}
+                onSelect={() => setVia("bank")}
+                icon={<Landmark size={16} />}
+                title="Bank transfer"
+                caption="NEFT, IMPS or UPI"
+              />
+              <ChoiceCard
+                selected={via === "cash"}
+                onSelect={() => setVia("cash")}
+                icon={<Banknote size={16} />}
+                title="Cash"
+                caption="Paid in person"
+              />
+            </div>
+          </fieldset>
+
+          <div className="grid gap-4 sm:grid-cols-2">
             <TextField
-              label="Amount"
-              type="number"
-              min={0}
-              max={due}
-              step="0.01"
-              value={amount}
-              onChange={(event) => setAmount(Number(event.target.value))}
-              required
-            />
-            <SelectField
-              label="Pay via"
-              value={via}
-              onChange={(event) => setVia(event.target.value as PaymentVia)}
-              options={[
-                { value: "bank", label: "Bank" },
-                { value: "cash", label: "Cash" },
-              ]}
-              required
+              label="Reference"
+              value={reference}
+              onChange={(event) => setReference(event.target.value)}
+              placeholder={via === "bank" ? "UTR or transaction ID" : "Receipt number"}
+              hint="Optional, but it makes this easy to trace later."
             />
             <TextField
               label="Note"
               value={note}
               onChange={(event) => setNote(event.target.value)}
+              placeholder="Anything we should know"
             />
           </div>
-        </form>
-      )}
+
+          {/* An honest trust line: this records a payment against the ledger, it
+              is not a card gateway, and saying otherwise would be a lie. */}
+          <p className="text-[12px] leading-relaxed text-[var(--text-subtle)]">
+            Confirming records this payment against {current.invoice_number} straight away and
+            updates your balance. Urban Furniture never asks for card or UPI PIN details here.
+          </p>
+        </div>
+      </Modal>
+
     </div>
+  );
+}
+
+/**
+ * A tappable option tile. Real checkouts use these instead of a `<select>`
+ * because the choice is short, and seeing every option at once is faster than
+ * opening a list to read two items.
+ */
+function ChoiceCard({
+  selected,
+  onSelect,
+  title,
+  caption,
+  icon,
+}: {
+  selected: boolean;
+  onSelect: () => void;
+  title: string;
+  caption: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+        selected
+          ? "border-[var(--accent)] bg-[var(--accent-wash)]"
+          : "border-[var(--line-strong)] bg-white hover:bg-[var(--surface-sunken)]"
+      }`}
+    >
+      {icon && (
+        <span className={selected ? "text-[var(--accent)]" : "text-[var(--text-subtle)]"}>
+          {icon}
+        </span>
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13px] font-medium text-[var(--text)]">{title}</span>
+        <span className="tnum block font-mono text-[12px] text-[var(--text-muted)]">{caption}</span>
+      </span>
+      <span
+        aria-hidden="true"
+        className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border ${
+          selected
+            ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+            : "border-[var(--line-strong)]"
+        }`}
+      >
+        {selected && <Check size={10} strokeWidth={3} />}
+      </span>
+    </button>
   );
 }

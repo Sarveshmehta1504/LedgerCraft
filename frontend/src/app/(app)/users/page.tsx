@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Combobox } from "@/components/ui/Combobox";
 import { SelectField } from "@/components/ui/Field";
+import { Modal } from "@/components/ui/Modal";
 import { EmptyState, InlineAlert } from "@/components/ui/States";
 import { ApiError } from "@/lib/api";
 import { titleCase } from "@/lib/format";
@@ -102,14 +103,6 @@ export default function UsersPage() {
     };
   }, [target, contacts.length]);
 
-  useEffect(() => {
-    if (target === null) return;
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setTarget(null);
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [target]);
 
   function openRoleEditor(user: ManagedUser) {
     setTarget(user);
@@ -319,75 +312,60 @@ export default function UsersPage() {
         }
       />
 
-      {target && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setTarget(null);
-          }}
-        >
-          <form
-            onSubmit={saveRole}
-            noValidate
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Change role for ${target.name}`}
-            className="w-full max-w-md rounded-lg border border-[var(--line)] bg-white shadow-lg [&>header:first-child]:rounded-t-lg"
-          >
-            <PageHeader
-              title="Change role"
-              subtitle={`${target.name} · ${target.login_id}`}
-              actions={
-                <Button type="submit" variant="primary" size="sm" disabled={savingRole}>
-                  {savingRole ? "Saving…" : "Save role"}
-                </Button>
-              }
-              trailing={
-                <Button size="sm" onClick={() => setTarget(null)}>
-                  Cancel
-                </Button>
-              }
+      <Modal
+        open={target !== null}
+        onClose={() => setTarget(null)}
+        as="form"
+        onSubmit={saveRole}
+        title="Change role"
+        description={
+          target ? `${target.name} · ${target.login_id}` : undefined
+        }
+        footer={
+          <>
+            <Button size="sm" onClick={() => setTarget(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" size="sm" disabled={savingRole}>
+              {savingRole ? "Saving…" : "Save role"}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          {roleError && <InlineAlert title={roleError} />}
+
+          <SelectField
+            label="Role"
+            value={nextRole}
+            onChange={(event) => {
+              setNextRole(event.target.value as Role);
+              setRoleError(null);
+            }}
+            options={ROLE_OPTIONS}
+            required
+          />
+
+          {nextRole === "user" && (
+            <Combobox
+              label="Linked contact"
+              value={nextContactId}
+              onChange={(value) => {
+                setNextContactId(value);
+                setRoleError(null);
+              }}
+              options={contacts.map((contact) => ({
+                value: contact.id,
+                label: contact.name,
+              }))}
+              placeholder="Search contacts…"
+              hint="The portal account can only see this contact's documents."
+              required
             />
-
-            {roleError && (
-              <div className="border-b border-[var(--line)] p-5">
-                <InlineAlert title={roleError} />
-              </div>
-            )}
-
-            <div className="flex flex-col gap-5 p-5">
-              <SelectField
-                label="Role"
-                value={nextRole}
-                onChange={(event) => {
-                  setNextRole(event.target.value as Role);
-                  setRoleError(null);
-                }}
-                options={ROLE_OPTIONS}
-                required
-              />
-
-              {nextRole === "user" && (
-                <Combobox
-                  label="Linked contact"
-                  value={nextContactId}
-                  onChange={(value) => {
-                    setNextContactId(value);
-                    setRoleError(null);
-                  }}
-                  options={contacts.map((contact) => ({
-                    value: contact.id,
-                    label: contact.name,
-                  }))}
-                  placeholder="Search contacts…"
-                  hint="The portal account can only see this contact's documents."
-                  required
-                />
-              )}
-            </div>
-          </form>
+          )}
         </div>
-      )}
+      </Modal>
+
     </div>
   );
 }
