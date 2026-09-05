@@ -26,7 +26,7 @@ const COPY = {
     title: "Purchase Order",
     listHref: "/purchases",
     partnerLabel: "Vendor",
-    convertLabel: "Convert to Bill",
+    convertLabel: "Create Bill",
     convertHref: "/bills",
     partnerTypes: ["vendor", "both"],
     confirmedStatus: "confirmed" as const,
@@ -36,7 +36,7 @@ const COPY = {
     title: "Sales Order",
     listHref: "/sales",
     partnerLabel: "Customer",
-    convertLabel: "Convert to Invoice",
+    convertLabel: "Create Invoice",
     convertHref: "/invoices",
     partnerTypes: ["customer", "both"],
     confirmedStatus: "confirmed" as const,
@@ -75,8 +75,12 @@ export function OrderForm({
   function validate(): boolean {
     const next: Record<string, string> = {};
     if (contactId === null) next.contact_id = `Select a ${copy.partnerLabel.toLowerCase()}.`;
-    if (lines.length === 0 || total <= 0) next.lines = "Add at least one line with a value.";
     if (lines.some((line) => line.product_id === null)) next.lines = "Every line needs a product.";
+    if (lines.some((line) => line.quantity <= 0 || line.unit_price < 0))
+      next.lines = "Quantity must be greater than zero and price cannot be negative.";
+    // A document with nothing on it, or a negative value, must never reach Confirm.
+    if (lines.length === 0 || total <= 0)
+      next.lines = `A ${copy.title.toLowerCase()} cannot be confirmed with a zero or negative total.`;
     setErrors(next);
     return Object.keys(next).length === 0;
   }

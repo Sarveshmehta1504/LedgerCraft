@@ -240,8 +240,11 @@ export interface BalanceSheet {
 export interface ProfitAndLoss {
   income: ReportLine[];
   expenses: ReportLine[];
+  /** The board separates account type `other_expense` into its own total. */
+  other_expenses: ReportLine[];
   total_income: number;
   total_expenses: number;
+  total_other_expenses: number;
   net_profit: number;
 }
 
