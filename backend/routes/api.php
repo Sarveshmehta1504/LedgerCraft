@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\PortalController;
 use App\Http\Controllers\Api\ProductCategoryController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\PurchaseOrderController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SalesOrderController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VendorBillController;
@@ -100,6 +101,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('bills', [PortalController::class, 'bills']);
         Route::get('invoices/{invoice}', [PortalController::class, 'showInvoice']);
         Route::post('invoices/{invoice}/pay', [PortalController::class, 'payInvoice']);
+    });
+
+    // Reports are projections of journal_entry_lines - never stored.
+    Route::prefix('reports')->group(function () {
+        Route::get('profit-and-loss', [ReportController::class, 'profitAndLoss']);
+        Route::get('balance-sheet', [ReportController::class, 'balanceSheet']);
+        Route::get('trial-balance', [ReportController::class, 'trialBalance']);
     });
 
     Route::apiResource('journals', JournalController::class);

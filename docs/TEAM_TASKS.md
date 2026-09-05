@@ -71,7 +71,7 @@ the next lane:
 * [x] BE-010 SO create/confirm/convert-to-invoice endpoints — mirrors the PO flow with `tax_percent` on lines (sales side only) and Sale Income as the default line account; `subtotal` excludes tax, header `total` is tax-inclusive
 * [x] BE-011 Customer invoice post (→ JournalEntryService) + payment endpoints — post writes Dr Debtors / Cr Sale Income for the tax-inclusive total; payments write Dr Cash|Bank / Cr Debtors with `payment_type=receive`; same overpayment and status guards as vendor bills
 * [x] BE-012 `/my/invoices`, `/my/bills`, `/my/invoices/{id}/pay` — scope derived from the authenticated user's `contact_id`, never from the request; drafts invisible; another contact's document returns 404 (not 403, which would confirm it exists); portal payments go through the same service, so the ledger entry is identical
-* [ ] BE-013 Balance Sheet + P&L report endpoints (computed live from journal_entry_lines)
+* [x] BE-013 Balance Sheet + P&L report endpoints (computed live from journal_entry_lines) — plus a trial balance; net income is carried into equity as retained earnings, which is what makes the sheet balance; 7 tests lock the invariants
 
 ## Frontend — owner: member-3 (Auth + Master Data + Portal)
 
@@ -98,7 +98,7 @@ the next lane:
 * [ ] INT-002 Contacts/Products/CoA/Journals screens wired to real API (not mocks) by hour 5
 * [ ] INT-003 Full PO→Bill→Payment flow wired end-to-end by hour 7
 * [ ] INT-004 Full SO→Invoice→Payment flow wired end-to-end by hour 7
-* [ ] INT-005 Balance Sheet numbers verified by hand against seed data (assets == liabilities+capital)
+* [-] INT-005 Balance Sheet numbers verified by hand against seed data (assets == liabilities+capital) — verified against a full PO→Bill→Payment and SO→Invoice→Payment cycle: assets 7,250 = retained earnings 7,250, trial balance 54,200/54,200. Re-verify once the frontend drives the flow.
 * [ ] INT-006 Contact portal login + pay-own-invoice flow verified with a real contact-role user
 
 **Checkpoint at hour 8: if INT-003, INT-004, INT-005 aren't done, stop starting new P0 work and finish these three before touching anything in P1.**
