@@ -75,22 +75,22 @@ the next lane:
 
 ## Frontend — owner: member-3 (Auth + Master Data + Portal)
 
-* [-] FE-001 Login page built (`src/app/(auth)/login/page.tsx`) with validation. Auth context, role-based redirect and the protected-route wrapper are **not** built yet — waiting on a working `POST /api/auth/login` (see Frontend status below)
+* [x] FE-001 Login page wired to `POST /api/auth/login`, real token stored (`src/lib/auth.ts`). Role-based redirect still sends everyone to `/dashboard` since `/portal` doesn't exist. Protected-route wrapper not built yet
 * [x] FE-002 `DataTable`, `StatusBadge`, `Combobox` (searchable + create-on-the-fly), `LineItemTable`, `ViewSwitcher`, `PageHeader`, loading/empty/error states, form inputs, `formatMoney`/`formatDate` in `src/lib/format.ts`
-* [-] FE-003 Contacts List + Kanban + Form done (`src/app/(app)/contacts/`, `src/components/forms/ContactForm.tsx`) — still on mock data
-* [-] FE-004 Products List + Kanban + Form done (`src/app/(app)/products/`, `ProductForm.tsx`), category is a create-on-the-fly combobox — still on mock data
-* [-] FE-005 Chart of Accounts grouped by all 8 types (`src/app/(app)/accounts/`, `AccountForm.tsx`) — still on mock data
-* [-] FE-006 Journals list + form (`src/app/(app)/journals/`, `JournalForm.tsx`) — still on mock data
+* [x] FE-003 Contacts List + Kanban + Form wired to `/api/contacts` (`src/app/(app)/contacts/`, `ContactForm.tsx`)
+* [x] FE-004 Products List + Kanban + Form wired to `/api/products`; category combobox creates real `/api/product-categories` rows on the fly
+* [x] FE-005 Chart of Accounts wired to `/api/accounts`, still grouped by all 8 types
+* [x] FE-006 Journals wired to `/api/journals`
 * [ ] FE-007 Contact Portal — not started
 
 ## Frontend — owner: member-4 (Transactions + Reports UI)
 
-* [-] FE-008 PO list/form with Create Bill (`src/app/(app)/purchases/`, `OrderForm.tsx`); blocks Confirm on a zero/negative total — still on mock data
-* [-] FE-009 Vendor Bill detail with Post, inline journal-entry reveal, Register Payment (overpayment blocked), Print/Send/Budget/Reset to Draft (`BillForm.tsx`) — still on mock data
-* [-] FE-010 SO list/form with Create Invoice (`src/app/(app)/sales/`) — still on mock data
-* [-] FE-011 Customer Invoice detail, same shared `BillForm` as FE-009 — still on mock data
-* [-] FE-012 Balance Sheet with a pass/fail reconciliation check (`src/app/(app)/reports/balance-sheet/`) — figures still computed in `src/lib/reports.ts`, not from the API
-* [-] FE-013 P&L with Income / Expenses / Other Expenses as separate totals — still computed locally, not from the API
+* [x] FE-008 PO list/form wired to `/api/purchase-orders` incl. confirm + convert-to-bill; blocks Confirm on a zero/negative total
+* [x] FE-009 Vendor Bill detail wired to `/api/vendor-bills` — Post shows the real generated journal entry, Register Payment hits the real endpoint with real overpayment rejection. Print/Send/Budget remain placeholders; Reset to Draft was dropped, no matching route
+* [x] FE-010 SO list/form wired to `/api/sales-orders` incl. confirm + convert-to-invoice
+* [x] FE-011 Customer Invoice detail wired to `/api/customer-invoices`, same `BillForm` as FE-009
+* [x] FE-012 Balance Sheet wired to `GET /api/reports/balance-sheet`; the pass/fail check reads the API's own `balanced` flag
+* [x] FE-013 P&L wired to `GET /api/reports/profit-and-loss`, Income / Expenses / Other Expenses as separate totals
 
 ## Integration (whole team, ongoing — do not batch this to the end)
 
@@ -122,7 +122,7 @@ the next lane:
 * [ ] BE-016 `/reports/dashboard` (KPI aggregates)
 * [-] FE-014 Budgets with Draft/Confirm/Revise/Cancel stages + Budget Report (recharts pie + planned-vs-achieved bars) — still on mock data
 * [ ] FE-015 Aging report page
-* [-] FE-016 Dashboard shell with Sales/Purchase/Budget panels and recent transactions (`src/app/(app)/dashboard/`) — counts derived from mock data, `GET /api/reports/dashboard` not wired
+* [-] FE-016 Dashboard panel counts and Recent Transactions now come from the real order/bill/invoice lists (no dedicated dashboard endpoint used). Budget panel stays hardcoded — no budgets route
 * [ ] INT-007 Invoice/Bill PDF generation wired (barryvdh/laravel-dompdf)
 * [x] BE-019 Auth endpoints: `POST /auth/login` (by `login_id`), `POST /auth/logout`, `GET /auth/me` — Sanctum tokens, single error message `Invalid Login Id or Password`, throttled
 * [x] BE-020 Forgot/Reset password endpoints + reset-link Mailable + password policy rule — reset link points at `FRONTEND_URL/reset-password`, token 60-min single-use, reset revokes all tokens, no account enumeration
@@ -132,7 +132,7 @@ the next lane:
 * [x] BE-021 Mail configured — Resend via `resend/resend-laravel` (`MAIL_MAILER=resend`, `RESEND_API_KEY`), domain verified, live send verified. Sent synchronously: no `ShouldQueue`, no queue worker needed
 * [ ] BE-022 Invoice/Bill PDF + `POST .../send` Mailable with the PDF attached
 * [ ] BE-023 Report PDF (`GET /reports/{report}/pdf`) + `POST /reports/{report}/send`
-* [-] FE-020 Forgot Password + Reset Password screens built (`src/app/(auth)/forgot-password/`, `reset-password/`) with full loading/success/error states. **Not wired** — blocked, see Frontend status
+* [x] FE-020 Forgot Password + Reset Password wired to `/api/auth/forgot-password` and `/reset-password`, full round trip tested including a real emailed-link token
 * [-] FE-021 Print/Send present on bills, invoices and all three reports (`ReportShell.tsx`, `BillForm.tsx`) — buttons call placeholders, PDF/mail endpoints not wired
 * [ ] INT-008 Search/filter added to all master data + transaction list screens
 
@@ -176,37 +176,71 @@ the next lane:
 
 ---
 
-# Frontend status (updated after the responsiveness + testing pass)
+# Frontend status (updated after wiring auth, master data, transactions and reports to the live backend)
 
-## Verified complete
+## Verified complete — real backend, not mocks
 
-* **46 routes build and render** — `npm run build` and `npm run lint` both clean, zero TypeScript errors, zero lint warnings.
-* **Responsiveness: 45/45 routes pass at 375px, 768px and 1280px.** Measured with a Playwright harness checking real horizontal overflow, console errors and tap-target size per breakpoint — not eyeballed. Wide tables scroll inside their own container; kanban grids reflow 1 -> 2 -> 3 columns.
-* **Form validation: 16/16 cases pass**, valid *and* invalid tested for each — journal entry debit=credit blocking, PO/SO zero-total block, payment overpayment block, reset-password length + match, contact name/email, product category, signup login-id and password policy.
-* **Loading / error / empty states verified on all 16 data screens.** The error state was proven by temporarily forcing the mock layer to reject, not by reading the code.
+* **Auth: Login, Signup, Forgot Password, Reset Password** — all four call the real
+  `/api/auth/*` endpoints. Tested end to end against the running backend: valid login
+  stores a real Sanctum token, invalid login shows the real `"Invalid Login Id or
+  Password"` 401, signup created a real user + linked contact (verified in the DB),
+  forgot-password issued a real reset token and reset-password changed the real
+  password (verified by logging in with it afterward).
+* **Master data — Contacts, Products (+ create-on-the-fly categories), Chart of
+  Accounts, Journals** — full CRUD against `/api/contacts`, `/api/products`,
+  `/api/product-categories`, `/api/accounts`, `/api/journals`. A product and a
+  category created through the UI were confirmed present in MySQL afterward.
+* **Purchase flow — Purchase Order → Vendor Bill → Payment** — confirmed end to end
+  through the browser against the real API: created a PO, confirmed it, converted to
+  a bill, posted it (real journal entry: Debit Purchase Expense / Credit Creditors),
+  registered a payment (real 422 on overpayment, tested with the exact outstanding
+  balance in the message), paid it off, status flipped to Paid.
+* **Sales flow — Sales Order → Customer Invoice** — same chain verified: SO created
+  and confirmed, converted to invoice, posted (real journal entry: Debit Debtors /
+  Credit Sale Income), balanced.
+* **Reports — Balance Sheet, Profit & Loss** — both wired to
+  `GET /api/reports/balance-sheet` and `/profit-and-loss`. The `balanced` flag is
+  read directly from the API rather than recomputed client-side. Verified the
+  balance sheet's retained earnings figure matches the P&L's net loss on the same
+  data.
+* **Dashboard** — Sales/Purchase panel counts and Recent Transactions now come from
+  the real order/bill/invoice lists.
+* **Payments / Receipts** — derived from the real vendor-bills/customer-invoices
+  lists (no dedicated `/api/payments` endpoint exists yet, so this is real amounts
+  without a real payments ledger).
+* **46 routes build and render** — `npm run build` and `npm run lint` both clean,
+  zero TypeScript errors, zero lint warnings.
+* **Responsiveness: 45/45 routes pass at 375px, 768px and 1280px**, and **form
+  validation: 16/16 cases pass** — both from the prior testing pass, re-verified
+  clean after this wiring.
 
-## Blocked — needs backend/DB work
+## One bug found and fixed during this pass
 
-* **Local database does not exist.** `GET /api/health` returns 200, but every DB-backed endpoint returns
-  `500 SQLSTATE[HY000] [1049] Unknown database 'ledgercraft'`. MySQL on 3306 is XAMPP MariaDB 10.4.28;
-  `ledgercraft` has not been created on this machine. Fix: create the schema, then `php artisan migrate --seed`.
-  Until that runs, no auth screen can be wired *and tested*, so none have been.
-* **Forgot Password identifier mismatch.** Login takes `login_id` (`LoginRequest.php`), but
-  `ForgotPasswordRequest.php` validates `['email' => ['required', 'email']]` and `AuthController::forgotPassword`
-  calls `Password::sendResetLink($request->only('email'))`. A login ID cannot be sent to this endpoint — it fails
-  validation before the lookup. Needs a backend change to accept `login_id` and resolve the email server-side.
+`registerPayment`'s response nests a partial bill/invoice object — missing the
+`contact` and `journal_entry` relations that `show`/`post` include. Using it
+directly made the Vendor name and the journal-entry panel disappear from screen
+right after a successful payment. Fixed by re-fetching the full document
+(`VendorBillsApi.get`/`CustomerInvoicesApi.get`) after a payment instead of trusting
+that partial response — see `src/components/forms/BillForm.tsx`.
 
-## Still on mock data
+## Still on mock data — no backend route exists
 
-Every module except the health check. Mock fixtures live in `src/lib/mock-data.ts` and `src/lib/reports.ts`,
-and each consumer carries a marker naming the endpoint it waits on:
+* **Journal Entries** (manual entry/list) — no `/api/journal-entries` route.
+* **Analytic Accounts** — no `/api/analytic-accounts` route.
+* **Budgets / Budget Report** — no `/api/budgets` route.
 
-```
-// TODO: replace with real API once backend/<module> is ready
-```
+Placeholders for these three live in `src/lib/mock-data.ts` (`MOCK_ACCOUNTS`,
+`MOCK_CONTACTS`, `MOCK_JOURNALS`, `MOCK_ANALYTIC_ACCOUNTS`, `MOCK_BUDGETS`,
+`MOCK_JOURNAL_ENTRIES`) and `src/lib/reports.ts` (`buildBudgetReport`), each with a
+`// TODO: replace with real API once backend/<module> is ready` marker naming the
+endpoint it's waiting on. Every other mock array and the old mock-shaped
+Balance Sheet/P&L builders were deleted as part of this pass — they were fully
+superseded.
 
-Contacts, Products, Chart of Accounts, Journals, Journal Entries, Analytic Accounts, Budgets,
-Purchase Orders, Vendor Bills, Sales Orders, Customer Invoices, Payments, Receipts,
-Balance Sheet, P&L, Budget Report, and all four auth screens.
+## Not built at all
 
-`GET /api/health` is the only endpoint genuinely wired to the backend (`src/app/health/page.tsx`).
+* Contact Portal (`/portal`).
+* Admin Users screen — the backend `UserController` exists on `main` and is ready to
+  wire; no frontend screen exists yet.
+* PDF/email sending for bills, invoices and reports — Print/Send buttons exist in the
+  UI but call a placeholder; no `/pdf` or `/send` route exists yet.
