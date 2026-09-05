@@ -2,13 +2,23 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AuthorizesResource;
+use App\Models\PurchaseOrder;
 use Illuminate\Foundation\Http\FormRequest;
 
 class PurchaseOrderRequest extends FormRequest
 {
-    public function authorize(): bool
+    use AuthorizesResource;
+
+    protected function resourceModel(): string
     {
-        return true;
+        return PurchaseOrder::class;
+    }
+
+    /** @return array<int, string> */
+    protected function routeParameters(): array
+    {
+        return ['purchaseOrder'];
     }
 
     public function rules(): array

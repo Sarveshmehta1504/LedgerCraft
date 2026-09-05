@@ -2,13 +2,17 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Budget;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ReviseBudgetRequest extends FormRequest
 {
+    /** Revising supersedes the original, so it is an edit of that budget. */
     public function authorize(): bool
     {
-        return true;
+        $budget = $this->route('budget');
+
+        return $budget instanceof Budget && (bool) $this->user()?->can('update', $budget);
     }
 
     /**

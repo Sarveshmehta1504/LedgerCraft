@@ -2,13 +2,23 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AuthorizesResource;
+use App\Models\CustomerInvoice;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CustomerInvoiceRequest extends FormRequest
 {
-    public function authorize(): bool
+    use AuthorizesResource;
+
+    protected function resourceModel(): string
     {
-        return true;
+        return CustomerInvoice::class;
+    }
+
+    /** @return array<int, string> */
+    protected function routeParameters(): array
+    {
+        return ['customerInvoice'];
     }
 
     public function rules(): array
