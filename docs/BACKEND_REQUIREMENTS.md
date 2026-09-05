@@ -24,9 +24,23 @@ behind them.
       and return `500` with the transport's actual error rather than a false `200`.
 * [ ] Spatie roles: `admin`, `accountant`, `user`, seeded in
       `RoleSeeder` at project setup
-* [ ] A `user`-role account is always linked to exactly one `contacts` row via
-      `users.contact_id` — create this link when an Admin/Accountant
-      generates portal access for a contact (bonus: "Invite Contact" action)
+* [ ] **Account creation — three paths, one role rule:**
+      1. **Admin creates a user** and assigns any role (`admin`, `accountant`,
+         `user`). This is the *only* way an `admin` or `accountant` account comes
+         into existence.
+      2. **Public signup** always creates role `user`. The role is assigned
+         server-side and hardcoded — never read a role from the signup payload,
+         or anyone can self-promote to admin.
+      3. **Contact portal access**, created alongside a Contacts master record,
+         also yields role `user`.
+* [ ] Role assignment is Admin-only. `POST /users` and `PUT /users/{id}/role`
+      sit behind `role:admin`; an Accountant hitting them gets `403`.
+* [ ] **Signup auto-creates a Contact.** Path 2 creates a `contacts` row of type
+      `customer` — name and email copied from the signup form — and links it via
+      `users.contact_id`, in the **same DB transaction** as the user. If either
+      insert fails, both roll back; never leave a portal user with no contact.
+      Every `user`-role account therefore always has exactly one linked Contact,
+      whichever path created it.
 
 ## Role Matrix
 
@@ -40,6 +54,22 @@ behind them.
 | View reports                             | ✅    | ✅                | ❌       |
 | View own invoices/bills only             | —     | —                 | ✅       |
 | User management / role assignment        | ✅    | ❌                | ❌       |
+| Public signup (self-serve, always `user`) | —     | —                 | ✅       |
+
+## Self-registered contacts
+
+Because signup writes into master data, two things need handling:
+
+* **Duplicate contacts.** If a `contacts` row already exists with that email,
+  link the new user to the existing contact instead of creating a second one —
+  otherwise the same customer ends up on two records and their invoices split
+  across both.
+* **Fresh contacts are sparse.** Only name, email and `type = customer` are set;
+  mobile and address are null until someone fills them in. Any list or form that
+  assumes an address must tolerate nulls.
+
+A newly signed-up customer has no invoices yet, so `GET /my/invoices` returns
+`200` with an empty list and the portal shows "No invoices yet".
 
 ---
 

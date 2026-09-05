@@ -14,6 +14,19 @@ Login form, error message, loading state.
 
 ---
 
+# 1b. Signup (public)
+
+Self-registration only. The form has **no role selector** — every account created
+here is a portal `user`, and the backend also creates a matching `customer`
+Contact for them. Admins create accountants and admins from the Users
+screen instead.
+
+# 1c. Users (Admin only)
+
+Route `/users`. List of accounts with their role; create-user form with a role
+dropdown (`admin` / `accountant` / `user`) and an optional Contact link. Hidden
+entirely from the nav for Accountant and User roles.
+
 # 2. Dashboard (Admin / Accountant home)
 
 ## Route

@@ -34,7 +34,8 @@ validates data, computes taxes, updates ledgers, and generates reports.
 
 # P0 — Must Have (build this first, this is what gets you a passing demo)
 
-* [ ] Auth: login by **Login Id** (unique, 6–12 chars) + password via Sanctum; signup validates unique login id, non-duplicate email, and password >8 chars with lower + upper + special char; failed login shows `Invalid Login Id or Password`; Forgot Password page; public signup creates an `accountant` user only
+* [ ] Auth: login by **Login Id** (unique, 6–12 chars) + password via Sanctum; signup validates unique login id, non-duplicate email, and password >8 chars with lower + upper + special char; failed login shows `Invalid Login Id or Password`; Forgot Password page; **public signup always creates a plain `user` (portal) account** — role assigned server-side, never from the request body
+* [ ] Admin user management: create accounts and assign roles (`admin`/`accountant`/`user`) — the only way an admin or accountant account is created
 * [ ] Role assignment via Spatie — role slugs are `admin`, `accountant`, `user`: Admin (all access), Accountant (master data, transactions, reports — the PS's "Invoicing User"), User (own invoices/bills, pay from portal — the PS's "Contact")
 * [ ] Contact Master CRUD (Customer/Vendor/Both, email, mobile, address, profile image)
 * [ ] Product Category Master CRUD (referenced by Product Master, supports nested categories)

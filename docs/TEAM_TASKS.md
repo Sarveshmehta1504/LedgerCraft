@@ -90,6 +90,9 @@ names once assigned).
 * [ ] FE-016 Dashboard KPI cards + 1-2 charts
 * [ ] INT-007 Invoice/Bill PDF generation wired (barryvdh/laravel-dompdf)
 * [ ] BE-020 Forgot/Reset password endpoints + reset-link Mailable + password policy rule
+* [ ] BE-024 Public signup endpoint — role `user` hardcoded server-side, `role` in payload ignored; creates + links a `customer` Contact in the same transaction (reuse an existing contact with the same email)
+* [ ] BE-025 Admin Users CRUD + role assignment endpoints behind `role:admin`
+* [ ] FE-022 Signup page (no role selector) + Admin Users screen with role dropdown
 * [ ] BE-021 SMTP configured in `.env` (MAIL_MAILER=smtp, Mailtrap or Gmail app password) — default `log` sends nothing. Send synchronously: no `ShouldQueue`, no queue worker to run during the demo
 * [ ] BE-022 Invoice/Bill PDF + `POST .../send` Mailable with the PDF attached
 * [ ] BE-023 Report PDF (`GET /reports/{report}/pdf`) + `POST /reports/{report}/send`

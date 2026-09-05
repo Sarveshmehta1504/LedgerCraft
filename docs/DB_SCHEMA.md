@@ -18,7 +18,7 @@ unless noted otherwise (accounting data must never silently cascade-delete).
 | login_id    | string    | No       | —       | Unique, 6–12 chars — the login handle  |
 | email       | string    | No       | —       | Unique                                |
 | password    | string    | No       | —       | Hashed                                |
-| contact_id  | bigint FK | Yes      | null    | Set only for role=Contact users       |
+| contact_id  | bigint FK | Yes      | null    | Links a role-`user` account to its Contact — **always set for role `user`**, null for admins/accountants |
 | created_at  | timestamp | No       | —       | Created                               |
 | updated_at  | timestamp | No       | —       | Updated                               |
 
@@ -35,7 +35,17 @@ paid/unpaid status and pays dues from the portal).
 * `password` — more than 8 characters, and must contain a lowercase letter, an
   uppercase letter and a special character
 * Failed login shows exactly: `Invalid Login Id or Password`
-* Public Sign Up creates an **`accountant` user only**; a Forgot Password page exists.
+* Public Sign Up always creates a role-`user` account (portal only) — **never** an
+  `accountant`. Role comes from the server, never from the request body.
+* Admin creates accounts and assigns roles (`admin` / `accountant` / `user`); this
+  is the only path to an `admin` or `accountant` account.
+* Signup also creates a linked `contacts` row of type `customer` (same
+  transaction), so every portal user always has exactly one Contact. An existing
+  contact with the same email is reused rather than duplicated.
+* A Forgot Password page exists.
+
+> This overrides the design board, which says signup creates an invoicing user —
+> the team's final flow makes signup self-serve for portal users only.
 
 ---
 

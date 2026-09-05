@@ -41,6 +41,36 @@ Revokes current token. `{ "code": 200, "message": "Logged out" }`
 ## GET `/auth/me`
 Returns current user + role + linked contact_id (if role=`user`).
 
+## POST `/auth/signup`
+Public self-registration. Request
+`{ "name": "...", "login_id": "...", "email": "...", "password": "...", "password_confirmation": "..." }`.
+
+**Always assigns role `user`.** A `role` field in the request body must be ignored
+outright — never trusted — or signup becomes privilege escalation. Validation
+matches the design board: `login_id` unique 6–12 chars, `email` unique, password
+>8 chars with lower + upper + special.
+
+Signup also **creates a `contacts` row of type `customer`** (name + email from the
+form) and links it via `users.contact_id`, in the same transaction as the user. If
+a contact with that email already exists, link to it rather than creating a
+duplicate.
+
+---
+
+# Users (Admin only)
+
+* `GET /users` — list accounts with their roles
+* `POST /users` — Admin creates an account **and assigns its role**
+  (`admin` | `accountant` | `user`); optionally links `contact_id`
+* `PUT /users/{id}` — update details / link a `contact_id`
+* `PUT /users/{id}/role` — change role, body `{ "role": "accountant" }`
+* `DELETE /users/{id}` — deactivate
+
+All return `403` for Accountant and User. This is the only route to an `admin` or
+`accountant` account — signup can never produce one.
+
+---
+
 ## POST `/auth/forgot-password`
 Request `{ "email": "owner@urbanfurniture.test" }`. Generates a token in
 `password_reset_tokens` and emails a reset link. **Always returns 200** with
