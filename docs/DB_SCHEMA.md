@@ -265,6 +265,11 @@ Budgets are the only table here that mutates, so they carry full timestamps —
 | `journal_entries`     | `created_at` only — immutable audit record; model sets `const UPDATED_AT = null` |
 | `journal_entry_lines` | none — `$timestamps = false`                         |
 | `analytic_accounts`   | none — `$timestamps = false`                         |
+| all transaction tables | `created_at` + `updated_at` — the nine purchase/sales/payment tables and their line tables |
+
+For transaction documents, `created_at` (when the record was entered) is
+distinct from `bill_date` / `invoice_date` / `date`, which the user types and can
+backdate. Lists sort by `created_at`; reports filter by the document date.
 
 **Budget stages (design board):**
 
@@ -287,10 +292,13 @@ to the original. Both link to each other in the UI.
 | Column      | Type      | Nullable | Default | Description                          |
 | ----------- | --------- | -------- | ------- | --------------------------------------|
 | id          | bigint    | No       | —       |                                        |
+| number      | string    | No       | —       | Unique. Sequence `P00001`, +1 of last  |
 | contact_id  | bigint FK | No       | —       | → contacts.id (vendor)                |
 | date        | date      | No       | —       |                                        |
 | status      | enum      | No       | 'draft' | draft / confirmed / billed            |
 | total       | decimal   | No       | 0.00    | Denormalized sum of lines             |
+| created_at  | timestamp | No       | —       |                                        |
+| updated_at  | timestamp | No       | —       |                                        |
 
 `purchase_order_lines`: id, purchase_order_id FK, product_id FK (Many2one),
 account_id FK → chart_of_accounts.id, analytic_account_id FK →
@@ -319,6 +327,8 @@ from the Purchase Order field list.
 | bill_reference    | string    | Yes      | null    | Vendor's own ref, free text (`ABC-26-001`) |
 | total             | decimal   | No       | 0.00    |                                       |
 | journal_entry_id  | bigint FK | Yes      | null    | Set when posted                      |
+| created_at        | timestamp | No       | —       |                                       |
+| updated_at        | timestamp | No       | —       |                                       |
 
 `vendor_bill_lines`: mirrors purchase_order_lines (product_id, account_id,
 analytic_account_id, quantity, unit_price, subtotal).
@@ -337,7 +347,8 @@ Credit Creditors/AP, for `total`.
 
 # Entity: sales_orders / sales_order_lines
 
-Mirrors purchase_orders, with `contact_id` → customer. Lines carry the same
+Mirrors purchase_orders — including `number` (sequence `S00001`) and
+timestamps. With `contact_id` → customer. Lines carry the same
 columns as purchase lines (product, account, analytic, qty, unit price, total)
 **plus `tax_percent`** (decimal, default 0). `status`: draft / confirmed / invoiced.
 
@@ -379,6 +390,8 @@ add-on, with no separate tax liability account in P0 scope).
 | date             | date      | No       | —       | Defaults to today                          |
 | note             | string    | Yes      | null    | Free text                                  |
 | journal_entry_id | bigint FK | Yes      | null    | Set once posted                            |
+| created_at       | timestamp | No       | —       |                                             |
+| updated_at       | timestamp | No       | —       |                                             |
 
 **Vendor bill payment** journal entry: Debit Creditors/AP, Credit Cash/Bank.
 **Customer invoice payment** journal entry: Debit Cash/Bank, Credit Debtors/AR.
@@ -449,7 +462,7 @@ Bills and invoices can be **Reset to Draft** from the posted state.
 purchase_orders.number     P00001              (+1 of last)
 sales_orders.number        S00001              (+1 of last)
 vendor_bills.bill_number   Bill/2026/0001      (+1 of last)
-customer_invoices.number   INV/2026/0001       (+1 of last)
+customer_invoices.invoice_number  INV/2026/0001 (+1 of last)
 ```
 
 ---
