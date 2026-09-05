@@ -1,12 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { Combobox } from "@/components/ui/Combobox";
+import { InlineAlert } from "@/components/ui/States";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { MOCK_CATEGORIES } from "@/lib/mock-data";
+import { ApiError } from "@/lib/api";
+import { ProductCategoriesApi, ProductsApi } from "@/lib/resources";
+import { useAsyncData } from "@/lib/use-async-data";
 import type { Product, ProductCategory, ProductType } from "@/types";
 
 const EMPTY: Omit<Product, "id"> = {
@@ -21,22 +24,19 @@ export function ProductForm({ product }: { product?: Product }) {
   const router = useRouter();
   const [form, setForm] = useState<Omit<Product, "id">>(product ?? EMPTY);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [categories, setCategories] = useState<ProductCategory[]>(MOCK_CATEGORIES);
 
-  /**
-   * Creates the category locally so the product form never blocks on a second
-   * screen. Negative ids mark records that exist only client-side so far.
-   */
-  function createCategory(name: string) {
-    // TODO: replace with real API once backend/product-categories is ready
-    // (POST /api/product-categories, then use the id it returns).
-    const created: ProductCategory = {
-      id: -(categories.length + 1),
-      name,
-      parent_id: null,
-    };
-    setCategories((previous) => [...previous, created]);
+  const fetchCategories = useCallback(() => ProductCategoriesApi.list(), []);
+  const { data: categoriesData, retry: reloadCategories } = useAsyncData<ProductCategory[]>(
+    fetchCategories,
+    "Could not load categories.",
+  );
+  const categories = categoriesData ?? [];
+
+  async function createCategory(name: string) {
+    const created = await ProductCategoriesApi.create(name);
+    reloadCategories();
     return { value: created.id, label: created.name };
   }
 
@@ -53,14 +53,24 @@ export function ProductForm({ product }: { product?: Product }) {
     if (form.sales_price < 0) next.sales_price = "Cannot be negative.";
     if (form.cost_price < 0) next.cost_price = "Cannot be negative.";
     setErrors(next);
+    setFormError(null);
     if (Object.keys(next).length > 0) return;
 
     setSaving(true);
-    // TODO: replace with real API once backend/products is ready
-    // (POST /api/products, or PUT /api/products/{id} when editing).
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    setSaving(false);
-    router.push("/products");
+    try {
+      if (product) await ProductsApi.update(product.id, form);
+      else await ProductsApi.create(form);
+      router.push("/products");
+    } catch (err) {
+      if (err instanceof ApiError && err.errors) {
+        const fieldErrors: Record<string, string> = {};
+        for (const [field, messages] of Object.entries(err.errors)) fieldErrors[field] = messages[0];
+        setErrors(fieldErrors);
+      } else {
+        setFormError(err instanceof ApiError ? err.message : "Could not save this product.");
+      }
+      setSaving(false);
+    }
   }
 
   return (
@@ -83,6 +93,12 @@ export function ProductForm({ product }: { product?: Product }) {
           </Button>
         }
       />
+
+      {formError && (
+        <div className="border-b border-[var(--line)] p-5">
+          <InlineAlert title={formError} />
+        </div>
+      )}
 
       <div className="grid gap-x-8 gap-y-5 p-5 md:grid-cols-2">
         <div className="flex flex-col gap-5">

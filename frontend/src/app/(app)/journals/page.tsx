@@ -7,19 +7,23 @@ import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { titleCase } from "@/lib/format";
-import { MOCK_JOURNALS, accountName, mockRequest } from "@/lib/mock-data";
+import { AccountsApi, JournalsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
-import type { Journal } from "@/types";
+import type { ChartOfAccount, Journal } from "@/types";
 
 export default function JournalsPage() {
   const router = useRouter();
-  // TODO: replace with real API once backend/journals is ready (GET /api/journals).
-  const fetchData = useCallback(() => mockRequest(MOCK_JOURNALS), []);
+  const fetchData = useCallback(() => JournalsApi.list(), []);
   const { data, loading, error, retry } = useAsyncData<Journal[]>(
     fetchData,
     "The journals service did not respond.",
   );
   const journals = data ?? [];
+
+  const fetchAccounts = useCallback(() => AccountsApi.list(), []);
+  const { data: accountsData } = useAsyncData<ChartOfAccount[]>(fetchAccounts, "Could not load accounts.");
+  const accounts = accountsData ?? [];
+  const accountName = (id: number | null) => accounts.find((a) => a.id === id)?.name ?? "—";
 
   const columns: Column<Journal>[] = [
     {

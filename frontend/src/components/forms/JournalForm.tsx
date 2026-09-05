@@ -1,20 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
+import { InlineAlert } from "@/components/ui/States";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { ApiError } from "@/lib/api";
 import { titleCase } from "@/lib/format";
-import { MOCK_ACCOUNTS } from "@/lib/mock-data";
-import type { Journal, JournalType } from "@/types";
+import { AccountsApi, JournalsApi } from "@/lib/resources";
+import { useAsyncData } from "@/lib/use-async-data";
+import type { ChartOfAccount, Journal, JournalType } from "@/types";
 
 const TYPES: JournalType[] = ["sales", "purchase", "bank", "cash"];
-
-const accountOptions = MOCK_ACCOUNTS.map((account) => ({
-  value: account.id,
-  label: `${account.code} · ${account.name}`,
-}));
 
 export function JournalForm({ journal }: { journal?: Journal }) {
   const router = useRouter();
@@ -27,20 +25,39 @@ export function JournalForm({ journal }: { journal?: Journal }) {
     },
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const fetchAccounts = useCallback(() => AccountsApi.list(), []);
+  const { data: accountsData } = useAsyncData<ChartOfAccount[]>(fetchAccounts, "Could not load accounts.");
+  const accountOptions = (accountsData ?? []).map((account) => ({
+    value: account.id,
+    label: `${account.code} · ${account.name}`,
+  }));
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     const next: Record<string, string> = {};
     if (!form.name.trim()) next.name = "Journal name is required.";
     setErrors(next);
+    setFormError(null);
     if (Object.keys(next).length > 0) return;
 
     setSaving(true);
-    // TODO: replace with real API once backend/journals is ready (POST/PUT /api/journals).
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    setSaving(false);
-    router.push("/journals");
+    try {
+      if (journal) await JournalsApi.update(journal.id, form);
+      else await JournalsApi.create(form);
+      router.push("/journals");
+    } catch (err) {
+      if (err instanceof ApiError && err.errors) {
+        const fieldErrors: Record<string, string> = {};
+        for (const [field, messages] of Object.entries(err.errors)) fieldErrors[field] = messages[0];
+        setErrors(fieldErrors);
+      } else {
+        setFormError(err instanceof ApiError ? err.message : "Could not save this journal.");
+      }
+      setSaving(false);
+    }
   }
 
   return (
@@ -63,6 +80,12 @@ export function JournalForm({ journal }: { journal?: Journal }) {
           </Button>
         }
       />
+
+      {formError && (
+        <div className="border-b border-[var(--line)] p-5">
+          <InlineAlert title={formError} />
+        </div>
+      )}
 
       <div className="grid max-w-2xl gap-5 p-5 md:grid-cols-2">
         <TextField

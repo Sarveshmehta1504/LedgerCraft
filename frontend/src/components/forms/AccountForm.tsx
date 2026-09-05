@@ -4,8 +4,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
+import { InlineAlert } from "@/components/ui/States";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { ApiError } from "@/lib/api";
 import { titleCase } from "@/lib/format";
+import { AccountsApi } from "@/lib/resources";
 import type { AccountType, ChartOfAccount } from "@/types";
 
 const TYPES: AccountType[] = [
@@ -25,6 +28,7 @@ export function AccountForm({ account }: { account?: ChartOfAccount }) {
     account ?? { code: "", name: "", type: "asset" },
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function onSubmit(event: React.FormEvent) {
@@ -33,13 +37,24 @@ export function AccountForm({ account }: { account?: ChartOfAccount }) {
     if (!form.code.trim()) next.code = "Code is required.";
     if (!form.name.trim()) next.name = "Name is required.";
     setErrors(next);
+    setFormError(null);
     if (Object.keys(next).length > 0) return;
 
     setSaving(true);
-    // TODO: replace with real API once backend/accounts is ready (POST/PUT /api/accounts).
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    setSaving(false);
-    router.push("/accounts");
+    try {
+      if (account) await AccountsApi.update(account.id, form);
+      else await AccountsApi.create(form);
+      router.push("/accounts");
+    } catch (err) {
+      if (err instanceof ApiError && err.errors) {
+        const fieldErrors: Record<string, string> = {};
+        for (const [field, messages] of Object.entries(err.errors)) fieldErrors[field] = messages[0];
+        setErrors(fieldErrors);
+      } else {
+        setFormError(err instanceof ApiError ? err.message : "Could not save this account.");
+      }
+      setSaving(false);
+    }
   }
 
   return (
@@ -62,6 +77,12 @@ export function AccountForm({ account }: { account?: ChartOfAccount }) {
           </Button>
         }
       />
+
+      {formError && (
+        <div className="border-b border-[var(--line)] p-5">
+          <InlineAlert title={formError} />
+        </div>
+      )}
 
       <div className="grid max-w-2xl gap-5 p-5 md:grid-cols-2">
         <TextField

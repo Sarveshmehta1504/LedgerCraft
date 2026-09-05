@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { titleCase } from "@/lib/format";
-import { MOCK_ACCOUNTS, mockRequest } from "@/lib/mock-data";
+import { AccountsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
 import type { AccountType, ChartOfAccount } from "@/types";
 
@@ -25,8 +25,7 @@ const TYPE_ORDER: AccountType[] = [
 
 export default function ChartOfAccountsPage() {
   const router = useRouter();
-  // TODO: replace with real API once backend/accounts is ready (GET /api/accounts).
-  const fetchData = useCallback(() => mockRequest(MOCK_ACCOUNTS), []);
+  const fetchData = useCallback(() => AccountsApi.list(), []);
   const { data, loading, error, retry } = useAsyncData<ChartOfAccount[]>(
     fetchData,
     "The chart of accounts service did not respond.",
