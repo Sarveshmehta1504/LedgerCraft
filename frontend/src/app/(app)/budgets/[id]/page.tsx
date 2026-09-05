@@ -1,11 +1,22 @@
-import { notFound } from "next/navigation";
-import { BudgetForm } from "@/components/forms/BudgetForm";
-import { MOCK_BUDGETS } from "@/lib/mock-data";
+"use client";
 
-export default async function EditBudgetPage({ params }: PageProps<"/budgets/[id]">) {
-  const { id } = await params;
-  // TODO: replace with real API once backend/budgets is ready (GET /api/budgets/{id}).
-  const budget = MOCK_BUDGETS.find((record) => String(record.id) === id);
-  if (!budget) notFound();
+import { useParams } from "next/navigation";
+import { useCallback } from "react";
+import { BudgetForm } from "@/components/forms/BudgetForm";
+import { ErrorState, TableSkeleton } from "@/components/ui/States";
+import { BudgetsApi } from "@/lib/resources";
+import { useAsyncData } from "@/lib/use-async-data";
+import type { Budget } from "@/types";
+
+export default function EditBudgetPage() {
+  const { id } = useParams<{ id: string }>();
+  const fetchData = useCallback(() => BudgetsApi.get(Number(id)), [id]);
+  const { data: budget, loading, error, retry } = useAsyncData<Budget>(
+    fetchData,
+    "Could not load this budget.",
+  );
+
+  if (loading) return <TableSkeleton rows={4} columns={2} />;
+  if (error || !budget) return <ErrorState message={error ?? "Budget not found."} onRetry={retry} />;
   return <BudgetForm budget={budget} />;
 }

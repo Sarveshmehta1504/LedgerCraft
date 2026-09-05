@@ -7,21 +7,14 @@ import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { formatDate, formatMoney } from "@/lib/format";
-import { MOCK_JOURNAL_ENTRIES, contactName, journalName, mockRequest } from "@/lib/mock-data";
+import { formatDate, formatMoney, titleCase } from "@/lib/format";
+import { JournalEntriesApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
 import type { JournalEntry } from "@/types";
 
-/** The partner on an entry is whichever contact its lines reference. */
-function entryPartner(entry: JournalEntry): string {
-  const line = entry.lines.find((item) => item.contact_id !== null);
-  return line ? contactName(line.contact_id) : "—";
-}
-
 export default function JournalEntriesPage() {
   const router = useRouter();
-  // TODO: replace with real API once backend/journal-entries is ready (GET /api/journal-entries).
-  const fetchData = useCallback(() => mockRequest(MOCK_JOURNAL_ENTRIES), []);
+  const fetchData = useCallback(() => JournalEntriesApi.list(), []);
   const { data, loading, error, retry } = useAsyncData<JournalEntry[]>(
     fetchData,
     "The ledger service did not respond.",
@@ -37,24 +30,34 @@ export default function JournalEntriesPage() {
         <span className="tnum font-mono text-[13px] font-medium">{entry.reference ?? "—"}</span>
       ),
     },
-    { key: "partner", header: "Partner", render: (entry) => entryPartner(entry) },
+    {
+      key: "source",
+      header: "Source",
+      render: (entry) => (
+        <span className="text-[var(--text-muted)]">
+          {titleCase(entry.source_type.replace(/_/g, " "))}
+        </span>
+      ),
+    },
     {
       key: "journal",
       header: "Journal",
       render: (entry) => (
-        <span className="text-[var(--text-muted)]">{journalName(entry.journal_id)}</span>
+        <span className="text-[var(--text-muted)]">{entry.journal_name ?? "—"}</span>
       ),
     },
     {
       key: "total",
       header: "Total",
       numeric: true,
-      render: (entry) => formatMoney(entry.total),
+      render: (entry) => formatMoney(entry.total_debit),
     },
     {
-      key: "status",
+      // An entry only reaches the ledger balanced; the badge makes that visible
+      // rather than assumed, so a bad one would stand out immediately.
+      key: "balanced",
       header: "Status",
-      render: (entry) => <StatusBadge status={entry.status} />,
+      render: (entry) => <StatusBadge status={entry.balanced ? "posted" : "draft"} />,
     },
   ];
 
