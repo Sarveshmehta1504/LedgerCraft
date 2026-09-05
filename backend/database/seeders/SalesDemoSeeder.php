@@ -189,7 +189,7 @@ class SalesDemoSeeder extends Seeder
             'contact_id' => $devika->id,
             'invoice_date' => now()->subDays(50)->toDateString(),
             'due_date' => now()->subDays(20)->toDateString(),
-            'invoice_reference' => 'DVK-STANDALONE-01',
+            'invoice_reference' => 'DR/ORD/8902',
             'lines' => [
                 ['product_id' => $lamp->id, 'quantity' => 10, 'unit_price' => 900, 'tax_percent' => 12],
             ],
@@ -200,7 +200,7 @@ class SalesDemoSeeder extends Seeder
             'contact_id' => $ananya->id,
             'invoice_date' => now()->subDays(65)->toDateString(),
             'due_date' => now()->subDays(35)->toDateString(),
-            'invoice_reference' => 'ANY-STANDALONE-01',
+            'invoice_reference' => 'AI-REQ-0357',
             'lines' => [
                 ['product_id' => $officeChair->id, 'quantity' => 3, 'unit_price' => 6200, 'tax_percent' => 18],
             ],
@@ -219,7 +219,7 @@ class SalesDemoSeeder extends Seeder
             'contact_id' => $kunal->id,
             'invoice_date' => now()->subDays(110)->toDateString(),
             'due_date' => now()->subDays(75)->toDateString(),
-            'invoice_reference' => 'KNL-OVERDUE-61',
+            'invoice_reference' => 'KS-PO-2291',
             'lines' => [
                 ['product_id' => $diningChair->id, 'quantity' => 6, 'unit_price' => 2200, 'tax_percent' => 18],
             ],
@@ -234,7 +234,7 @@ class SalesDemoSeeder extends Seeder
             'contact_id' => $nimesh->id,
             'invoice_date' => now()->subDays(12)->toDateString(),
             'due_date' => now()->addDays(6)->toDateString(),
-            'invoice_reference' => 'NMP-PORTAL-DUE',
+            'invoice_reference' => 'PO-4471/NP',
             'lines' => [
                 ['product_id' => $officeChair->id, 'quantity' => 2, 'unit_price' => 7800, 'tax_percent' => 18],
                 ['product_id' => $lamp->id, 'quantity' => 3, 'unit_price' => 900, 'tax_percent' => 12],
@@ -248,7 +248,7 @@ class SalesDemoSeeder extends Seeder
             'contact_id' => $nimesh->id,
             'invoice_date' => now()->subDays(30)->toDateString(),
             'due_date' => now()->subDays(2)->toDateString(),
-            'invoice_reference' => 'NMP-PORTAL-PART',
+            'invoice_reference' => 'PO-4392/NP',
             'lines' => [
                 ['product_id' => $diningChair->id, 'quantity' => 4, 'unit_price' => 2200, 'tax_percent' => 18],
             ],
@@ -264,7 +264,7 @@ class SalesDemoSeeder extends Seeder
             'contact_id' => $devika->id,
             'invoice_date' => now()->subDays(160)->toDateString(),
             'due_date' => now()->subDays(130)->toDateString(),
-            'invoice_reference' => 'DVK-OVERDUE-90',
+            'invoice_reference' => 'DR/ORD/8814',
             'lines' => [
                 ['product_id' => $sofa->id, 'quantity' => 1, 'unit_price' => 26500, 'tax_percent' => 18],
             ],

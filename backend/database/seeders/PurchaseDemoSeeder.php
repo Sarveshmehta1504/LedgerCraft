@@ -184,7 +184,7 @@ class PurchaseDemoSeeder extends Seeder
             'contact_id' => $trident->id,
             'bill_date' => now()->subDays(45)->toDateString(),
             'due_date' => now()->subDays(15)->toDateString(),
-            'bill_reference' => 'TRD-STANDALONE-01',
+            'bill_reference' => 'TTC-2026-114',
             'lines' => [
                 ['product_id' => $hinges->id, 'quantity' => 40, 'unit_price' => 350],
             ],
@@ -195,7 +195,7 @@ class PurchaseDemoSeeder extends Seeder
             'contact_id' => $primeFoam->id,
             'bill_date' => now()->subDays(70)->toDateString(),
             'due_date' => now()->subDays(40)->toDateString(),
-            'bill_reference' => 'PFU-STANDALONE-01',
+            'bill_reference' => 'PFU-INV-77120',
             'lines' => [
                 ['product_id' => $upholstery->id, 'quantity' => 60, 'unit_price' => 180],
             ],
