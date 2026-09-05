@@ -1,15 +1,6 @@
-/**
- * LedgerCraft mark.
- *
- * Two stacked bars of unequal length sitting on a baseline, with a third bar
- * mirrored beneath it — debit above the line, credit below, meeting at the rule.
- * It reads as a ledger balancing rather than a book, and stays legible at 16px
- * where any drawn book would turn to mush.
- *
- * Colours come from the app palette: the rule and the upper bars are ink, the
- * balancing bar is the accent. No separate brand colour.
- */
-
+// Two bars of unequal length, one ink and one accent, sitting one above the other:
+// debit over credit, meeting in balance. Deliberately only two shapes so the mark
+// survives a 16px favicon — earlier four-element versions turned to mush.
 export function LogoMark({ size = 20, className = "" }: { size?: number; className?: string }) {
   return (
     <svg
@@ -21,13 +12,8 @@ export function LogoMark({ size = 20, className = "" }: { size?: number; classNa
       aria-hidden="true"
     >
       <rect width="24" height="24" rx="5.5" fill="var(--logo-ground, #18181b)" />
-      {/* debit side — two bars above the rule */}
-      <rect x="5.5" y="6" width="9" height="2.4" rx="1.2" fill="var(--logo-ink, #ffffff)" />
-      <rect x="5.5" y="9.6" width="5.5" height="2.4" rx="1.2" fill="var(--logo-ink, #ffffff)" opacity="0.55" />
-      {/* the rule they balance on */}
-      <rect x="4" y="13.4" width="16" height="1.2" rx="0.6" fill="var(--logo-ink, #ffffff)" opacity="0.35" />
-      {/* credit side — the accent bar closing the balance */}
-      <rect x="5.5" y="15.8" width="13" height="2.4" rx="1.2" fill="var(--logo-accent, #2dd4bf)" />
+      <rect x="5" y="6.5" width="10" height="4" rx="2" fill="var(--logo-ink, #ffffff)" />
+      <rect x="5" y="13.5" width="14" height="4" rx="2" fill="var(--logo-accent, #2dd4bf)" />
     </svg>
   );
 }
