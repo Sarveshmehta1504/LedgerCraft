@@ -2,36 +2,24 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { titleCase } from "@/lib/format";
 import { MOCK_JOURNALS, accountName, mockRequest } from "@/lib/mock-data";
+import { useAsyncData } from "@/lib/use-async-data";
 import type { Journal } from "@/types";
 
 export default function JournalsPage() {
   const router = useRouter();
-  const [journals, setJournals] = useState<Journal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // TODO: replace with real API once backend/journals is ready (GET /api/journals).
-      setJournals(await mockRequest(MOCK_JOURNALS));
-    } catch {
-      setError("The journals service did not respond.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  // TODO: replace with real API once backend/journals is ready (GET /api/journals).
+  const fetchData = useCallback(() => mockRequest(MOCK_JOURNALS), []);
+  const { data, loading, error, retry } = useAsyncData<Journal[]>(
+    fetchData,
+    "The journals service did not respond.",
+  );
+  const journals = data ?? [];
 
   const columns: Column<Journal>[] = [
     {
@@ -78,7 +66,7 @@ export default function JournalsPage() {
         onRowClick={(journal) => router.push(`/journals/${journal.id}`)}
         loading={loading}
         error={error}
-        onRetry={load}
+        onRetry={retry}
         emptyTitle="No journals configured"
         emptyDescription="Sales, purchase, bank and cash journals are normally seeded up front."
       />

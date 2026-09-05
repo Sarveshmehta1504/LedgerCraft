@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, formatMoney } from "@/lib/format";
 import { contactName, mockRequest } from "@/lib/mock-data";
+import { useAsyncData } from "@/lib/use-async-data";
 import type { CustomerInvoice, VendorBill } from "@/types";
 
 type Document = VendorBill | CustomerInvoice;
@@ -34,25 +35,9 @@ export function BillList({
   source: Document[];
 }) {
   const router = useRouter();
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setDocuments(await mockRequest(source));
-    } catch {
-      setError("The billing service did not respond.");
-    } finally {
-      setLoading(false);
-    }
-  }, [source]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const fetchData = useCallback(() => mockRequest(source), [source]);
+  const { data, loading, error, retry } = useAsyncData<Document[]>(fetchData, "The billing service did not respond.");
+  const documents = data ?? [];
 
   const columns: Column<Document>[] = [
     {
@@ -95,7 +80,7 @@ export function BillList({
         onRowClick={(document) => router.push(`${basePath}/${document.id}`)}
         loading={loading}
         error={error}
-        onRetry={load}
+        onRetry={retry}
         emptyTitle={`No ${title.toLowerCase()} yet`}
         emptyDescription="Converting a confirmed order creates one here."
       />

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -10,6 +10,7 @@ import { ViewSwitcher, type ViewMode } from "@/components/shared/ViewSwitcher";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { titleCase } from "@/lib/format";
 import { MOCK_CONTACTS, mockRequest } from "@/lib/mock-data";
+import { useAsyncData } from "@/lib/use-async-data";
 import type { Contact, ContactType } from "@/types";
 
 const TYPE_FILTERS: { value: "" | ContactType; label: string }[] = [
@@ -39,26 +40,13 @@ export default function ContactsPage() {
   const [view, setView] = useState<ViewMode>("list");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"" | ContactType>("");
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // TODO: replace with real API once backend/contacts is ready (GET /api/contacts).
-      setContacts(await mockRequest(MOCK_CONTACTS));
-    } catch {
-      setError("The contacts service did not respond.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  // TODO: replace with real API once backend/contacts is ready (GET /api/contacts).
+  const fetchData = useCallback(() => mockRequest(MOCK_CONTACTS), []);
+  const { data, loading, error, retry } = useAsyncData<Contact[]>(
+    fetchData,
+    "The contacts service did not respond.",
+  );
+  const contacts = data ?? [];
 
   const visible = contacts.filter((contact) => {
     const matchesType = !typeFilter || contact.type === typeFilter;
@@ -158,7 +146,7 @@ export default function ContactsPage() {
           onRowClick={(contact) => router.push(`/contacts/${contact.id}`)}
           loading={loading}
           error={error}
-          onRetry={load}
+          onRetry={retry}
           emptyTitle="No contacts yet"
           emptyDescription="Add the customers and vendors you trade with to start recording transactions."
           emptyAction={
@@ -172,7 +160,7 @@ export default function ContactsPage() {
       ) : loading ? (
         <TableSkeleton rows={4} columns={4} />
       ) : error ? (
-        <ErrorState message={error} onRetry={load} />
+        <ErrorState message={error} onRetry={retry} />
       ) : visible.length === 0 ? (
         <EmptyState
           title="No contacts match"

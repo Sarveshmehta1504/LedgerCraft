@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, formatMoney } from "@/lib/format";
 import { MOCK_BUDGETS, analyticName, mockRequest } from "@/lib/mock-data";
+import { useAsyncData } from "@/lib/use-async-data";
 import type { Budget } from "@/types";
 
 /** Achieved % is only meaningful once a budget is confirmed. */
@@ -19,26 +20,13 @@ function achievedPercent(budget: Budget): number | null {
 
 export default function BudgetsPage() {
   const router = useRouter();
-  const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // TODO: replace with real API once backend/budgets is ready (GET /api/budgets).
-      setBudgets(await mockRequest(MOCK_BUDGETS));
-    } catch {
-      setError("The budgets service did not respond.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  // TODO: replace with real API once backend/budgets is ready (GET /api/budgets).
+  const fetchData = useCallback(() => mockRequest(MOCK_BUDGETS), []);
+  const { data, loading, error, retry } = useAsyncData<Budget[]>(
+    fetchData,
+    "The budgets service did not respond.",
+  );
+  const budgets = data ?? [];
 
   const columns: Column<Budget>[] = [
     {
@@ -122,7 +110,7 @@ export default function BudgetsPage() {
         onRowClick={(budget) => router.push(`/budgets/${budget.id}`)}
         loading={loading}
         error={error}
-        onRetry={load}
+        onRetry={retry}
         emptyTitle="No budgets yet"
         emptyDescription="Set a committed amount against an analytic account for a period."
       />
