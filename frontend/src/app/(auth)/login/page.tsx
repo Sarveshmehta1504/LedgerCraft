@@ -6,6 +6,8 @@ import { Suspense, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
 import { InlineAlert } from "@/components/ui/States";
+import { ApiError } from "@/lib/api";
+import { login, POST_LOGIN_PATH } from "@/lib/auth";
 
 function LoginForm() {
   const router = useRouter();
@@ -26,11 +28,15 @@ function LoginForm() {
     if (Object.keys(errors).length > 0) return;
 
     setSubmitting(true);
-    // TODO: replace with real API once backend/auth is ready (POST /api/auth/login,
-    // store the returned token, then redirect by role per FRONTEND_REQUIREMENTS.md).
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    setSubmitting(false);
-    router.push("/dashboard");
+    try {
+      await login(loginId, password);
+      router.push(POST_LOGIN_PATH);
+    } catch (err) {
+      setFormError(
+        err instanceof ApiError ? err.message : "Could not reach the server. Try again.",
+      );
+      setSubmitting(false);
+    }
   }
 
   return (

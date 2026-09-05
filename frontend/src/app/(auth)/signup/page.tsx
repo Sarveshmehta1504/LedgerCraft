@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
+import { InlineAlert } from "@/components/ui/States";
+import { ApiError } from "@/lib/api";
 import { PASSWORD_HINT, validatePassword } from "@/lib/password";
+import { signup, POST_LOGIN_PATH } from "@/lib/auth";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -17,6 +20,7 @@ export default function SignupPage() {
     password_confirmation: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   function update(field: keyof typeof form, value: string) {
@@ -36,14 +40,24 @@ export default function SignupPage() {
       next.password_confirmation = "Passwords do not match.";
 
     setErrors(next);
+    setFormError(null);
     if (Object.keys(next).length > 0) return;
 
     setSubmitting(true);
-    // TODO: replace with real API once backend/auth is ready (POST /api/auth/signup —
-    // the backend always assigns role `user` and creates the linked customer contact).
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    setSubmitting(false);
-    router.push("/login");
+    try {
+      // The backend always assigns role `user` and creates the linked customer contact.
+      await signup(form);
+      router.push(POST_LOGIN_PATH);
+    } catch (err) {
+      if (err instanceof ApiError && err.errors) {
+        const fieldErrors: Record<string, string> = {};
+        for (const [field, messages] of Object.entries(err.errors)) fieldErrors[field] = messages[0];
+        setErrors(fieldErrors);
+      } else {
+        setFormError(err instanceof ApiError ? err.message : "Could not reach the server. Try again.");
+      }
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -54,6 +68,8 @@ export default function SignupPage() {
       </p>
 
       <form onSubmit={onSubmit} className="mt-7 flex flex-col gap-4" noValidate>
+        {formError && <InlineAlert title={formError} />}
+
         <TextField
           label="Full name"
           value={form.name}

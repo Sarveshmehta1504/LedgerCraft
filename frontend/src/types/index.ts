@@ -161,6 +161,7 @@ export interface DocumentLine {
 
 export interface PurchaseOrder {
   id: number;
+  number: string;
   contact_id: number;
   date: string;
   status: Extract<DocumentStatus, "draft" | "confirmed" | "billed">;
@@ -185,6 +186,7 @@ export interface VendorBill {
 
 export interface SalesOrder {
   id: number;
+  number: string;
   contact_id: number;
   date: string;
   status: Extract<DocumentStatus, "draft" | "confirmed" | "invoiced">;
@@ -223,29 +225,39 @@ export interface Payment {
 }
 
 /* ---- Reports ---- */
+/* Shapes below match the live GET /api/reports/* responses exactly — not the
+   board's mockup — since these two are wired to the real backend. */
 
 export interface ReportLine {
   account: string;
   balance: number;
 }
 
+export interface ReportAccountGroup {
+  accounts: ReportLine[];
+  total: number;
+}
+
 export interface BalanceSheet {
-  assets: ReportLine[];
-  liabilities: ReportLine[];
-  capital: ReportLine[];
+  as_of: string | null;
+  assets: ReportAccountGroup;
+  liabilities: ReportAccountGroup;
+  capital: ReportAccountGroup & { retained_earnings: number };
   total_assets: number;
   total_liabilities_and_capital: number;
+  /** Computed server-side — no need to re-derive it from a float comparison. */
+  balanced: boolean;
 }
 
 export interface ProfitAndLoss {
-  income: ReportLine[];
-  expenses: ReportLine[];
+  period: { from: string | null; to: string | null };
+  income: ReportAccountGroup;
+  purchase_expense: ReportAccountGroup;
   /** The board separates account type `other_expense` into its own total. */
-  other_expenses: ReportLine[];
+  other_expense: ReportAccountGroup;
   total_income: number;
   total_expenses: number;
-  total_other_expenses: number;
-  net_profit: number;
+  net_income: number;
 }
 
 export interface BudgetReportRow {

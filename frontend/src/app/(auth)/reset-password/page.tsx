@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
 import { InlineAlert } from "@/components/ui/States";
 import { PASSWORD_HINT, validatePassword } from "@/lib/password";
+import { apiFetch, ApiError } from "@/lib/api";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -20,8 +21,9 @@ function ResetPasswordForm() {
   const [formError, setFormError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
 
-  // A link without a token can't be honoured — say so before the user types a password.
-  if (!token) {
+  // A link without both a token and the resolved email can't be honoured — the
+  // backend requires both, and there's no account context to guess email from.
+  if (!token || !email) {
     return (
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-[var(--text)]">Link expired</h1>
@@ -55,12 +57,22 @@ function ResetPasswordForm() {
 
     setSubmitting(true);
     try {
-      // TODO: replace with real API once backend/auth reset endpoints exist
-      // (POST /api/auth/reset-password with email, token, password, password_confirmation).
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      await apiFetch("/auth/reset-password", {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          token,
+          password,
+          password_confirmation: confirmation,
+        }),
+      });
       router.push("/login?reset=1");
-    } catch {
-      setFormError("That reset link is invalid or has expired. Request a new one.");
+    } catch (err) {
+      setFormError(
+        err instanceof ApiError
+          ? err.message
+          : "That reset link is invalid or has expired. Request a new one.",
+      );
       setSubmitting(false);
     }
   }
