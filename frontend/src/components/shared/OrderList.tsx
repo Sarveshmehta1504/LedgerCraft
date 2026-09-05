@@ -8,9 +8,9 @@ import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, formatMoney } from "@/lib/format";
-import { contactName, mockRequest } from "@/lib/mock-data";
+import { ContactsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
-import type { PurchaseOrder, SalesOrder } from "@/types";
+import type { Contact, PurchaseOrder, SalesOrder } from "@/types";
 
 type Order = PurchaseOrder | SalesOrder;
 
@@ -20,38 +20,35 @@ export function OrderList({
   subtitle,
   partnerLabel,
   basePath,
-  source,
+  fetcher,
 }: {
   title: string;
   subtitle: string;
   partnerLabel: string;
   basePath: string;
-  source: Order[];
+  fetcher: () => Promise<Order[]>;
 }) {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState("");
 
-  const fetchData = useCallback(() => mockRequest(source), [source]);
   const { data, loading, error, retry } = useAsyncData<Order[]>(
-    fetchData,
+    fetcher,
     "The order service did not respond.",
   );
   const orders = data ?? [];
 
-  const statuses = Array.from(new Set(source.map((order) => order.status)));
-  const visible = statusFilter
-    ? orders.filter((order) => order.status === statusFilter)
-    : orders;
+  const fetchContacts = useCallback(() => ContactsApi.list(), []);
+  const { data: contactsData } = useAsyncData<Contact[]>(fetchContacts, "Could not load contacts.");
+  const contactName = (id: number) => (contactsData ?? []).find((c) => c.id === id)?.name ?? "—";
+
+  const statuses = Array.from(new Set(orders.map((order) => order.status)));
+  const visible = statusFilter ? orders.filter((order) => order.status === statusFilter) : orders;
 
   const columns: Column<Order>[] = [
     {
       key: "number",
       header: "Number",
-      render: (order) => (
-        <span className="tnum font-mono text-[13px] font-medium">
-          {basePath === "/purchases" ? "PO" : "SO"}/{String(order.id).padStart(4, "0")}
-        </span>
-      ),
+      render: (order) => <span className="tnum font-mono text-[13px] font-medium">{order.number}</span>,
     },
     { key: "partner", header: partnerLabel, render: (order) => contactName(order.contact_id) },
     { key: "date", header: "Date", render: (order) => formatDate(order.date) },
