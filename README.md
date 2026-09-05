@@ -103,26 +103,6 @@ LedgerCraft/
 │   ├── TEAM_TASKS.md
 │   └── DEMO_FLOW.md
 │
-├── .claude/
-│   ├── agents/
-│   │   ├── frontend.md
-│   │   ├── backend.md
-│   │   ├── github.md
-│   │   └── reviewer.md
-│   │
-│   ├── commands/
-│   │   ├── frontend.md
-│   │   ├── backend.md
-│   │   ├── github.md
-│   │   ├── review.md
-│   │   └── push.md
-│   │
-│   ├── hooks/
-│   │   └── claude_md_drift_check.sh
-│   │
-│   └── settings.json
-│
-├── CLAUDE.md
 ├── README.md
 └── .gitignore
 ```
@@ -582,25 +562,23 @@ The initial setup should happen in this order:
         ↓
 5. Create docs/
         ↓
-6. Create .claude/
+6. Configure Laravel
         ↓
-7. Configure Laravel
+7. Configure Next.js
         ↓
-8. Configure Next.js
+8. Configure authentication/RBAC dependencies
         ↓
-9. Configure authentication/RBAC dependencies
+9. Configure documentation
         ↓
-10. Configure documentation
+10. Create /api/health
         ↓
-11. Create /api/health
+11. Connect frontend homepage
         ↓
-12. Connect frontend homepage
+12. Verify frontend ↔ backend
         ↓
-13. Verify frontend ↔ backend
+13. Commit initial setup
         ↓
-14. Commit initial setup
-        ↓
-15. Create four team branches
+14. Create four team branches
 ```
 
 The initial setup commit may be made directly to:
