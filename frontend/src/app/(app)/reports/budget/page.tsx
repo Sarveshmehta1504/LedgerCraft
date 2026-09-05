@@ -69,7 +69,11 @@ export default function BudgetReportPage() {
   const rows = data ?? [];
 
   return (
-    <ReportShell title="Budget Report" subtitle="Planned versus achieved by analytic account">
+    <ReportShell
+      report="budget"
+      title="Budget Report"
+      subtitle="Planned versus achieved by analytic account"
+    >
       {loading ? (
         <TableSkeleton rows={4} columns={4} />
       ) : error ? (

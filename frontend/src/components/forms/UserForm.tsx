@@ -47,6 +47,15 @@ export function UserForm() {
 
   function update<K extends keyof typeof form>(field: K, value: (typeof form)[K]) {
     setForm((previous) => ({ ...previous, [field]: value }));
+    // Clear this field's error as soon as it is edited. Leaving it up until the
+    // next submit makes a corrected field still look rejected.
+    setErrors((previous) => {
+      if (!previous[field]) return previous;
+      const next = { ...previous };
+      delete next[field];
+      return next;
+    });
+    setFormError(null);
   }
 
   async function onSubmit(event: React.FormEvent) {

@@ -76,6 +76,19 @@ export function TextField({ label, error, hint, id, className = "", type, ...pro
   );
 }
 
+/**
+ * A saved value on a locked document. Keeps the label rhythm of the editable
+ * fields but renders text — a disabled input still invites a click that does
+ * nothing.
+ */
+export function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <FieldShell label={label}>
+      <p className="flex h-9 items-center text-sm text-[var(--text)]">{value || "—"}</p>
+    </FieldShell>
+  );
+}
+
 interface SelectFieldProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label: string;
   error?: string;

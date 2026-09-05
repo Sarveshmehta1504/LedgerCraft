@@ -74,6 +74,19 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  if (!authorized) return null;
+  // Rendering nothing while /auth/me is in flight shows a white page on a slow
+  // check. A neutral shell keeps the app looking alive without leaking any
+  // protected content before the session is confirmed.
+  if (!authorized) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center" aria-busy="true">
+        <div className="flex flex-col items-center gap-3">
+          <span className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--line-strong)] border-t-[var(--accent)]" />
+          <p className="text-[13px] text-[var(--text-subtle)]">Loading…</p>
+        </div>
+      </div>
+    );
+  }
+
   return <>{children}</>;
 }

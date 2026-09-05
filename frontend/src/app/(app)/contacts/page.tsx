@@ -20,16 +20,35 @@ const TYPE_FILTERS: { value: "" | ContactType; label: string }[] = [
   { value: "both", label: "Both" },
 ];
 
-/** Initials stand in for the profile image until uploads exist — never a stock avatar glyph. */
-function Initials({ name }: { name: string }) {
-  const initials = name
+/** The uploaded photo when there is one; initials rather than a stock glyph when there isn't. */
+function Avatar({ contact, size = 28 }: { contact: Contact; size?: number }) {
+  const initials = contact.name
     .split(" ")
     .slice(0, 2)
     .map((word) => word[0])
     .join("")
     .toUpperCase();
+
+  if (contact.profile_image) {
+    return (
+      // Uploaded at runtime, so it is not in the build manifest next/image reads.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={contact.profile_image}
+        alt=""
+        width={size}
+        height={size}
+        style={{ width: size, height: size }}
+        className="shrink-0 rounded object-cover"
+      />
+    );
+  }
+
   return (
-    <span className="grid h-7 w-7 shrink-0 place-items-center rounded bg-[var(--surface-raised)] text-[11px] font-semibold text-[var(--text-muted)]">
+    <span
+      style={{ width: size, height: size }}
+      className="grid shrink-0 place-items-center rounded bg-[var(--surface-raised)] text-[11px] font-semibold text-[var(--text-muted)]"
+    >
       {initials}
     </span>
   );
@@ -61,14 +80,14 @@ export default function ContactsPage() {
 
   const columns: Column<Contact>[] = [
     {
+      key: "image",
+      header: "Image",
+      render: (contact) => <Avatar contact={contact} />,
+    },
+    {
       key: "name",
       header: "Name",
-      render: (contact) => (
-        <div className="flex items-center gap-2.5">
-          <Initials name={contact.name} />
-          <span className="font-medium">{contact.name}</span>
-        </div>
-      ),
+      render: (contact) => <span className="font-medium">{contact.name}</span>,
     },
     { key: "type", header: "Type", render: (contact) => titleCase(contact.type) },
     {
@@ -182,7 +201,7 @@ export default function ContactsPage() {
               className="bg-white p-4 transition-colors duration-150 hover:bg-[var(--surface-sunken)]"
             >
               <div className="flex items-start gap-3">
-                <Initials name={contact.name} />
+                <Avatar contact={contact} size={40} />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-[var(--text)]">{contact.name}</p>
                   <p className="mt-0.5 text-xs text-[var(--text-subtle)]">

@@ -24,6 +24,8 @@ export default function ProfitAndLossPage() {
 
   return (
     <ReportShell
+      report="profit-and-loss"
+      params={{ from, to }}
       title="Profit and Loss"
       subtitle="Income against expenses for the period"
       controls={

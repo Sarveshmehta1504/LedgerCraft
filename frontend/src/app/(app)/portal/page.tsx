@@ -1,8 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback } from "react";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/States";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, formatMoney } from "@/lib/format";
 import { PortalApi } from "@/lib/resources";
@@ -18,6 +21,9 @@ import type { CustomerInvoice } from "@/types";
  */
 export default function PortalPage() {
   const user = typeof window === "undefined" ? null : getCurrentUser();
+  // /my/invoices is scoped to the caller's own contact, so it answers 403 for
+  // staff accounts. Say that plainly instead of showing a failed request.
+  const isPortalAccount = user?.role === "user";
 
   const fetchInvoices = useCallback(() => PortalApi.invoices(), []);
   const { data, loading, error, retry } = useAsyncData<CustomerInvoice[]>(
@@ -63,6 +69,28 @@ export default function PortalPage() {
       render: (invoice) => <StatusBadge status={invoice.status} />,
     },
   ];
+
+  if (user && !isPortalAccount) {
+    return (
+      <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-white">
+        <PageHeader
+          title="Customer portal"
+          subtitle="What a customer sees when they sign in"
+        />
+        <EmptyState
+          title="Only a portal account has a portal"
+          description="This view lists the invoices of the contact a portal account is linked to, so a staff account has nothing to show here. Create a portal user under Account → Users and link it to a contact, then sign in as that user to see it."
+          action={
+            <Link href="/users/new">
+              <Button variant="primary" size="sm">
+                New portal user
+              </Button>
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5">

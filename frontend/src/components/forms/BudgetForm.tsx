@@ -54,6 +54,14 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
 
   function update<K extends keyof typeof form>(field: K, value: (typeof form)[K]) {
     setForm((previous) => ({ ...previous, [field]: value }));
+    // Clear this field's error as soon as it is edited, so a corrected field
+    // stops looking rejected before the next submit.
+    setErrors((previous) => {
+      if (!previous[field]) return previous;
+      const next = { ...previous };
+      delete next[field];
+      return next;
+    });
   }
 
   async function save(nextStatus?: Budget["status"]) {

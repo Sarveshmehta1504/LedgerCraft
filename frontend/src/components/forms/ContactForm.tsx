@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
+import { ImageUpload } from "@/components/ui/ImageUpload";
 import { InlineAlert } from "@/components/ui/States";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ApiError } from "@/lib/api";
@@ -32,6 +33,14 @@ export function ContactForm({ contact }: { contact?: Contact }) {
 
   function update<K extends keyof typeof form>(field: K, value: (typeof form)[K]) {
     setForm((previous) => ({ ...previous, [field]: value }));
+    // Clear this field's error as soon as it is edited, so a corrected field
+    // stops looking rejected before the next submit.
+    setErrors((previous) => {
+      if (!previous[field]) return previous;
+      const next = { ...previous };
+      delete next[field];
+      return next;
+    });
   }
 
   async function onSubmit(event: React.FormEvent) {
@@ -125,6 +134,10 @@ export function ContactForm({ contact }: { contact?: Contact }) {
         </div>
 
         <div className="flex flex-col gap-5">
+          <ImageUpload
+            value={form.profile_image}
+            onChange={(url) => update("profile_image", url)}
+          />
           <TextField
             label="Street"
             value={form.address_street ?? ""}
