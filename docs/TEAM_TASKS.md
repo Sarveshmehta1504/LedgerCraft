@@ -69,7 +69,7 @@ the next lane:
 * [x] BE-008 PO create/confirm/convert-to-bill endpoints — `DocumentNumberService` (P00001 / Bill/2026/0001, row-locked), `PurchaseOrderService` owns line maths + state machine; draft-only editing, no double-confirm, no double-convert, archived products not selectable
 * [x] BE-009 Vendor bill post (→ JournalEntryService) + payment endpoints — post writes Dr Purchase Expense / Cr Creditors; payments write Dr Creditors / Cr Cash|Bank, flip status to `paid` when fully settled; overpayment blocked; footer totals (paid via cash/bank, amount due) derived, never stored
 * [x] BE-010 SO create/confirm/convert-to-invoice endpoints — mirrors the PO flow with `tax_percent` on lines (sales side only) and Sale Income as the default line account; `subtotal` excludes tax, header `total` is tax-inclusive
-* [ ] BE-011 Customer invoice post (→ JournalEntryService) + payment endpoints
+* [x] BE-011 Customer invoice post (→ JournalEntryService) + payment endpoints — post writes Dr Debtors / Cr Sale Income for the tax-inclusive total; payments write Dr Cash|Bank / Cr Debtors with `payment_type=receive`; same overpayment and status guards as vendor bills
 * [ ] BE-012 `/my/invoices`, `/my/bills`, `/my/invoices/{id}/pay` (Contact-scoped, policy-enforced)
 * [ ] BE-013 Balance Sheet + P&L report endpoints (computed live from journal_entry_lines)
 
