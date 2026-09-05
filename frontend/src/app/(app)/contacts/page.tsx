@@ -58,6 +58,8 @@ export default function ContactsPage() {
     return matchesType && matchesSearch;
   });
 
+  const filtered = Boolean(search.trim() || typeFilter);
+
   const columns: Column<Contact>[] = [
     {
       key: "name",
@@ -147,14 +149,20 @@ export default function ContactsPage() {
           loading={loading}
           error={error}
           onRetry={retry}
-          emptyTitle="No contacts yet"
-          emptyDescription="Add the customers and vendors you trade with to start recording transactions."
+          emptyTitle={filtered ? "No contacts match" : "No contacts yet"}
+          emptyDescription={
+            filtered
+              ? "Adjust the search term or type filter to see more records."
+              : "Add the customers and vendors you trade with to start recording transactions."
+          }
           emptyAction={
-            <Link href="/contacts/new">
-              <Button variant="primary" size="sm">
-                New contact
-              </Button>
-            </Link>
+            filtered ? undefined : (
+              <Link href="/contacts/new">
+                <Button variant="primary" size="sm">
+                  New contact
+                </Button>
+              </Link>
+            )
           }
         />
       ) : loading ? (

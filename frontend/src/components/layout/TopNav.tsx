@@ -75,14 +75,14 @@ export function TopNav() {
 
   return (
     <div ref={navRef} className="relative z-40 border-b border-[var(--line)] bg-white">
-      <div className="flex items-center gap-1 px-5">
-        <Link
-          href="/dashboard"
-          className="mr-4 flex items-center py-2.5"
-        >
+      {/* Below sm the logo sits on its own row and the tabs become a scrollable
+          strip — shrinking four labels to fit 375px makes them unreadable. */}
+      <div className="flex flex-col px-4 sm:flex-row sm:items-center sm:gap-1 sm:px-5">
+        <Link href="/dashboard" className="flex items-center py-2.5 sm:mr-4">
           <Logo size={20} />
         </Link>
 
+        <div className="no-scrollbar -mx-4 flex items-center gap-1 overflow-x-auto px-4 sm:mx-0 sm:overflow-x-visible sm:px-0">
         {NAV.map((tab) => {
           const isOpen = openTab === tab.id;
           const isActive = tab.items.some((item) => pathname.startsWith(item.href));
@@ -93,7 +93,7 @@ export function TopNav() {
               aria-expanded={isOpen}
               aria-haspopup="true"
               onClick={() => setOpenTab(isOpen ? null : tab.id)}
-              className={`relative cursor-pointer px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
+              className={`relative shrink-0 cursor-pointer px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
                 isActive || isOpen
                   ? "text-[var(--text)]"
                   : "text-[var(--text-muted)] hover:text-[var(--text)]"
@@ -106,6 +106,7 @@ export function TopNav() {
             </button>
           );
         })}
+        </div>
       </div>
 
       {openTab && (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { API_URL } from "@/lib/api";
 
 type HealthState =
   | { status: "loading" }
@@ -11,11 +12,9 @@ export default function HealthPage() {
   const [health, setHealth] = useState<HealthState>({ status: "loading" });
 
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
     async function checkHealth() {
       try {
-        const res = await fetch(`${apiUrl}/api/health`);
+        const res = await fetch(`${API_URL}/api/health`);
         if (!res.ok) {
           setHealth({ status: "error", message: `Received HTTP ${res.status}` });
           return;
