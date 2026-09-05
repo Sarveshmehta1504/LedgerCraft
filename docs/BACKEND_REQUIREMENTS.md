@@ -98,6 +98,13 @@ See API_DOCUMENTATION.md → Chart of Accounts, Journals, Journal Entries.
 ## Authorization
 Admin + Accountant read/write; portal User has no access.
 
+**Archiving:** master models expose an `archived_at` timestamp (not Laravel
+soft-deletes — no `SoftDeletes` trait, no `deleted_at`). Add an `active()` query
+scope (`whereNull('archived_at')`) and apply it to list endpoints and to every
+"selectable in a new transaction" lookup. Archived records must still resolve via
+their relations so existing documents keep rendering. Archive/unarchive are Admin
+only; archiving is reversible.
+
 ## Database
 `chart_of_accounts`, `journals`, `journal_entries`, `journal_entry_lines`
 
