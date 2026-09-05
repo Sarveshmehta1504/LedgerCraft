@@ -66,8 +66,8 @@ the next lane:
 ## Backend — owner: member-2 (Transaction Flow + Reports)
 
 * [x] BE-007 Migrations: purchase_orders(+lines), vendor_bills(+lines), sales_orders(+lines), customer_invoices(+lines), payments — 9 tables, all reversible; line tables cascade, everything else restrict; `tax_percent` on sales lines only; every line carries `account_id` + `analytic_account_id`
-* [ ] BE-008 PO create/confirm/convert-to-bill endpoints
-* [ ] BE-009 Vendor bill post (→ JournalEntryService) + payment endpoints
+* [x] BE-008 PO create/confirm/convert-to-bill endpoints — `DocumentNumberService` (P00001 / Bill/2026/0001, row-locked), `PurchaseOrderService` owns line maths + state machine; draft-only editing, no double-confirm, no double-convert, archived products not selectable
+* [x] BE-009 Vendor bill post (→ JournalEntryService) + payment endpoints — post writes Dr Purchase Expense / Cr Creditors; payments write Dr Creditors / Cr Cash|Bank, flip status to `paid` when fully settled; overpayment blocked; footer totals (paid via cash/bank, amount due) derived, never stored
 * [ ] BE-010 SO create/confirm/convert-to-invoice endpoints
 * [ ] BE-011 Customer invoice post (→ JournalEntryService) + payment endpoints
 * [ ] BE-012 `/my/invoices`, `/my/bills`, `/my/invoices/{id}/pay` (Contact-scoped, policy-enforced)
