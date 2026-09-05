@@ -5,12 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Concerns\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PaymentRequest;
+use App\Http\Requests\SendDocumentRequest;
 use App\Http\Requests\VendorBillRequest;
 use App\Models\VendorBill;
+use App\Services\DocumentMailService;
+use App\Services\DocumentPdfService;
 use App\Services\VendorBillService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
+use Throwable;
 
 class VendorBillController extends Controller
 {
@@ -125,6 +129,34 @@ class VendorBillController extends Controller
             'payment' => $payment,
             'bill' => $this->withTotals($vendorBill->fresh()),
         ], 201);
+    }
+
+    public function pdf(VendorBill $vendorBill)
+    {
+        $this->authorize('view', $vendorBill);
+
+        return app(DocumentPdfService::class)->bill($vendorBill)
+            ->download(str_replace('/', '-', $vendorBill->bill_number).'.pdf');
+    }
+
+    public function send(SendDocumentRequest $request, VendorBill $vendorBill): JsonResponse
+    {
+        $this->authorize('update', $vendorBill);
+
+        try {
+            $recipient = app(DocumentMailService::class)->sendBill(
+                $vendorBill,
+                $request->validated('to'),
+                $request->validated('subject'),
+            );
+        } catch (RuntimeException $e) {
+            return $this->fail($e->getMessage(), 422);
+        } catch (Throwable $e) {
+            // Surface the transport's real reason rather than a false success.
+            return $this->fail('Could not send the bill: '.$e->getMessage(), 500);
+        }
+
+        return $this->ok("Bill sent to {$recipient}");
     }
 
     public function destroy(VendorBill $vendorBill): JsonResponse

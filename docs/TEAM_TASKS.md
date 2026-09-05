@@ -117,21 +117,23 @@ the next lane:
 
 # P1 — High Value (target: hour 8 → hour 11, only after P0 checkpoint passes)
 
-* [ ] BE-014 Budget CRUD + `/reports/budget` (live actual computation)
-* [ ] BE-015 `/reports/aging` (AR/AP buckets)
-* [ ] BE-016 `/reports/dashboard` (KPI aggregates)
+* [x] BE-017 Analytic Accounts CRUD (`/analytic-accounts`) — delete blocked while used by a budget or posted journal line
+* [x] BE-018 Journal Entries read-only (`GET /journal-entries`, `/journal-entries/{id}`) — no write routes exist, so an unbalanced entry cannot be hand-written; filters by journal, source_type, date range, reference
+* [x] BE-014 Budget CRUD + `/reports/budget` (live actual computation) — draft/confirm/revise/cancel; revise creates a replacement and supersedes the original; achieved summed live from posted invoice/bill lines carrying the analytic account inside the period; report totals exclude superseded and cancelled budgets
+* [x] BE-015 `/reports/aging` (AR/AP buckets) — current / 1-30 / 31-60 / 61-90 / 90+ by days past due, unpaid balance not document total, drafts and settled documents excluded, undated documents stay `current`
+* [x] BE-016 `/reports/dashboard` (KPI aggregates) — cash/bank from the ledger, receivable/payable and overdue from unsettled documents, net income, document counts, top 5 customers by revenue
 * [-] FE-014 Budgets with Draft/Confirm/Revise/Cancel stages + Budget Report (recharts pie + planned-vs-achieved bars) — still on mock data
 * [ ] FE-015 Aging report page
 * [-] FE-016 Dashboard panel counts and Recent Transactions now come from the real order/bill/invoice lists (no dedicated dashboard endpoint used). Budget panel stays hardcoded — no budgets route
-* [ ] INT-007 Invoice/Bill PDF generation wired (barryvdh/laravel-dompdf)
+* [-] INT-007 Invoice/Bill PDF generation wired (barryvdh/laravel-dompdf) — backend done and verified; frontend Print/Send buttons still call placeholders (FE-021)
 * [x] BE-019 Auth endpoints: `POST /auth/login` (by `login_id`), `POST /auth/logout`, `GET /auth/me` — Sanctum tokens, single error message `Invalid Login Id or Password`, throttled
 * [x] BE-020 Forgot/Reset password endpoints + reset-link Mailable + password policy rule — reset link points at `FRONTEND_URL/reset-password`, token 60-min single-use, reset revokes all tokens, no account enumeration
 * [x] BE-024 Public signup endpoint — role `user` hardcoded server-side, `role` in payload ignored; creates + links a `customer` Contact in the same transaction (reuse an existing contact with the same email)
 * [x] BE-025 Admin Users CRUD + role assignment (`PUT /users/{id}/role`) behind UserPolicy (admin-only). Guards: cannot demote/delete yourself, cannot demote or delete the last admin, a role-`user` account must always keep a linked contact, password change revokes tokens
 * [-] FE-022 Signup page done, no role selector (`src/app/(auth)/signup/page.tsx`). Admin Users screen not started — backend `UserController` now exists on `main`, so it is unblocked
 * [x] BE-021 Mail configured — Resend via `resend/resend-laravel` (`MAIL_MAILER=resend`, `RESEND_API_KEY`), domain verified, live send verified. Sent synchronously: no `ShouldQueue`, no queue worker needed
-* [ ] BE-022 Invoice/Bill PDF + `POST .../send` Mailable with the PDF attached
-* [ ] BE-023 Report PDF (`GET /reports/{report}/pdf`) + `POST /reports/{report}/send`
+* [x] BE-022 Invoice/Bill PDF + `POST .../send` Mailable with the PDF attached — `GET /customer-invoices/{id}/pdf` and `/vendor-bills/{id}/pdf`; send falls back to the contact's email, `422` (not 500) when the contact has none; real delivery verified once each
+* [x] BE-023 Report PDF (`GET /reports/{report}/pdf`) + `POST /reports/{report}/send` — balance-sheet, profit-and-loss, budget; unknown report is `404`; `to` is required for reports since there is no contact to fall back on
 * [x] FE-020 Forgot Password + Reset Password wired to `/api/auth/forgot-password` and `/reset-password`, full round trip tested including a real emailed-link token
 * [-] FE-021 Print/Send present on bills, invoices and all three reports (`ReportShell.tsx`, `BillForm.tsx`) — buttons call placeholders, PDF/mail endpoints not wired
 * [ ] INT-008 Search/filter added to all master data + transaction list screens
