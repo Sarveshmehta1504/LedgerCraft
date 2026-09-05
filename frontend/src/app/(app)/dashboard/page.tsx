@@ -122,12 +122,15 @@ export default function DashboardPage() {
         <ul className="mt-2 divide-y divide-[var(--line)]">
           {recent.map((row) => (
             <li key={row.id}>
+              {/* Stacks below sm — five columns on a 375px row collide into each other. */}
               <Link
                 href={row.href}
-                className="flex items-center justify-between gap-4 py-2.5 transition-colors duration-150 hover:bg-white"
+                className="flex flex-col gap-1 py-2.5 transition-colors duration-150 hover:bg-white sm:flex-row sm:items-center sm:justify-between sm:gap-4"
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="tnum font-mono text-[13px] text-[var(--text)]">{row.number}</span>
+                  <span className="tnum shrink-0 font-mono text-[13px] text-[var(--text)]">
+                    {row.number}
+                  </span>
                   <span className="truncate text-[13px] text-[var(--text-muted)]">{row.party}</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-4">

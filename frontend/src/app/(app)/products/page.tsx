@@ -33,6 +33,8 @@ export default function ProductsPage() {
     return matchesSearch && matchesCategory;
   });
 
+  const filtered = Boolean(search.trim() || categoryId);
+
   const columns: Column<Product>[] = [
     {
       key: "name",
@@ -111,14 +113,20 @@ export default function ProductsPage() {
           loading={loading}
           error={error}
           onRetry={retry}
-          emptyTitle="No products yet"
-          emptyDescription="Add the items you trade before creating orders."
+          emptyTitle={filtered ? "No products match" : "No products yet"}
+          emptyDescription={
+            filtered
+              ? "Try a different search term or category."
+              : "Add the items you trade before creating orders."
+          }
           emptyAction={
-            <Link href="/products/new">
-              <Button variant="primary" size="sm">
-                New product
-              </Button>
-            </Link>
+            filtered ? undefined : (
+              <Link href="/products/new">
+                <Button variant="primary" size="sm">
+                  New product
+                </Button>
+              </Link>
+            )
           }
         />
       ) : loading ? (

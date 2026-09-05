@@ -233,7 +233,7 @@ export function JournalEntryForm({ entry }: { entry?: JournalEntry }) {
                       type="button"
                       aria-label="Remove line"
                       onClick={() => removeLine(line.id)}
-                      className="cursor-pointer rounded px-1.5 py-1 text-[var(--text-subtle)] transition-colors duration-150 hover:bg-[var(--surface-raised)] hover:text-[var(--danger)]"
+                      className="inline-grid h-6 w-6 cursor-pointer place-items-center rounded text-[var(--text-subtle)] transition-colors duration-150 hover:bg-[var(--surface-raised)] hover:text-[var(--danger)]"
                     >
                       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
                         <path
