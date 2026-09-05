@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ChartOfAccountController;
 use App\Http\Controllers\Api\ContactController;
+use App\Http\Controllers\Api\JournalController;
 use App\Http\Controllers\Api\ProductCategoryController;
 use App\Http\Controllers\Api\ProductController;
 use Illuminate\Http\Request;
@@ -47,4 +49,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('products', ProductController::class);
     Route::patch('products/{product}/archive', [ProductController::class, 'archive']);
     Route::patch('products/{product}/unarchive', [ProductController::class, 'unarchive']);
+
+    // Chart of Accounts is exposed as /accounts, matching the frontend routes
+    // in docs/FRONTEND_REQUIREMENTS.md.
+    Route::apiResource('accounts', ChartOfAccountController::class);
+    Route::patch('accounts/{account}/archive', [ChartOfAccountController::class, 'archive']);
+    Route::patch('accounts/{account}/unarchive', [ChartOfAccountController::class, 'unarchive']);
+
+    Route::apiResource('journals', JournalController::class);
+    Route::patch('journals/{journal}/archive', [JournalController::class, 'archive']);
+    Route::patch('journals/{journal}/unarchive', [JournalController::class, 'unarchive']);
 });

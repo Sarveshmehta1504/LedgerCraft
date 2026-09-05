@@ -2,10 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\ChartOfAccount;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class ProductRequest extends FormRequest
+class ChartOfAccountRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -18,14 +19,17 @@ class ProductRequest extends FormRequest
         // array each element is one whole rule name, so the piped form is
         // looked up as a single non-existent rule.
         $required = $this->isMethod('POST') ? ['required'] : ['sometimes', 'required'];
+        $accountId = $this->route('account')?->id;
 
         return [
+            'code' => [
+                ...$required,
+                'string',
+                'max:20',
+                Rule::unique('chart_of_accounts', 'code')->ignore($accountId),
+            ],
             'name' => [...$required, 'string', 'max:255'],
-            'type' => [...$required, Rule::in(['goods', 'service', 'combo'])],
-            'sales_price' => ['nullable', 'numeric', 'min:0'],
-            'cost_price' => ['nullable', 'numeric', 'min:0'],
-            // Category is mandatory - a product cannot exist without one.
-            'category_id' => [...$required, 'exists:product_categories,id'],
+            'type' => [...$required, Rule::in(ChartOfAccount::TYPES)],
         ];
     }
 }
