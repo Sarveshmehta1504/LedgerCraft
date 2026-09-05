@@ -6,6 +6,7 @@ use App\Http\Concerns\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProductRequest;
 use App\Models\Product;
+use App\Services\ProductCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -13,12 +14,14 @@ class ProductController extends Controller
 {
     use ApiResponse;
 
+    public function __construct(
+        private readonly ProductCache $cache,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Product::class);
 
-        // Category is eager-loaded so the list view renders the name without a
-        // second request, per docs/DB_SCHEMA.md.
         $products = Product::query()
             ->with('category:id,name,parent_id')
             ->archiveFilter($request->query('archived'))
@@ -44,7 +47,14 @@ class ProductController extends Controller
     {
         $this->authorize('view', $product);
 
-        return $this->ok('Product fetched successfully', $product->load('category:id,name,parent_id'));
+        return $this->ok('Product fetched successfully', $this->cache->find($product->id));
+    }
+
+    public function cacheStats(): JsonResponse
+    {
+        $this->authorize('viewAny', Product::class);
+
+        return $this->ok('Product cache statistics', $this->cache->stats());
     }
 
     public function update(ProductRequest $request, Product $product): JsonResponse
@@ -52,6 +62,7 @@ class ProductController extends Controller
         $this->authorize('update', $product);
 
         $product->update($request->validated());
+        $this->cache->forget($product->id);
 
         return $this->ok('Product updated successfully', $product->load('category:id,name,parent_id'));
     }
@@ -60,10 +71,9 @@ class ProductController extends Controller
     {
         $this->authorize('archive', $product);
 
-        // Assigned directly, not via update(): archived_at is deliberately
-        // not fillable so it can never be set from a request payload.
         $product->archived_at = now();
         $product->save();
+        $this->cache->forget($product->id);
 
         return $this->ok('Product archived successfully', $product);
     }
@@ -74,6 +84,7 @@ class ProductController extends Controller
 
         $product->archived_at = null;
         $product->save();
+        $this->cache->forget($product->id);
 
         return $this->ok('Product unarchived successfully', $product);
     }
@@ -82,7 +93,9 @@ class ProductController extends Controller
     {
         $this->authorize('delete', $product);
 
+        $productId = $product->id;
         $product->delete();
+        $this->cache->forget($productId);
 
         return $this->ok('Product deleted successfully');
     }
