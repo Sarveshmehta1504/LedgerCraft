@@ -5,15 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
-
-/** Mirrors the backend policy in API_DOCUMENTATION.md so the user sees the rule before submitting. */
-function validatePassword(value: string): string | undefined {
-  if (value.length <= 8) return "Must be more than 8 characters.";
-  if (!/[a-z]/.test(value)) return "Must include a lowercase letter.";
-  if (!/[A-Z]/.test(value)) return "Must include an uppercase letter.";
-  if (!/[^A-Za-z0-9]/.test(value)) return "Must include a special character.";
-  return undefined;
-}
+import { PASSWORD_HINT, validatePassword } from "@/lib/password";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -93,7 +85,7 @@ export default function SignupPage() {
           value={form.password}
           onChange={(event) => update("password", event.target.value)}
           error={errors.password}
-          hint="Over 8 characters, with upper, lower and a special character."
+          hint={PASSWORD_HINT}
           required
         />
         <TextField
