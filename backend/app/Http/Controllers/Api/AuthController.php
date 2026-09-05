@@ -101,8 +101,17 @@ class AuthController extends Controller
      */
     public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
     {
+        // Resolve a login_id to its account's email before handing off: the
+        // password broker is built around the email credential.
+        $email = $request->validated('email')
+            ?? User::where('login_id', $request->validated('login_id'))->value('email');
+
         try {
-            Password::sendResetLink($request->only('email'));
+            // A login_id that matches nothing yields a null email - skip the
+            // send, but still return the same generic response below.
+            if ($email !== null) {
+                Password::sendResetLink(['email' => $email]);
+            }
         } catch (Throwable $e) {
             // A transport failure must not change the response: if a rejected
             // recipient returned 500 while an unknown address returned 200,
