@@ -7,6 +7,16 @@ MySQL 8
 All monetary columns: `decimal(14,2)`. All FKs: `bigint unsigned`, `on delete restrict`
 unless noted otherwise (accounting data must never silently cascade-delete).
 
+**`archived_at`** — every master table (`contacts`, `product_categories`,
+`products`, `chart_of_accounts`, `journals`) carries a nullable
+`archived_at timestamp`. `null` = active; a timestamp = archived, and the value
+records when. This is **not** Laravel soft-deletes: the column is `archived_at`,
+not `deleted_at`, and there is no `SoftDeletes` trait — archived rows stay visible
+to normal queries unless a scope excludes them. Master data with transactions is
+archived, never deleted (the PS calls "Archived" the delete action for master
+data). List endpoints exclude archived rows by default; pass `?archived=1` to
+include them.
+
 ---
 
 # Entity: users
@@ -64,6 +74,7 @@ paid/unpaid status and pays dues from the portal).
 | address_country| string   | Yes      | null       |                                      |
 | address_pin   | string    | Yes      | null       | Pincode                              |
 | profile_image | string    | Yes      | null       | Storage path (upload image)         |
+| archived_at   | timestamp | Yes      | null       | Set when archived; null = active    |
 | created_at    | timestamp | No       | —          |                                      |
 | updated_at    | timestamp | No       | —          |                                      |
 
@@ -76,6 +87,7 @@ paid/unpaid status and pays dues from the portal).
 | id         | bigint    | No       | —       | Primary key                                     |
 | name       | string    | No       | —       | e.g. "Chairs", "Tables", "Raw Material"         |
 | parent_id  | bigint FK | Yes      | null    | → product_categories.id (nested categories)     |
+| archived_at| timestamp | Yes      | null    | Set when archived; null = active                |
 | created_at | timestamp | No       | —       |                                                  |
 | updated_at | timestamp | No       | —       |                                                  |
 
@@ -100,6 +112,7 @@ to select otherwise.
 | sales_price | decimal   | No       | 0.00    |                                           |
 | cost_price  | decimal   | No       | 0.00    |                                           |
 | category_id | bigint FK | No       | —       | → product_categories.id, indexed          |
+| archived_at | timestamp | Yes      | null    | Set when archived; null = active          |
 | created_at  | timestamp | No       | —       |                                           |
 | updated_at  | timestamp | No       | —       |                                           |
 
@@ -118,6 +131,7 @@ second request; validation is `required|exists:product_categories,id`.
 | code       | string    | No       | —       | Unique short code, e.g. "1000"                    |
 | name       | string    | No       | —       | e.g. "Cash", "Bank", "Debtors", "Sale Income"      |
 | type       | enum      | No       | —       | See account types below                            |
+| archived_at| timestamp | Yes      | null    | Set when archived; null = active                   |
 | created_at | timestamp | No       | —       |                                                    |
 | updated_at | timestamp | No       | —       |                                                    |
 
@@ -154,6 +168,7 @@ Capital.
 | type                  | enum      | No       | —       | sales / purchase / bank / cash         |
 | default_debit_account | bigint FK | Yes      | null    | → chart_of_accounts.id                 |
 | default_credit_account| bigint FK | Yes      | null    | → chart_of_accounts.id                 |
+| archived_at           | timestamp | Yes      | null    | Set when archived; null = active       |
 | created_at            | timestamp | No       | —       |                                         |
 | updated_at            | timestamp | No       | —       |                                         |
 
@@ -388,9 +403,12 @@ analytic_accounts ──< journal_entry_lines
   balance (`total` minus sum of linked payments).
 * A Contact-role user may only read/pay invoices/bills where
   `contact_id == users.contact_id`.
-* Deleting a contact/product/account that has transactions must be blocked
-  (archive instead — the source PDF explicitly calls out "Archived" as the
-  delete action for master data).
+* Deleting a contact/product/account that has transactions must be blocked —
+  set `archived_at` instead (the source PDF explicitly calls out "Archived" as
+  the delete action for master data).
+* Archiving is reversible: clearing `archived_at` back to `null` restores the
+  record. Archived master data must not be selectable in new transactions, but
+  must still resolve on existing ones so historical documents keep rendering.
 * Deleting a product category that is referenced by any product, or that has
   child categories, must be blocked — return `409`.
 * A payment cannot exceed the document's Amount Due (`total` − amount already paid).
