@@ -452,7 +452,11 @@ customer_invoices.status:    draft, posted, paid
 budgets.status:              draft, confirmed, revised, cancelled
 ```
 
-Bills and invoices can be **Reset to Draft** from the posted state.
+> **Reset to Draft is out of scope.** The design board shows the button, but it
+> is not implemented and there is no route for it: un-posting would have to
+> reverse the journal entry to keep the audit trail intact, and that is not
+> worth the risk this close to the demo. Posting is one-way — draft → posted →
+> paid.
 
 ---
 

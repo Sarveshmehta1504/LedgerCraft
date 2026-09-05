@@ -142,6 +142,7 @@ the next lane:
 
 # P2 — Nice to Have (target: hour 11 → hour 13, only if ahead of schedule)
 
+* [x] CUT Reset to Draft on bills/invoices — board shows the button, deliberately not built. Un-posting needs a reversing journal entry to preserve the audit trail; decided against it. Posting is one-way.
 * [ ] P2-001 Bank reconciliation screen
 * [ ] P2-003 Basic stock quantity on Product, decremented on sale
 
