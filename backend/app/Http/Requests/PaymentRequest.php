@@ -19,6 +19,7 @@ class PaymentRequest extends FormRequest
             // Defaults to bank, per the design board.
             'payment_via' => ['nullable', Rule::in(['bank', 'cash'])],
             'date' => ['nullable', 'date'],
+            'reference' => ['nullable', 'string', 'max:255'],
             'note' => ['nullable', 'string', 'max:255'],
         ];
     }

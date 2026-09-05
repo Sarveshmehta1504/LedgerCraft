@@ -31,6 +31,7 @@ class PurchaseOrderService
                 'number' => $this->numbers->purchaseOrder(),
                 'contact_id' => $data['contact_id'],
                 'date' => $data['date'],
+                'due_date' => $data['due_date'] ?? null,
                 'status' => 'draft',
                 'total' => 0,
             ]);
@@ -52,7 +53,7 @@ class PurchaseOrderService
         }
 
         return DB::transaction(function () use ($order, $data) {
-            $order->fill(array_intersect_key($data, array_flip(['contact_id', 'date'])))->save();
+            $order->fill(array_intersect_key($data, array_flip(['contact_id', 'date', 'due_date'])))->save();
 
             if (isset($data['lines'])) {
                 $this->replaceLines($order, $data['lines']);
@@ -99,6 +100,12 @@ class PurchaseOrderService
                 'purchase_order_id' => $order->id,
                 'contact_id' => $order->contact_id,
                 'bill_date' => now()->toDateString(),
+                // Payment terms are agreed at order time, so they carry across -
+                // and a bill with no due date never appears in the aging report.
+                'due_date' => $order->due_date?->toDateString(),
+                // bill_reference is left empty: it holds the vendor's own
+                // invoice number, which they issue when they bill us and which
+                // cannot be known at PO time.
                 'status' => 'draft',
                 'total' => 0,
             ]);

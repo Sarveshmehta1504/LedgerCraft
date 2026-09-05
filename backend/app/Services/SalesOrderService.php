@@ -29,6 +29,7 @@ class SalesOrderService
                 'number' => $this->numbers->salesOrder(),
                 'contact_id' => $data['contact_id'],
                 'date' => $data['date'],
+                'due_date' => $data['due_date'] ?? null,
                 'status' => 'draft',
                 'total' => 0,
             ]);
@@ -46,7 +47,7 @@ class SalesOrderService
         }
 
         return DB::transaction(function () use ($order, $data) {
-            $order->fill(array_intersect_key($data, array_flip(['contact_id', 'date'])))->save();
+            $order->fill(array_intersect_key($data, array_flip(['contact_id', 'date', 'due_date'])))->save();
 
             if (isset($data['lines'])) {
                 $this->replaceLines($order, $data['lines']);
@@ -92,6 +93,9 @@ class SalesOrderService
                 'sales_order_id' => $order->id,
                 'contact_id' => $order->contact_id,
                 'invoice_date' => now()->toDateString(),
+                'due_date' => $order->due_date?->toDateString(),
+                // invoice_reference (the customer's own PO number) is entered
+                // on the invoice: orders carry no reference of their own.
                 'status' => 'draft',
                 'total' => 0,
             ]);

@@ -127,6 +127,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('analytic-accounts', AnalyticAccountController::class)
         ->parameters(['analytic-accounts' => 'analyticAccount']);
+    Route::patch('analytic-accounts/{analyticAccount}/archive', [AnalyticAccountController::class, 'archive']);
+    Route::patch('analytic-accounts/{analyticAccount}/unarchive', [AnalyticAccountController::class, 'unarchive']);
 
     // Read-only: entries are system-generated when documents are posted.
     Route::get('journal-entries', [JournalEntryController::class, 'index']);

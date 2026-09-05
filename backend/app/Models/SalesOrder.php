@@ -12,13 +12,13 @@ class SalesOrder extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['number', 'contact_id', 'date', 'status', 'total'];
+    protected $fillable = ['number', 'contact_id', 'date', 'due_date', 'status', 'total'];
 
     public const STATUSES = ['draft', 'confirmed', 'invoiced'];
 
     protected function casts(): array
     {
-        return ['date' => 'date', 'total' => 'decimal:2'];
+        return ['date' => 'date', 'due_date' => 'date', 'total' => 'decimal:2'];
     }
 
     public function contact(): BelongsTo

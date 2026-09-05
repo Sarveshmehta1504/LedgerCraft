@@ -88,6 +88,9 @@ class SalesDemoSeeder extends Seeder
         $so = $orders->create([
             'contact_id' => $kunal->id,
             'date' => now()->subDays(38)->toDateString(),
+            // Net-30 terms carry through to the invoice on conversion.
+            'due_date' => now()->subDays(8)->toDateString(),
+            'reference' => 'KS-PO-2317',
             'lines' => [
                 ['product_id' => $diningTable->id, 'quantity' => 1, 'unit_price' => 14500, 'tax_percent' => 18],
                 ['product_id' => $diningChair->id, 'quantity' => 4, 'unit_price' => 2200, 'tax_percent' => 18],

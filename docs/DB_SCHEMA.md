@@ -218,6 +218,9 @@ business rule in the whole system.
 | id         | bigint    | No       | —       |                       |
 | name       | string    | No       | —       |                       |
 | type       | enum      | No       | —       | income / expense      |
+| archived_at| timestamp | Yes      | null    | Set when archived; null = active |
+| created_at | timestamp | No       | —       |                       |
+| updated_at | timestamp | No       | —       |                       |
 
 The Analytic form shows every budget in which the analytic account is used:
 `Budget | Start Date | End Date | Committed | Achieved`.
@@ -297,6 +300,7 @@ to the original. Both link to each other in the UI.
 | number      | string    | No       | —       | Unique. Sequence `P00001`, +1 of last  |
 | contact_id  | bigint FK | No       | —       | → contacts.id (vendor)                |
 | date        | date      | No       | —       |                                        |
+| due_date    | date      | Yes      | null    | Payment terms; carried to the bill on conversion |
 | status      | enum      | No       | 'draft' | draft / confirmed / billed            |
 | total       | decimal   | No       | 0.00    | Denormalized sum of lines             |
 | created_at  | timestamp | No       | —       |                                        |
@@ -349,8 +353,14 @@ Credit Creditors/AP, for `total`.
 
 # Entity: sales_orders / sales_order_lines
 
-Mirrors purchase_orders — including `number` (sequence `S00001`) and
-timestamps. With `contact_id` → customer. Lines carry the same
+Mirrors purchase_orders — including `number` (sequence `S00001`), `due_date`
+and timestamps. `due_date` is carried onto the invoice on conversion.
+
+**Orders carry no `reference` of their own.** They are identified by their
+`number` (`P00001` / `S00001`). The other party's reference lives on the bill
+(`bill_reference`) or invoice (`invoice_reference`), which is where the design
+board asks for it — and on the purchase side the vendor's number does not even
+exist until they issue the bill. With `contact_id` → customer. Lines carry the same
 columns as purchase lines (product, account, analytic, qty, unit price, total)
 **plus `tax_percent`** (decimal, default 0). `status`: draft / confirmed / invoiced.
 
@@ -390,6 +400,7 @@ add-on, with no separate tax liability account in P0 scope).
 | journal_id       | bigint FK | No       | —       | Cash Journal or Bank Journal               |
 | amount           | decimal   | No       | —       | Autofilled with the amount due             |
 | date             | date      | No       | —       | Defaults to today                          |
+| reference        | string    | Yes      | null    | Cheque number, bank UTR, card auth - proof of the real transfer |
 | note             | string    | Yes      | null    | Free text                                  |
 | journal_entry_id | bigint FK | Yes      | null    | Set once posted                            |
 | created_at       | timestamp | No       | —       |                                             |
