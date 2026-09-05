@@ -39,10 +39,7 @@ class AuthController extends Controller
             return $this->fail('This account has been deactivated. Contact your administrator.', 403);
         }
 
-        return $this->ok('Login successful', [
-            'user' => $this->userPayload($user),
-            'token' => $user->createToken('api')->plainTextToken,
-        ]);
+        return $this->ok('Login successful', $this->tokenPayload($user));
     }
 
     public function logout(Request $request): JsonResponse
@@ -50,6 +47,27 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return $this->ok('Logged out');
+    }
+
+    /**
+     * Exchanges the current token for a fresh one and revokes the old one, so
+     * a long session does not depend on a token that never expires.
+     *
+     * Must be called while the current token is still valid - an expired token
+     * cannot authenticate this route, and the user has to log in again.
+     */
+    public function refresh(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $current = $user->currentAccessToken();
+
+        $payload = $this->tokenPayload($user);
+
+        // Revoked after the replacement exists, so a failure here cannot leave
+        // the caller with no usable token.
+        $current->delete();
+
+        return $this->ok('Token refreshed', $payload);
     }
 
     public function me(Request $request): JsonResponse
@@ -90,10 +108,7 @@ class AuthController extends Controller
             return $user;
         });
 
-        return $this->ok('Account created successfully', [
-            'user' => $this->userPayload($user),
-            'token' => $user->createToken('api')->plainTextToken,
-        ], 201);
+        return $this->ok('Account created successfully', $this->tokenPayload($user), 201);
     }
 
     /**
@@ -145,6 +160,18 @@ class AuthController extends Controller
         }
 
         return $this->ok('Password reset successfully');
+    }
+
+    private function tokenPayload(User $user): array
+    {
+        $ttl = (int) config('sanctum.expiration');
+
+        return [
+            'user' => $this->userPayload($user),
+            'token' => $user->createToken('api')->plainTextToken,
+            'expires_in_minutes' => $ttl,
+            'expires_at' => $ttl ? now()->addMinutes($ttl)->toIso8601String() : null,
+        ];
     }
 
     private function userPayload(User $user): array
