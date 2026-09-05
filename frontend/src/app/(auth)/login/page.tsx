@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
 import { InlineAlert } from "@/components/ui/States";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const justReset = useSearchParams().get("reset") === "1";
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -38,6 +39,12 @@ export default function LoginPage() {
       <p className="mt-1 text-sm text-[var(--text-muted)]">
         Use the login ID issued by your administrator.
       </p>
+
+      {justReset && (
+        <p className="mt-4 rounded-md bg-[var(--status-paid-wash)] px-3 py-2 text-[13px] text-[var(--status-paid)]">
+          Password updated. Sign in with your new password.
+        </p>
+      )}
 
       <form onSubmit={onSubmit} className="mt-7 flex flex-col gap-4" noValidate>
         {formError && <InlineAlert title={formError} />}
@@ -83,5 +90,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-[var(--text-muted)]">Loading…</p>}>
+      <LoginForm />
+    </Suspense>
   );
 }
