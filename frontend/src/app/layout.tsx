@@ -13,8 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LedgerCraft",
-  description: "Accounting system for Urban Furniture",
+  title: {
+    default: "LedgerCraft",
+    template: "%s · LedgerCraft",
+  },
+  description: "Double-entry accounting for Urban Furniture",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
