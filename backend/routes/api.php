@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\ChartOfAccountController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\CustomerInvoiceController;
 use App\Http\Controllers\Api\JournalController;
+use App\Http\Controllers\Api\PortalController;
 use App\Http\Controllers\Api\ProductCategoryController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\PurchaseOrderController;
@@ -91,6 +92,15 @@ Route::middleware('auth:sanctum')->group(function () {
         ->parameters(['customer-invoices' => 'customerInvoice']);
     Route::post('customer-invoices/{customerInvoice}/post', [CustomerInvoiceController::class, 'post']);
     Route::post('customer-invoices/{customerInvoice}/payments', [CustomerInvoiceController::class, 'registerPayment']);
+
+    // Contact portal. Scope comes from the authenticated user's contact_id,
+    // never from the request, so a portal user cannot widen it.
+    Route::prefix('my')->group(function () {
+        Route::get('invoices', [PortalController::class, 'invoices']);
+        Route::get('bills', [PortalController::class, 'bills']);
+        Route::get('invoices/{invoice}', [PortalController::class, 'showInvoice']);
+        Route::post('invoices/{invoice}/pay', [PortalController::class, 'payInvoice']);
+    });
 
     Route::apiResource('journals', JournalController::class);
     Route::patch('journals/{journal}/archive', [JournalController::class, 'archive']);
