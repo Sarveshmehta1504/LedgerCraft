@@ -1,3 +1,4 @@
+import { endSession, getToken } from "@/lib/session";
 import type { ApiEnvelope } from "@/types";
 
 /**
@@ -14,21 +15,6 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 if (typeof window !== "undefined" && !API_URL) {
   throw new Error("NEXT_PUBLIC_API_URL is not set — copy .env.example to .env.local.");
-}
-
-const TOKEN_KEY = "ledgercraft.token";
-
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(TOKEN_KEY);
-}
-
-export function setToken(token: string): void {
-  window.localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function clearToken(): void {
-  window.localStorage.removeItem(TOKEN_KEY);
 }
 
 export class ApiError extends Error {
@@ -64,6 +50,14 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   }
 
   if (!res.ok) {
+    // A 401 on a request we authenticated means the token is expired, revoked or
+    // forged: the stored session is worthless, so drop it and send the user to
+    // login rather than leaving every screen showing "could not load".
+    // Only when a token was actually sent — a failed sign-in also returns 401 and
+    // must surface its message on the form instead of triggering a redirect.
+    if (res.status === 401 && token) {
+      endSession();
+    }
     throw new ApiError(res.status, body.message ?? `Request failed (${res.status})`, body.errors);
   }
 
