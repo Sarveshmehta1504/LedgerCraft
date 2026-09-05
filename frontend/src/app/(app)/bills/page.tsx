@@ -1,17 +1,18 @@
 "use client";
 
+import { useCallback } from "react";
 import { BillList } from "@/components/shared/BillList";
-import { MOCK_VENDOR_BILLS } from "@/lib/mock-data";
+import { VendorBillsApi } from "@/lib/resources";
 
 export default function VendorBillsPage() {
-  // TODO: replace with real API once backend/vendor-bills is ready (GET /api/vendor-bills).
+  const fetcher = useCallback(() => VendorBillsApi.list(), []);
   return (
     <BillList
       title="Vendor Bills"
       subtitle="Post to the ledger, then settle"
       partnerLabel="Vendor"
       basePath="/bills"
-      source={MOCK_VENDOR_BILLS}
+      fetcher={fetcher}
     />
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -12,14 +12,16 @@ import {
   blankDocumentLine,
   documentTotal,
 } from "@/components/shared/LineItemTable";
+import { ApiError } from "@/lib/api";
 import { formatMoney, today } from "@/lib/format";
-import { MOCK_CONTACTS } from "@/lib/mock-data";
-import type { DocumentLine, PurchaseOrder, SalesOrder } from "@/types";
+import { AccountsApi, ContactsApi, ProductsApi, PurchaseOrdersApi, SalesOrdersApi } from "@/lib/resources";
+import { useAsyncData } from "@/lib/use-async-data";
+import type { ChartOfAccount, Contact, DocumentLine, Product, PurchaseOrder, SalesOrder } from "@/types";
 
 type Side = "purchase" | "sales";
 
 /** Purchase lines default to the Purchase Expense account, sales lines to Sale Income. */
-const DEFAULT_ACCOUNT: Record<Side, number> = { purchase: 9, sales: 8 };
+const DEFAULT_ACCOUNT_CODE: Record<Side, string> = { purchase: "5000", sales: "4000" };
 
 const COPY = {
   purchase: {
@@ -55,22 +57,41 @@ export function OrderForm({
   const copy = COPY[side];
   const withTax = side === "sales";
 
+  const fetchContacts = useCallback(() => ContactsApi.list(), []);
+  const { data: contactsData } = useAsyncData<Contact[]>(fetchContacts, "Could not load contacts.");
+  const contacts = contactsData ?? [];
+
+  const fetchProducts = useCallback(() => ProductsApi.list(), []);
+  const { data: productsData } = useAsyncData<Product[]>(fetchProducts, "Could not load products.");
+  const products = productsData ?? [];
+
+  const fetchAccounts = useCallback(() => AccountsApi.list(), []);
+  const { data: accountsData } = useAsyncData<ChartOfAccount[]>(fetchAccounts, "Could not load accounts.");
+  const accounts = accountsData ?? [];
+  const defaultAccountId = accounts.find((a) => a.code === DEFAULT_ACCOUNT_CODE[side])?.id ?? null;
+
   const [contactId, setContactId] = useState<number | null>(order?.contact_id ?? null);
-  const [date, setDate] = useState(order?.date ?? today());
+  const [date, setDate] = useState(order?.date.slice(0, 10) ?? today());
   const [status, setStatus] = useState<string>(order?.status ?? "draft");
-  const [lines, setLines] = useState<DocumentLine[]>(
-    order?.lines ?? [blankDocumentLine(DEFAULT_ACCOUNT[side])],
-  );
+  const [lines, setLines] = useState<DocumentLine[]>(order?.lines ?? []);
+  const [linesInitialized, setLinesInitialized] = useState(Boolean(order));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // A blank line needs a real default account id, which only exists once accounts have loaded.
+  if (!linesInitialized && defaultAccountId !== null) {
+    setLines([blankDocumentLine(defaultAccountId)]);
+    setLinesInitialized(true);
+  }
 
   const isDraft = status === "draft";
   const isConfirmed = status === "confirmed";
   const total = documentTotal(lines, withTax);
 
-  const partnerOptions = MOCK_CONTACTS.filter((contact) =>
-    copy.partnerTypes.includes(contact.type),
-  ).map((contact) => ({ value: contact.id, label: contact.name }));
+  const partnerOptions = contacts
+    .filter((contact) => copy.partnerTypes.includes(contact.type))
+    .map((contact) => ({ value: contact.id, label: contact.name }));
 
   function validate(): boolean {
     const next: Record<string, string> = {};
@@ -86,29 +107,50 @@ export function OrderForm({
   }
 
   async function run(action: "save" | "confirm" | "convert") {
-    if (!validate()) return;
+    if (action !== "convert" && !validate()) return;
     setBusy(true);
-    // TODO: replace with real API once backend/<purchase|sales> is ready
-    // (POST /api/{purchase-orders|sales-orders}, /confirm, /convert-to-bill|invoice).
-    await new Promise((resolve) => setTimeout(resolve, 420));
-    setBusy(false);
+    setFormError(null);
+    try {
+      if (action === "confirm" || action === "save") {
+        let id = order?.id;
+        if (!id) {
+          const created =
+            side === "purchase"
+              ? await PurchaseOrdersApi.create({ contact_id: contactId!, date, lines })
+              : await SalesOrdersApi.create({ contact_id: contactId!, date, lines });
+          id = created.id;
+        } else {
+          // Persist whatever was edited before confirming, not just on an explicit Save.
+          if (side === "purchase") await PurchaseOrdersApi.update(id, { contact_id: contactId!, date, lines });
+          else await SalesOrdersApi.update(id, { contact_id: contactId!, date, lines });
+        }
+        if (action === "confirm") {
+          if (side === "purchase") await PurchaseOrdersApi.confirm(id);
+          else await SalesOrdersApi.confirm(id);
+          setStatus(copy.confirmedStatus);
+          router.push(`${copy.listHref}/${id}`);
+          return;
+        }
+        router.push(`${copy.listHref}/${id}`);
+        return;
+      }
 
-    if (action === "confirm") {
-      setStatus(copy.confirmedStatus);
-      return;
+      // convert
+      const created =
+        side === "purchase"
+          ? await PurchaseOrdersApi.convertToBill(order!.id)
+          : await SalesOrdersApi.convertToInvoice(order!.id);
+      router.push(`${copy.convertHref}/${created.id}`);
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : `Could not save this ${copy.title.toLowerCase()}.`);
+      setBusy(false);
     }
-    if (action === "convert") {
-      setStatus(copy.convertedStatus);
-      router.push(copy.convertHref);
-      return;
-    }
-    router.push(copy.listHref);
   }
 
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-white">
       <PageHeader
-        title={order ? `${copy.title} #${order.id}` : `New ${copy.title.toLowerCase()}`}
+        title={order ? `${copy.title} ${order.number}` : `New ${copy.title.toLowerCase()}`}
         subtitle={copy.title}
         actions={
           <div className="flex items-center gap-2">
@@ -139,6 +181,12 @@ export function OrderForm({
         }
       />
 
+      {formError && (
+        <div className="border-b border-[var(--line)] p-5">
+          <InlineAlert title={formError} />
+        </div>
+      )}
+
       <div className="grid max-w-2xl gap-5 p-5 md:grid-cols-2">
         <SelectField
           label={copy.partnerLabel}
@@ -165,8 +213,10 @@ export function OrderForm({
         onChange={setLines}
         withTax={withTax}
         readOnly={!isDraft}
-        defaultAccountId={DEFAULT_ACCOUNT[side]}
+        defaultAccountId={defaultAccountId}
         priceField={side === "sales" ? "sales_price" : "cost_price"}
+        products={products}
+        accounts={accounts}
       />
 
       <div className="flex flex-col gap-3 border-t border-[var(--line)] p-5">

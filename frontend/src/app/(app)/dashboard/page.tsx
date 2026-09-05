@@ -1,19 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, formatMoney } from "@/lib/format";
 import {
-  MOCK_CUSTOMER_INVOICES,
-  MOCK_PURCHASE_ORDERS,
-  MOCK_SALES_ORDERS,
-  MOCK_VENDOR_BILLS,
-  contactName,
-} from "@/lib/mock-data";
+  ContactsApi,
+  CustomerInvoicesApi,
+  PurchaseOrdersApi,
+  SalesOrdersApi,
+  VendorBillsApi,
+} from "@/lib/resources";
+import { useAsyncData } from "@/lib/use-async-data";
+import type { Contact, CustomerInvoice, PurchaseOrder, SalesOrder, VendorBill } from "@/types";
 
-// TODO: replace with real API once backend/reports is ready (GET /api/reports/dashboard).
-// Counts are derived from the placeholder collections so they stay self-consistent.
 function countBy<T extends { status: string }>(rows: T[], status: string) {
   return rows.filter((row) => row.status === status).length;
 }
@@ -55,8 +56,28 @@ function Panel({
 }
 
 export default function DashboardPage() {
+  const fetchSales = useCallback(() => SalesOrdersApi.list(), []);
+  const { data: salesData } = useAsyncData<SalesOrder[]>(fetchSales, "Could not load sales orders.");
+  const salesOrders = salesData ?? [];
+
+  const fetchPurchases = useCallback(() => PurchaseOrdersApi.list(), []);
+  const { data: purchasesData } = useAsyncData<PurchaseOrder[]>(fetchPurchases, "Could not load purchase orders.");
+  const purchaseOrders = purchasesData ?? [];
+
+  const fetchInvoices = useCallback(() => CustomerInvoicesApi.list(), []);
+  const { data: invoicesData } = useAsyncData<CustomerInvoice[]>(fetchInvoices, "Could not load invoices.");
+  const invoices = invoicesData ?? [];
+
+  const fetchBills = useCallback(() => VendorBillsApi.list(), []);
+  const { data: billsData } = useAsyncData<VendorBill[]>(fetchBills, "Could not load bills.");
+  const bills = billsData ?? [];
+
+  const fetchContacts = useCallback(() => ContactsApi.list(), []);
+  const { data: contactsData } = useAsyncData<Contact[]>(fetchContacts, "Could not load contacts.");
+  const contactName = (id: number) => (contactsData ?? []).find((c) => c.id === id)?.name ?? "—";
+
   const recent = [
-    ...MOCK_CUSTOMER_INVOICES.map((invoice) => ({
+    ...invoices.map((invoice) => ({
       id: `inv-${invoice.id}`,
       number: invoice.invoice_number,
       party: contactName(invoice.contact_id),
@@ -65,7 +86,7 @@ export default function DashboardPage() {
       status: invoice.status,
       href: `/invoices/${invoice.id}`,
     })),
-    ...MOCK_VENDOR_BILLS.map((bill) => ({
+    ...bills.map((bill) => ({
       id: `bill-${bill.id}`,
       number: bill.bill_number,
       party: contactName(bill.contact_id),
@@ -90,20 +111,21 @@ export default function DashboardPage() {
           title="Sales"
           action={{ label: "New", href: "/sales/new" }}
           metrics={[
-            { label: "All", value: String(MOCK_SALES_ORDERS.length) },
-            { label: "Confirmed", value: String(countBy(MOCK_SALES_ORDERS, "confirmed")) },
-            { label: "Draft", value: String(countBy(MOCK_SALES_ORDERS, "draft")) },
+            { label: "All", value: String(salesOrders.length) },
+            { label: "Confirmed", value: String(countBy(salesOrders, "confirmed")) },
+            { label: "Draft", value: String(countBy(salesOrders, "draft")) },
           ]}
         />
         <Panel
           title="Purchase"
           action={{ label: "New", href: "/purchases/new" }}
           metrics={[
-            { label: "All", value: String(MOCK_PURCHASE_ORDERS.length) },
-            { label: "Confirmed", value: String(countBy(MOCK_PURCHASE_ORDERS, "confirmed")) },
-            { label: "Draft", value: String(countBy(MOCK_PURCHASE_ORDERS, "draft")) },
+            { label: "All", value: String(purchaseOrders.length) },
+            { label: "Confirmed", value: String(countBy(purchaseOrders, "confirmed")) },
+            { label: "Draft", value: String(countBy(purchaseOrders, "draft")) },
           ]}
         />
+        {/* TODO: replace with real API once backend/budgets exists — there is no budgets route yet. */}
         <Panel
           title="Budget Reports"
           action={{ label: "Report", href: "/reports/budget" }}

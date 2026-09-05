@@ -6,9 +6,9 @@ import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, formatMoney } from "@/lib/format";
-import { contactName, mockRequest } from "@/lib/mock-data";
+import { ContactsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
-import type { CustomerInvoice, VendorBill } from "@/types";
+import type { Contact, CustomerInvoice, VendorBill } from "@/types";
 
 type Document = VendorBill | CustomerInvoice;
 
@@ -26,18 +26,24 @@ export function BillList({
   subtitle,
   partnerLabel,
   basePath,
-  source,
+  fetcher,
 }: {
   title: string;
   subtitle: string;
   partnerLabel: string;
   basePath: string;
-  source: Document[];
+  fetcher: () => Promise<Document[]>;
 }) {
   const router = useRouter();
-  const fetchData = useCallback(() => mockRequest(source), [source]);
-  const { data, loading, error, retry } = useAsyncData<Document[]>(fetchData, "The billing service did not respond.");
+  const { data, loading, error, retry } = useAsyncData<Document[]>(
+    fetcher,
+    "The billing service did not respond.",
+  );
   const documents = data ?? [];
+
+  const fetchContacts = useCallback(() => ContactsApi.list(), []);
+  const { data: contactsData } = useAsyncData<Contact[]>(fetchContacts, "Could not load contacts.");
+  const contactName = (id: number) => (contactsData ?? []).find((c) => c.id === id)?.name ?? "—";
 
   const columns: Column<Document>[] = [
     {

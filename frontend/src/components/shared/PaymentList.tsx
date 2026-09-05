@@ -4,9 +4,9 @@ import { useCallback } from "react";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatDate, formatMoney, titleCase } from "@/lib/format";
-import { contactName, mockRequest } from "@/lib/mock-data";
+import { ContactsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
-import type { CustomerInvoice, VendorBill } from "@/types";
+import type { Contact, CustomerInvoice, VendorBill } from "@/types";
 
 interface PaymentRow {
   id: string;
@@ -18,8 +18,9 @@ interface PaymentRow {
 }
 
 /**
- * Payments and receipts are derived from what has been settled against each
- * document. Once the payments endpoint exists this reads it directly instead.
+ * There's no dedicated GET /api/payments endpoint yet, so this derives a
+ * payments/receipts view from what's actually been settled on real bills and
+ * invoices — real amounts, just not a real payments ledger.
  */
 function derivePayments(documents: (VendorBill | CustomerInvoice)[]): PaymentRow[] {
   return documents
@@ -38,20 +39,23 @@ export function PaymentList({
   title,
   subtitle,
   partnerLabel,
-  source,
+  fetcher,
 }: {
   title: string;
   subtitle: string;
   partnerLabel: string;
-  source: (VendorBill | CustomerInvoice)[];
+  fetcher: () => Promise<(VendorBill | CustomerInvoice)[]>;
 }) {
-  // TODO: replace with real API once backend/payments is ready (GET /api/payments).
-  const fetchData = useCallback(() => mockRequest(derivePayments(source)), [source]);
+  const derivedFetcher = useCallback(() => fetcher().then(derivePayments), [fetcher]);
   const { data, loading, error, retry } = useAsyncData<PaymentRow[]>(
-    fetchData,
+    derivedFetcher,
     "The payments service did not respond.",
   );
   const rows = data ?? [];
+
+  const fetchContacts = useCallback(() => ContactsApi.list(), []);
+  const { data: contactsData } = useAsyncData<Contact[]>(fetchContacts, "Could not load contacts.");
+  const contactName = (id: number) => (contactsData ?? []).find((c) => c.id === id)?.name ?? "—";
 
   const columns: Column<PaymentRow>[] = [
     {

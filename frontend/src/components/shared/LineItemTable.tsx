@@ -2,8 +2,8 @@
 
 import { Button } from "@/components/ui/Button";
 import { formatMoney } from "@/lib/format";
-import { MOCK_ACCOUNTS, MOCK_ANALYTIC_ACCOUNTS, MOCK_PRODUCTS } from "@/lib/mock-data";
-import type { DocumentLine } from "@/types";
+import { MOCK_ANALYTIC_ACCOUNTS } from "@/lib/mock-data";
+import type { AnalyticAccount, ChartOfAccount, DocumentLine, Product } from "@/types";
 
 /**
  * The line grid shared by Purchase Order, Vendor Bill, Sales Order and Customer
@@ -56,6 +56,10 @@ interface LineItemTableProps {
   defaultAccountId: number | null;
   /** Price column follows the document side: sales price vs cost price. */
   priceField?: "sales_price" | "cost_price";
+  /** Real products and accounts — analytic accounts stay mocked, no backend route exists yet. */
+  products: Product[];
+  accounts: ChartOfAccount[];
+  analyticAccounts?: AnalyticAccount[];
 }
 
 export function LineItemTable({
@@ -65,13 +69,16 @@ export function LineItemTable({
   readOnly = false,
   defaultAccountId,
   priceField = "sales_price",
+  products,
+  accounts,
+  analyticAccounts = MOCK_ANALYTIC_ACCOUNTS,
 }: LineItemTableProps) {
   function update(id: string, patch: Partial<DocumentLine>) {
     onChange(lines.map((line) => (line.id === id ? { ...line, ...patch } : line)));
   }
 
   function onProductChange(id: string, productId: number | null) {
-    const product = MOCK_PRODUCTS.find((item) => item.id === productId);
+    const product = products.find((item) => item.id === productId);
     update(id, {
       product_id: productId,
       // Picking a product prefills its price — the user can still override it.
@@ -120,7 +127,7 @@ export function LineItemTable({
                     }
                   >
                     <option value="">Select product</option>
-                    {MOCK_PRODUCTS.map((product) => (
+                    {products.map((product) => (
                       <option key={product.id} value={product.id}>
                         {product.name}
                       </option>
@@ -140,7 +147,7 @@ export function LineItemTable({
                     }
                   >
                     <option value="">Select account</option>
-                    {MOCK_ACCOUNTS.map((account) => (
+                    {accounts.map((account) => (
                       <option key={account.id} value={account.id}>
                         {account.code} · {account.name}
                       </option>
@@ -160,7 +167,7 @@ export function LineItemTable({
                     }
                   >
                     <option value="">None</option>
-                    {MOCK_ANALYTIC_ACCOUNTS.map((analytic) => (
+                    {analyticAccounts.map((analytic) => (
                       <option key={analytic.id} value={analytic.id}>
                         {analytic.name}
                       </option>

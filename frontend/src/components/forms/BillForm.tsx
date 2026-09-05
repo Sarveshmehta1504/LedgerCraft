@@ -1,16 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { InlineAlert } from "@/components/ui/States";
-import { LineItemTable, documentTotal } from "@/components/shared/LineItemTable";
-import { formatMoney, moneyEquals, today } from "@/lib/format";
-import { MOCK_JOURNALS, accountName, contactName } from "@/lib/mock-data";
-import type { CustomerInvoice, DocumentLine, PaymentVia, VendorBill } from "@/types";
+import { LineItemTable } from "@/components/shared/LineItemTable";
+import { ApiError } from "@/lib/api";
+import { formatMoney, today } from "@/lib/format";
+import { AccountsApi, CustomerInvoicesApi, ProductsApi, VendorBillsApi } from "@/lib/resources";
+import { useAsyncData } from "@/lib/use-async-data";
+import type { CustomerInvoiceDetail, VendorBillDetail } from "@/lib/resources";
+import type { ChartOfAccount, DocumentLine, PaymentVia, Product } from "@/types";
 
 type Side = "bill" | "invoice";
 
@@ -21,9 +24,6 @@ const COPY = {
     originLabel: "PO",
     originHref: "/purchases",
     partnerLabel: "Vendor",
-    /** Posting a bill: Debit Purchase Expense, Credit Creditors. */
-    debitAccountId: 9,
-    creditAccountId: 5,
     paymentDirection: "Paid to vendor",
   },
   invoice: {
@@ -32,9 +32,6 @@ const COPY = {
     originLabel: "SO",
     originHref: "/sales",
     partnerLabel: "Customer",
-    /** Posting an invoice: Debit Debtors, Credit Sale Income. */
-    debitAccountId: 3,
-    creditAccountId: 8,
     paymentDirection: "Received from customer",
   },
 };
@@ -44,39 +41,46 @@ export function BillForm({
   document,
 }: {
   side: Side;
-  document: VendorBill | CustomerInvoice;
+  document: VendorBillDetail | CustomerInvoiceDetail;
 }) {
   const router = useRouter();
   const copy = COPY[side];
   const withTax = side === "invoice";
+  function isBill(doc: VendorBillDetail | CustomerInvoiceDetail): doc is VendorBillDetail {
+    return "bill_number" in doc;
+  }
 
-  // Bills and invoices carry the same fields under different names.
-  const number = "bill_number" in document ? document.bill_number : document.invoice_number;
-  const reference =
-    "bill_reference" in document ? document.bill_reference : document.invoice_reference;
-  const docDate = "bill_date" in document ? document.bill_date : document.invoice_date;
-  const originId =
-    "purchase_order_id" in document ? document.purchase_order_id : document.sales_order_id;
+  const fetchProducts = useCallback(() => ProductsApi.list(), []);
+  const { data: productsData } = useAsyncData<Product[]>(fetchProducts, "Could not load products.");
+  const products = productsData ?? [];
 
-  const [status, setStatus] = useState<string>(document.status);
-  const [lines, setLines] = useState<DocumentLine[]>(document.lines);
-  const [amountPaid, setAmountPaid] = useState(document.amount_paid);
+  const fetchAccounts = useCallback(() => AccountsApi.list(), []);
+  const { data: accountsData } = useAsyncData<ChartOfAccount[]>(fetchAccounts, "Could not load accounts.");
+  const accounts = accountsData ?? [];
+
+  const [doc, setDoc] = useState(document);
+  const number = isBill(doc) ? doc.bill_number : doc.invoice_number;
+  const reference = isBill(doc) ? doc.bill_reference : doc.invoice_reference;
+  const docDate = isBill(doc) ? doc.bill_date : doc.invoice_date;
+  const originId = isBill(doc) ? doc.purchase_order_id : doc.sales_order_id;
+  const originNumber = isBill(doc) ? doc.purchase_order_number : doc.sales_order_number;
+
+  const [lines] = useState<DocumentLine[]>(doc.lines);
   const [busy, setBusy] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const [showPayment, setShowPayment] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentAmount, setPaymentAmount] = useState(doc.amount_due);
   const [paymentVia, setPaymentVia] = useState<PaymentVia>("bank");
   const [paymentDate, setPaymentDate] = useState(today());
   const [paymentNote, setPaymentNote] = useState("");
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  const total = documentTotal(lines, withTax);
-  const amountDue = total - amountPaid;
-  const isDraft = status === "draft";
-  const isPosted = status === "posted";
+  const amountDue = doc.amount_due;
+  const isDraft = doc.status === "draft";
+  const isPosted = doc.status === "posted";
 
   async function onSend() {
     setSending(true);
@@ -89,19 +93,17 @@ export function BillForm({
   }
 
   async function onPost() {
-    // Mirrors the backend's 422 conditions so the user sees the rule before the request.
-    if (lines.length === 0 || total <= 0) {
-      setPostError("A document with no lines, or a zero total, cannot be posted.");
-      return;
-    }
     setPostError(null);
     setBusy(true);
-    // TODO: replace with real API once backend/<vendor-bills|customer-invoices> is ready
-    // (POST /api/{vendor-bills|customer-invoices}/{id}/post).
-    await new Promise((resolve) => setTimeout(resolve, 450));
-    setBusy(false);
-    setStatus("posted");
-    setPaymentAmount(total - amountPaid);
+    try {
+      const updated = isBill(doc) ? await VendorBillsApi.post(doc.id) : await CustomerInvoicesApi.post(doc.id);
+      setDoc(updated);
+      setPaymentAmount(updated.amount_due);
+    } catch (err) {
+      setPostError(err instanceof ApiError ? err.message : "Could not post this document.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function onRegisterPayment() {
@@ -109,24 +111,26 @@ export function BillForm({
       setPaymentError("Enter an amount greater than zero.");
       return;
     }
-    // The backend rejects overpayment with a 422 — block it here too rather than let it fail.
-    if (paymentAmount > amountDue + 0.001) {
-      setPaymentError(
-        `Amount exceeds the outstanding balance of ${formatMoney(amountDue)}.`,
-      );
-      return;
-    }
     setPaymentError(null);
     setBusy(true);
-    // TODO: replace with real API once backend/payments is ready
-    // (POST /api/{vendor-bills|customer-invoices}/{id}/payments).
-    await new Promise((resolve) => setTimeout(resolve, 420));
-    setBusy(false);
-
-    const nextPaid = amountPaid + paymentAmount;
-    setAmountPaid(nextPaid);
-    setShowPayment(false);
-    if (moneyEquals(nextPaid, total)) setStatus("paid");
+    try {
+      const input = { amount: paymentAmount, payment_via: paymentVia, date: paymentDate, note: paymentNote || undefined };
+      // The payment response's nested document omits contact/journal_entry relations
+      // that show/post include — re-fetch the full detail rather than lose them on screen.
+      if (isBill(doc)) {
+        await VendorBillsApi.registerPayment(doc.id, input);
+        setDoc(await VendorBillsApi.get(doc.id));
+      } else {
+        await CustomerInvoicesApi.registerPayment(doc.id, input);
+        setDoc(await CustomerInvoicesApi.get(doc.id));
+      }
+      setShowPayment(false);
+    } catch (err) {
+      // The backend rejects overpayment (and other business-rule violations) with a 422.
+      setPaymentError(err instanceof ApiError ? err.message : "Could not register this payment.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -158,7 +162,7 @@ export function BillForm({
           }
           trailing={
             <>
-              <StatusBadge status={status} />
+              <StatusBadge status={doc.status} />
               {/* TODO: replace with real API once backend/documents is ready
                   (GET .../{id}/pdf for Print, POST .../{id}/send for Send). */}
               <Button size="sm" onClick={() => window.print()}>
@@ -170,11 +174,6 @@ export function BillForm({
               <Button size="sm" onClick={() => router.push("/reports/budget")}>
                 Budget
               </Button>
-              {isPosted && amountPaid === 0 && (
-                <Button size="sm" onClick={() => setStatus("draft")}>
-                  Reset to Draft
-                </Button>
-              )}
               <Button size="sm" onClick={() => router.push(copy.listHref)}>
                 Back
               </Button>
@@ -183,13 +182,8 @@ export function BillForm({
         />
 
         <div className="grid gap-x-8 gap-y-5 p-5 md:grid-cols-3">
-          <TextField
-            label={copy.partnerLabel}
-            value={contactName(document.contact_id)}
-            readOnly
-            disabled
-          />
-          <TextField label="Date" type="date" value={docDate} readOnly disabled />
+          <TextField label={copy.partnerLabel} value={doc.contact_name} readOnly disabled />
+          <TextField label="Date" type="date" value={docDate.slice(0, 10)} readOnly disabled />
           <TextField
             label={`${copy.partnerLabel} reference`}
             value={reference ?? "—"}
@@ -197,14 +191,14 @@ export function BillForm({
             disabled
           />
           {/* A document created from an order links back to it; a standalone one hides the link. */}
-          {originId !== null && (
+          {originId !== null && originNumber && (
             <div className="flex flex-col gap-1.5">
               <span className="text-[13px] font-medium text-[var(--text-muted)]">Source</span>
               <a
                 href={`${copy.originHref}/${originId}`}
                 className="text-sm text-[var(--accent)] underline-offset-2 hover:underline"
               >
-                {copy.originLabel}/{String(originId).padStart(4, "0")}
+                {originNumber}
               </a>
             </div>
           )}
@@ -212,11 +206,13 @@ export function BillForm({
 
         <LineItemTable
           lines={lines}
-          onChange={setLines}
+          onChange={() => {}}
           withTax={withTax}
-          readOnly={!isDraft}
-          defaultAccountId={copy.creditAccountId}
+          readOnly
+          defaultAccountId={null}
           priceField={side === "invoice" ? "sales_price" : "cost_price"}
+          products={products}
+          accounts={accounts}
         />
 
         <div className="flex flex-col gap-3 border-t border-[var(--line)] p-5">
@@ -231,11 +227,11 @@ export function BillForm({
             <dl className="w-72 space-y-1.5 border-t-2 border-[var(--line-strong)] pt-2.5 text-[13px]">
               <div className="flex justify-between">
                 <dt className="text-[var(--text-muted)]">Total</dt>
-                <dd className="tnum font-mono font-medium">{formatMoney(total)}</dd>
+                <dd className="tnum font-mono font-medium">{formatMoney(doc.total)}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-[var(--text-muted)]">Amount paid</dt>
-                <dd className="tnum font-mono">{formatMoney(amountPaid)}</dd>
+                <dd className="tnum font-mono">{formatMoney(doc.amount_paid)}</dd>
               </div>
               <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
                 <dt className="font-medium">Amount due</dt>
@@ -270,15 +266,10 @@ export function BillForm({
           />
           <div className="grid gap-5 p-5 md:grid-cols-3">
             {/* Payment Type and Partner are fixed by the document — shown, not editable. */}
-            <TextField
-              label="Payment Type"
-              value={side === "bill" ? "Send" : "Receive"}
-              readOnly
-              disabled
-            />
+            <TextField label="Payment Type" value={side === "bill" ? "Send" : "Receive"} readOnly disabled />
             <TextField
               label="Partner"
-              value={contactName(document.contact_id)}
+              value={doc.contact_name}
               readOnly
               disabled
               hint="Autofilled from the document."
@@ -329,18 +320,18 @@ export function BillForm({
       )}
 
       {/* The ledger reveal — this is the moment that shows the books are real. */}
-      {(isPosted || status === "paid") && (
+      {doc.journal_entry && (
         <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-white">
           <PageHeader title="Journal entry" subtitle="Generated automatically on posting" />
           <table className="w-full min-w-[520px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-[var(--line)] bg-[var(--surface-sunken)]">
-                {["Account", "Partner", "Debit", "Credit"].map((header, index) => (
+                {["Account", "Debit", "Credit"].map((header, index) => (
                   <th
                     key={header}
                     scope="col"
                     className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] ${
-                      index >= 2 ? "text-right" : "text-left"
+                      index >= 1 ? "text-right" : "text-left"
                     }`}
                   >
                     {header}
@@ -349,44 +340,32 @@ export function BillForm({
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
-              <tr>
-                <td className="px-4 py-2.5">{accountName(copy.debitAccountId)}</td>
-                <td className="px-4 py-2.5 text-[var(--text-muted)]">
-                  {contactName(document.contact_id)}
-                </td>
-                <td className="tnum px-4 py-2.5 text-right font-mono text-[13px]">
-                  {formatMoney(total)}
-                </td>
-                <td className="px-4 py-2.5" />
-              </tr>
-              <tr>
-                <td className="px-4 py-2.5">{accountName(copy.creditAccountId)}</td>
-                <td className="px-4 py-2.5 text-[var(--text-muted)]">
-                  {contactName(document.contact_id)}
-                </td>
-                <td className="px-4 py-2.5" />
-                <td className="tnum px-4 py-2.5 text-right font-mono text-[13px]">
-                  {formatMoney(total)}
-                </td>
-              </tr>
+              {doc.journal_entry.lines.map((line, index) => (
+                <tr key={index}>
+                  <td className="px-4 py-2.5">{line.account_name}</td>
+                  <td className="tnum px-4 py-2.5 text-right font-mono text-[13px]">
+                    {line.debit > 0 ? formatMoney(line.debit) : ""}
+                  </td>
+                  <td className="tnum px-4 py-2.5 text-right font-mono text-[13px]">
+                    {line.credit > 0 ? formatMoney(line.credit) : ""}
+                  </td>
+                </tr>
+              ))}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-[var(--line-strong)] bg-[var(--surface-sunken)]">
-                <td colSpan={2} className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                <td className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
                   Balanced
                 </td>
                 <td className="tnum px-4 py-2.5 text-right font-mono text-[13px] font-semibold">
-                  {formatMoney(total)}
+                  {formatMoney(doc.journal_entry.lines.reduce((sum, l) => sum + l.debit, 0))}
                 </td>
                 <td className="tnum px-4 py-2.5 text-right font-mono text-[13px] font-semibold">
-                  {formatMoney(total)}
+                  {formatMoney(doc.journal_entry.lines.reduce((sum, l) => sum + l.credit, 0))}
                 </td>
               </tr>
             </tfoot>
           </table>
-          <p className="border-t border-[var(--line)] px-5 py-2.5 text-[13px] text-[var(--text-muted)]">
-            Posted to {MOCK_JOURNALS.find((j) => (side === "bill" ? j.type === "purchase" : j.type === "sales"))?.name}.
-          </p>
         </div>
       )}
     </div>

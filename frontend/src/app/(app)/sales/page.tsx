@@ -1,17 +1,18 @@
 "use client";
 
+import { useCallback } from "react";
 import { OrderList } from "@/components/shared/OrderList";
-import { MOCK_SALES_ORDERS } from "@/lib/mock-data";
+import { SalesOrdersApi } from "@/lib/resources";
 
 export default function SalesOrdersPage() {
-  // TODO: replace with real API once backend/sales-orders is ready (GET /api/sales-orders).
+  const fetcher = useCallback(() => SalesOrdersApi.list(), []);
   return (
     <OrderList
       title="Sales Orders"
       subtitle="Draft to confirmed to invoiced"
       partnerLabel="Customer"
       basePath="/sales"
-      source={MOCK_SALES_ORDERS}
+      fetcher={fetcher}
     />
   );
 }
