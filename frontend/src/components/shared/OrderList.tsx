@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, formatMoney } from "@/lib/format";
 import { contactName, mockRequest } from "@/lib/mock-data";
+import { useAsyncData } from "@/lib/use-async-data";
 import type { PurchaseOrder, SalesOrder } from "@/types";
 
 type Order = PurchaseOrder | SalesOrder;
@@ -28,26 +29,14 @@ export function OrderList({
   source: Order[];
 }) {
   const router = useRouter();
-  const [orders, setOrders] = useState<Order[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setOrders(await mockRequest(source));
-    } catch {
-      setError("The order service did not respond.");
-    } finally {
-      setLoading(false);
-    }
-  }, [source]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const fetchData = useCallback(() => mockRequest(source), [source]);
+  const { data, loading, error, retry } = useAsyncData<Order[]>(
+    fetchData,
+    "The order service did not respond.",
+  );
+  const orders = data ?? [];
 
   const statuses = Array.from(new Set(source.map((order) => order.status)));
   const visible = statusFilter
@@ -111,7 +100,7 @@ export function OrderList({
         onRowClick={(order) => router.push(`${basePath}/${order.id}`)}
         loading={loading}
         error={error}
-        onRetry={load}
+        onRetry={retry}
         emptyTitle={`No ${title.toLowerCase()} yet`}
         emptyDescription="Create one to start the flow through to payment."
         emptyAction={
