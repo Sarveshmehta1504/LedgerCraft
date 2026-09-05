@@ -75,22 +75,22 @@ the next lane:
 
 ## Frontend — owner: member-3 (Auth + Master Data + Portal)
 
-* [ ] FE-001 Auth context + login page + role-based redirect + protected route wrapper
-* [ ] FE-002 Shared components: DataTable, StatusBadge, MoneyValue, form inputs
-* [ ] FE-003 Contacts list/create/edit
-* [ ] FE-004 Products list/create/edit
-* [ ] FE-005 Chart of Accounts list/create/edit (grouped by type)
-* [ ] FE-006 Journals list/create/edit
-* [ ] FE-007 Contact Portal shell (`/portal`) + invoice/bill list + pay action
+* [-] FE-001 Login page built (`src/app/(auth)/login/page.tsx`) with validation. Auth context, role-based redirect and the protected-route wrapper are **not** built yet — waiting on a working `POST /api/auth/login` (see Frontend status below)
+* [x] FE-002 `DataTable`, `StatusBadge`, `Combobox` (searchable + create-on-the-fly), `LineItemTable`, `ViewSwitcher`, `PageHeader`, loading/empty/error states, form inputs, `formatMoney`/`formatDate` in `src/lib/format.ts`
+* [-] FE-003 Contacts List + Kanban + Form done (`src/app/(app)/contacts/`, `src/components/forms/ContactForm.tsx`) — still on mock data
+* [-] FE-004 Products List + Kanban + Form done (`src/app/(app)/products/`, `ProductForm.tsx`), category is a create-on-the-fly combobox — still on mock data
+* [-] FE-005 Chart of Accounts grouped by all 8 types (`src/app/(app)/accounts/`, `AccountForm.tsx`) — still on mock data
+* [-] FE-006 Journals list + form (`src/app/(app)/journals/`, `JournalForm.tsx`) — still on mock data
+* [ ] FE-007 Contact Portal — not started
 
 ## Frontend — owner: member-4 (Transactions + Reports UI)
 
-* [ ] FE-008 PO list/create/detail + Convert to Bill button
-* [ ] FE-009 Vendor Bill detail (Post button, shows generated journal entry lines, Register Payment)
-* [ ] FE-010 SO list/create/detail + Convert to Invoice button
-* [ ] FE-011 Customer Invoice detail (Post, journal entry display, Register Payment)
-* [ ] FE-012 Balance Sheet report page
-* [ ] FE-013 P&L report page
+* [-] FE-008 PO list/form with Create Bill (`src/app/(app)/purchases/`, `OrderForm.tsx`); blocks Confirm on a zero/negative total — still on mock data
+* [-] FE-009 Vendor Bill detail with Post, inline journal-entry reveal, Register Payment (overpayment blocked), Print/Send/Budget/Reset to Draft (`BillForm.tsx`) — still on mock data
+* [-] FE-010 SO list/form with Create Invoice (`src/app/(app)/sales/`) — still on mock data
+* [-] FE-011 Customer Invoice detail, same shared `BillForm` as FE-009 — still on mock data
+* [-] FE-012 Balance Sheet with a pass/fail reconciliation check (`src/app/(app)/reports/balance-sheet/`) — figures still computed in `src/lib/reports.ts`, not from the API
+* [-] FE-013 P&L with Income / Expenses / Other Expenses as separate totals — still computed locally, not from the API
 
 ## Integration (whole team, ongoing — do not batch this to the end)
 
@@ -120,20 +120,20 @@ the next lane:
 * [ ] BE-014 Budget CRUD + `/reports/budget` (live actual computation)
 * [ ] BE-015 `/reports/aging` (AR/AP buckets)
 * [ ] BE-016 `/reports/dashboard` (KPI aggregates)
-* [ ] FE-014 Budget screen + Budget Report page
+* [-] FE-014 Budgets with Draft/Confirm/Revise/Cancel stages + Budget Report (recharts pie + planned-vs-achieved bars) — still on mock data
 * [ ] FE-015 Aging report page
-* [ ] FE-016 Dashboard KPI cards + 1-2 charts
+* [-] FE-016 Dashboard shell with Sales/Purchase/Budget panels and recent transactions (`src/app/(app)/dashboard/`) — counts derived from mock data, `GET /api/reports/dashboard` not wired
 * [ ] INT-007 Invoice/Bill PDF generation wired (barryvdh/laravel-dompdf)
 * [x] BE-019 Auth endpoints: `POST /auth/login` (by `login_id`), `POST /auth/logout`, `GET /auth/me` — Sanctum tokens, single error message `Invalid Login Id or Password`, throttled
 * [x] BE-020 Forgot/Reset password endpoints + reset-link Mailable + password policy rule — reset link points at `FRONTEND_URL/reset-password`, token 60-min single-use, reset revokes all tokens, no account enumeration
 * [x] BE-024 Public signup endpoint — role `user` hardcoded server-side, `role` in payload ignored; creates + links a `customer` Contact in the same transaction (reuse an existing contact with the same email)
 * [x] BE-025 Admin Users CRUD + role assignment (`PUT /users/{id}/role`) behind UserPolicy (admin-only). Guards: cannot demote/delete yourself, cannot demote or delete the last admin, a role-`user` account must always keep a linked contact, password change revokes tokens
-* [ ] FE-022 Signup page (no role selector) + Admin Users screen with role dropdown
+* [-] FE-022 Signup page done, no role selector (`src/app/(auth)/signup/page.tsx`). Admin Users screen not started — backend `UserController` now exists on `main`, so it is unblocked
 * [x] BE-021 Mail configured — Resend via `resend/resend-laravel` (`MAIL_MAILER=resend`, `RESEND_API_KEY`), domain verified, live send verified. Sent synchronously: no `ShouldQueue`, no queue worker needed
 * [ ] BE-022 Invoice/Bill PDF + `POST .../send` Mailable with the PDF attached
 * [ ] BE-023 Report PDF (`GET /reports/{report}/pdf`) + `POST /reports/{report}/send`
-* [ ] FE-020 Forgot Password + Reset Password pages wired to the auth endpoints
-* [ ] FE-021 Print/Send buttons on invoice, bill and all three reports + send dialog and toasts
+* [-] FE-020 Forgot Password + Reset Password screens built (`src/app/(auth)/forgot-password/`, `reset-password/`) with full loading/success/error states. **Not wired** — blocked, see Frontend status
+* [-] FE-021 Print/Send present on bills, invoices and all three reports (`ReportShell.tsx`, `BillForm.tsx`) — buttons call placeholders, PDF/mail endpoints not wired
 * [ ] INT-008 Search/filter added to all master data + transaction list screens
 
 ---
@@ -173,3 +173,40 @@ the next lane:
 * [ ] Frontend deployed / confirmed localhost
 * [ ] Environment variables set correctly on whichever host is used
 * [ ] Production/deployed smoke test: run the demo script once against the deployed URL before the actual judging slot
+
+---
+
+# Frontend status (updated after the responsiveness + testing pass)
+
+## Verified complete
+
+* **46 routes build and render** — `npm run build` and `npm run lint` both clean, zero TypeScript errors, zero lint warnings.
+* **Responsiveness: 45/45 routes pass at 375px, 768px and 1280px.** Measured with a Playwright harness checking real horizontal overflow, console errors and tap-target size per breakpoint — not eyeballed. Wide tables scroll inside their own container; kanban grids reflow 1 -> 2 -> 3 columns.
+* **Form validation: 16/16 cases pass**, valid *and* invalid tested for each — journal entry debit=credit blocking, PO/SO zero-total block, payment overpayment block, reset-password length + match, contact name/email, product category, signup login-id and password policy.
+* **Loading / error / empty states verified on all 16 data screens.** The error state was proven by temporarily forcing the mock layer to reject, not by reading the code.
+
+## Blocked — needs backend/DB work
+
+* **Local database does not exist.** `GET /api/health` returns 200, but every DB-backed endpoint returns
+  `500 SQLSTATE[HY000] [1049] Unknown database 'ledgercraft'`. MySQL on 3306 is XAMPP MariaDB 10.4.28;
+  `ledgercraft` has not been created on this machine. Fix: create the schema, then `php artisan migrate --seed`.
+  Until that runs, no auth screen can be wired *and tested*, so none have been.
+* **Forgot Password identifier mismatch.** Login takes `login_id` (`LoginRequest.php`), but
+  `ForgotPasswordRequest.php` validates `['email' => ['required', 'email']]` and `AuthController::forgotPassword`
+  calls `Password::sendResetLink($request->only('email'))`. A login ID cannot be sent to this endpoint — it fails
+  validation before the lookup. Needs a backend change to accept `login_id` and resolve the email server-side.
+
+## Still on mock data
+
+Every module except the health check. Mock fixtures live in `src/lib/mock-data.ts` and `src/lib/reports.ts`,
+and each consumer carries a marker naming the endpoint it waits on:
+
+```
+// TODO: replace with real API once backend/<module> is ready
+```
+
+Contacts, Products, Chart of Accounts, Journals, Journal Entries, Analytic Accounts, Budgets,
+Purchase Orders, Vendor Bills, Sales Orders, Customer Invoices, Payments, Receipts,
+Balance Sheet, P&L, Budget Report, and all four auth screens.
+
+`GET /api/health` is the only endpoint genuinely wired to the backend (`src/app/health/page.tsx`).
