@@ -22,8 +22,9 @@ middleware (`role:admin`, `role:admin,accountant`, etc.) per the matrix in
 
 ### Request
 ```json
-{ "email": "owner@urbanfurniture.test", "password": "password" }
+{ "login_id": "urbanadmin", "password": "Password@1" }
 ```
+Login is by **`login_id`**, not email (per the design board).
 
 ### Success
 ```json
@@ -38,7 +39,44 @@ middleware (`role:admin`, `role:admin,accountant`, etc.) per the matrix in
 Revokes current token. `{ "code": 200, "message": "Logged out" }`
 
 ## GET `/auth/me`
-Returns current user + role + linked contact_id (if role=contact).
+Returns current user + role + linked contact_id (if role=`user`).
+
+## POST `/auth/forgot-password`
+Request `{ "email": "owner@urbanfurniture.test" }`. Generates a token in
+`password_reset_tokens` and emails a reset link. **Always returns 200** with
+`"If the email exists, a reset link has been sent"` — never reveal whether an
+account exists.
+
+## POST `/auth/reset-password`
+Request `{ "email": "...", "token": "...", "password": "...", "password_confirmation": "..." }`.
+Enforces the same password policy as signup (>8 chars, lower + upper + special).
+Errors: `422` invalid/expired token or weak password.
+
+---
+
+# Mail & Documents
+
+Every endpoint below is Admin/Accountant only, except a portal User may print
+their own invoice.
+
+* `GET /customer-invoices/{id}/pdf` — download the invoice PDF
+* `POST /customer-invoices/{id}/send` — email the invoice PDF to the customer's
+  contact email
+* `GET /vendor-bills/{id}/pdf` — download the bill PDF
+* `POST /vendor-bills/{id}/send` — email the bill PDF to the vendor
+* `GET /reports/{report}/pdf` — `report` ∈ `balance-sheet` | `profit-and-loss` |
+  `budget`; same query params as the JSON report (period/date)
+* `POST /reports/{report}/send` — body `{ "to": "...", "subject": "...", "period": {...} }`,
+  emails the rendered report PDF
+
+`send` responses: `200 { "code": 200, "message": "Invoice sent to nimesh@example.com" }`.
+Errors: `422` if the contact has no email address on file; `500` if the mail
+transport fails — surface the real reason, do not silently succeed.
+
+**Mail is sent synchronously**, inside the request. A `200` therefore means the
+message really was handed to SMTP, and the client can show "Sent" with
+confidence. The trade-off is a ~1s response — the frontend Send button must show
+a spinner and stay disabled until it resolves.
 
 ---
 

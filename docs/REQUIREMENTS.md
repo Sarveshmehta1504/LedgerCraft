@@ -47,6 +47,9 @@ validates data, computes taxes, updates ledgers, and generates reports.
 * [ ] List **and Kanban** views for Contact, Product and Analytics masters, with a toggle
 * [ ] Transaction lines carry both a Chart of Account and a Budget Analytic (Purchase account defaults on bills, Sales account on invoices)
 * [ ] Document sequences: `P00001`, `S00001`, `Bill/2026/0001`, `INV/2026/0001`
+* [ ] Forgot Password flow — request form, emailed reset link (60-min single-use token), reset form enforcing the signup password policy; responses must not reveal whether an account exists
+* [ ] Invoice/Bill **Print** (PDF download) and **Send** (email the PDF to the contact) buttons — both shown on the mockup as `1. Print  2. Send / (Allow user to send from Mail)`
+* [ ] Report **Print** (PDF) and **Send** (email) buttons on Balance Sheet, P&L and Budget Report
 * [ ] Balance Sheet report — live, computed from posted journal entries; Total Asset must equal Total Liability
 * [ ] Profit & Loss report — live, computed from posted journal entries
 * [ ] RBAC enforcement: Admin full access; Accountant create/record/view (no user management); User sees only their own invoices/bills and can register a payment against them
@@ -56,13 +59,11 @@ validates data, computes taxes, updates ledgers, and generates reports.
 * [ ] Analytic Accounts + Budget module with Draft/Confirmed/Revised/Cancelled stages, revision linking (original ↔ revised, name suffixed "Revised"), derived Achieved Amount, Achieved % and Amount to Achieve + Budget Report (list + kanban with pie chart)
 * [ ] Accounts Receivable / Accounts Payable Aging report (0-30/31-60/61-90/90+ buckets) — cheap to build off existing invoice/bill data, high judge visibility
 * [ ] Dashboard with live KPI cards (cash position, total receivables, total payables, top 5 customers by revenue, overdue invoice count) with a chart or two
-* [ ] Invoice/Bill PDF generation
 * [ ] Search/filter on all master data and transaction lists (contact, date range, status)
 
 # P2 — Nice to Have (only if P0+P1 finished with time to spare)
 
 * [ ] Bank reconciliation screen: match bank statement lines against journal entries
-* [ ] Email invoice/bill PDF to the contact
 * [ ] Multi-currency support on contacts/transactions
 * [ ] Recurring journal entries (e.g. monthly rent)
 * [ ] Stock/inventory quantity tracking on Product (basic on-hand count, decremented on sale)

@@ -89,6 +89,12 @@ names once assigned).
 * [ ] FE-015 Aging report page
 * [ ] FE-016 Dashboard KPI cards + 1-2 charts
 * [ ] INT-007 Invoice/Bill PDF generation wired (barryvdh/laravel-dompdf)
+* [ ] BE-020 Forgot/Reset password endpoints + reset-link Mailable + password policy rule
+* [ ] BE-021 SMTP configured in `.env` (MAIL_MAILER=smtp, Mailtrap or Gmail app password) — default `log` sends nothing. Send synchronously: no `ShouldQueue`, no queue worker to run during the demo
+* [ ] BE-022 Invoice/Bill PDF + `POST .../send` Mailable with the PDF attached
+* [ ] BE-023 Report PDF (`GET /reports/{report}/pdf`) + `POST /reports/{report}/send`
+* [ ] FE-020 Forgot Password + Reset Password pages wired to the auth endpoints
+* [ ] FE-021 Print/Send buttons on invoice, bill and all three reports + send dialog and toasts
 * [ ] INT-008 Search/filter added to all master data + transaction list screens
 
 ---
@@ -96,7 +102,6 @@ names once assigned).
 # P2 — Nice to Have (target: hour 11 → hour 13, only if ahead of schedule)
 
 * [ ] P2-001 Bank reconciliation screen
-* [ ] P2-002 Email PDF invoice/bill to contact
 * [ ] P2-003 Basic stock quantity on Product, decremented on sale
 
 **Do not start P2 items unless every P0 and P1 checkbox above is checked.**

@@ -9,6 +9,19 @@ behind them.
 # Authentication & Roles
 
 * [ ] Sanctum token login/logout
+* [ ] Forgot Password: `password_reset_tokens` (ships with Laravel's default
+      users migration) + reset link email; tokens expire after 60 minutes and are
+      single-use. Forgot-password responses must be identical whether or not the
+      email exists (no account enumeration).
+* [ ] Mail transport configured — `MAIL_MAILER=smtp` with real credentials
+      (Mailtrap or a Gmail app password). The shipped default is
+      `MAIL_MAILER=log`, which writes to `storage/logs` and **sends nothing** —
+      switch it before the demo or the Send button will appear to work and won't.
+* [ ] **Mail is sent synchronously** — `Mail::to(...)->send(...)`, never
+      `->queue(...)`, and Mailables must **not** implement `ShouldQueue`. No queue
+      worker is required for the demo; the request blocks for ~1s and returns the
+      real result. Set a mail timeout so a dead SMTP host can't hang the request,
+      and return `500` with the transport's actual error rather than a false `200`.
 * [ ] Spatie roles: `admin`, `accountant`, `user`, seeded in
       `RoleSeeder` at project setup
 * [ ] A `user`-role account is always linked to exactly one `contacts` row via

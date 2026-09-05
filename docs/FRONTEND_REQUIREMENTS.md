@@ -109,7 +109,13 @@ Same pattern as Purchase Flow. Routes: `/sales`, `/sales/new`, `/sales/[id]`,
 ## User Actions
 1. Pick a date/period
 2. View report table, grouped by account type
-3. (P1) Export to PDF
+3. **Print** — downloads the report PDF (`GET /api/reports/{report}/pdf`)
+4. **Send** — opens a small dialog (recipient prefilled where known, editable
+   subject) and posts to `POST /api/reports/{report}/send`
+
+Both buttons sit in the report header, matching the mockup's `Print` / `Back`
+controls. Show a spinner while the request is in flight and a toast on success or
+failure — a Send that silently does nothing is worse than no button.
 
 ## API Dependencies
 `GET /api/reports/balance-sheet`, `GET /api/reports/profit-and-loss`,
