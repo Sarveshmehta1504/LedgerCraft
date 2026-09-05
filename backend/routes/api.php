@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ProductCategoryController;
 use App\Http\Controllers\Api\ProductController;
@@ -16,6 +17,19 @@ Route::get('/health', function () {
         'status' => 'ok',
         'message' => 'API is healthy',
     ]);
+});
+
+// Public auth endpoints. Throttled: these are the brute-force surface.
+Route::prefix('auth')->group(function () {
+    Route::post('login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+    Route::post('signup', [AuthController::class, 'signup'])->middleware('throttle:10,1');
+    Route::post('forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:6,1');
+    Route::post('reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:6,1');
+});
+
+Route::middleware('auth:sanctum')->prefix('auth')->group(function () {
+    Route::post('logout', [AuthController::class, 'logout']);
+    Route::get('me', [AuthController::class, 'me']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {
