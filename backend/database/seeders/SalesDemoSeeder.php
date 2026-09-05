@@ -211,6 +211,31 @@ class SalesDemoSeeder extends Seeder
             'payment_via' => 'cash',
             'date' => now()->subDays(45)->toDateString(),
         ], $admin->id);
+
+        // Deeply overdue, so the 61-90 and 90+ aging buckets are not empty on
+        // screen. Without these the report looks like the deep buckets do not
+        // work.
+        $sixtyOneToNinety = $invoices->create([
+            'contact_id' => $kunal->id,
+            'invoice_date' => now()->subDays(110)->toDateString(),
+            'due_date' => now()->subDays(75)->toDateString(),
+            'invoice_reference' => 'KNL-OVERDUE-61',
+            'lines' => [
+                ['product_id' => $diningChair->id, 'quantity' => 6, 'unit_price' => 2200, 'tax_percent' => 18],
+            ],
+        ]);
+        $invoices->post($sixtyOneToNinety, $admin->id);
+
+        $ninetyPlus = $invoices->create([
+            'contact_id' => $devika->id,
+            'invoice_date' => now()->subDays(160)->toDateString(),
+            'due_date' => now()->subDays(130)->toDateString(),
+            'invoice_reference' => 'DVK-OVERDUE-90',
+            'lines' => [
+                ['product_id' => $sofa->id, 'quantity' => 1, 'unit_price' => 26500, 'tax_percent' => 18],
+            ],
+        ]);
+        $invoices->post($ninetyPlus, $admin->id);
     }
 
     private function contact(string $name): Contact

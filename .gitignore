@@ -74,3 +74,10 @@ test-results/
 
 # Local design working notes (not for the repo)
 frontend/NOTES-design-validation.md
+
+# ---- AI assistant config ----
+.claude/
+.agents/
+CLAUDE.md
+AGENTS.md
+docs/agents
