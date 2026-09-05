@@ -8,9 +8,12 @@ use App\Http\Requests\PaymentRequest;
 use App\Models\CustomerInvoice;
 use App\Models\VendorBill;
 use App\Services\CustomerInvoiceService;
+use App\Services\DocumentMailService;
+use App\Services\DocumentPdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
+use Throwable;
 
 /**
  * The contact portal: a role-`user` account seeing only its own documents.
@@ -93,6 +96,41 @@ class PortalController extends Controller
             'payment' => $payment->only(['id', 'amount', 'date', 'payment_via', 'payment_type']),
             'invoice' => $this->invoiceSummary($invoice->fresh()),
         ], 201);
+    }
+
+    /**
+     * The same server-rendered PDF the back office downloads, scoped to the
+     * caller's own contact. Shares DocumentPdfService with
+     * CustomerInvoiceController so both sides produce an identical document.
+     */
+    public function invoicePdf(Request $request, CustomerInvoice $invoice)
+    {
+        $this->assertOwned($request, $invoice);
+
+        return app(DocumentPdfService::class)->invoice($invoice)
+            ->download(str_replace('/', '-', $invoice->invoice_number).'.pdf');
+    }
+
+    /**
+     * Mails the customer their own invoice.
+     *
+     * No recipient is accepted: it always goes to the contact this account is
+     * linked to. Letting a portal user name an address would turn the portal
+     * into a way to mail someone else's business documents anywhere.
+     */
+    public function sendInvoice(Request $request, CustomerInvoice $invoice): JsonResponse
+    {
+        $this->assertOwned($request, $invoice);
+
+        try {
+            $recipient = app(DocumentMailService::class)->sendInvoice($invoice);
+        } catch (RuntimeException $e) {
+            return $this->fail($e->getMessage(), 422);
+        } catch (Throwable $e) {
+            return $this->fail('Could not send the invoice: '.$e->getMessage(), 500);
+        }
+
+        return $this->ok("Invoice sent to {$recipient}");
     }
 
     /**
