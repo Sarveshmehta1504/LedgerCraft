@@ -77,3 +77,6 @@ AGENTS.md
 docs/agents
 # ---- Design reference (local only) ----
 /design-file.png
+
+# Local design working notes (not for the repo)
+frontend/NOTES-design-validation.md
