@@ -70,7 +70,7 @@ the next lane:
 * [x] BE-009 Vendor bill post (→ JournalEntryService) + payment endpoints — post writes Dr Purchase Expense / Cr Creditors; payments write Dr Creditors / Cr Cash|Bank, flip status to `paid` when fully settled; overpayment blocked; footer totals (paid via cash/bank, amount due) derived, never stored
 * [x] BE-010 SO create/confirm/convert-to-invoice endpoints — mirrors the PO flow with `tax_percent` on lines (sales side only) and Sale Income as the default line account; `subtotal` excludes tax, header `total` is tax-inclusive
 * [x] BE-011 Customer invoice post (→ JournalEntryService) + payment endpoints — post writes Dr Debtors / Cr Sale Income for the tax-inclusive total; payments write Dr Cash|Bank / Cr Debtors with `payment_type=receive`; same overpayment and status guards as vendor bills
-* [ ] BE-012 `/my/invoices`, `/my/bills`, `/my/invoices/{id}/pay` (Contact-scoped, policy-enforced)
+* [x] BE-012 `/my/invoices`, `/my/bills`, `/my/invoices/{id}/pay` — scope derived from the authenticated user's `contact_id`, never from the request; drafts invisible; another contact's document returns 404 (not 403, which would confirm it exists); portal payments go through the same service, so the ledger entry is identical
 * [ ] BE-013 Balance Sheet + P&L report endpoints (computed live from journal_entry_lines)
 
 ## Frontend — owner: member-3 (Auth + Master Data + Portal)

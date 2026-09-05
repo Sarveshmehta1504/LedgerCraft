@@ -295,6 +295,29 @@ Invoice payloads carry the same derived footer totals as bills: `amount_paid`,
 
 ---
 
+# Contact Portal (`/my/*`)
+
+For role-`user` accounts. **Scope is taken from the authenticated user's
+`contact_id`, never from the request** — there is no parameter a portal user
+could send to widen it.
+
+* `GET /my/invoices` — own invoices, `posted` and `paid` only
+* `GET /my/bills` — own bills, `posted` and `paid` only
+* `GET /my/invoices/{id}` — own invoice detail with lines
+* `POST /my/invoices/{id}/pay` — body `{amount, payment_via?, date?, note?}`,
+  same guards and same ledger entry as an accountant-registered payment
+
+Rules worth knowing:
+
+* **Drafts are invisible.** An unposted document has not been issued to the
+  customer, so it must not appear in their portal.
+* **Another contact's document returns `404`, not `403`** — a 403 confirms the
+  record exists, which is itself a leak.
+* An account with no linked contact (admin, accountant) gets `403` on `/my/*`;
+  there is no "own" scope for them to read.
+
+---
+
 # Chart of Accounts
 
 * `GET /accounts` — filter: `type`
