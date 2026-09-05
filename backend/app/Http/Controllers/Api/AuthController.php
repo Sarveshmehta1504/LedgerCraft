@@ -14,8 +14,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Throwable;
 
 class AuthController extends Controller
 {
@@ -93,7 +95,17 @@ class AuthController extends Controller
      */
     public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
     {
-        Password::sendResetLink($request->only('email'));
+        try {
+            Password::sendResetLink($request->only('email'));
+        } catch (Throwable $e) {
+            // A transport failure must not change the response: if a rejected
+            // recipient returned 500 while an unknown address returned 200,
+            // the difference would reveal which accounts exist. Log it and
+            // report the same thing either way.
+            Log::error('Password reset mail failed', [
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return $this->ok('If the email exists, a reset link has been sent');
     }
