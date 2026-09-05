@@ -15,19 +15,26 @@ export function buildProfitAndLoss(): ProfitAndLoss {
     { account: "Sale Income", balance: 109200 },
     { account: "Assembly Services", balance: 7500 },
   ];
+  // Account type `expense`
   const expenses = [
     { account: "Purchase Expense", balance: 43475 },
     { account: "Freight & Delivery", balance: 6180 },
-    { account: "Workshop Rent", balance: 24000 },
   ];
+  // Account type `other_expense` — reported separately per the design board
+  const other_expenses = [{ account: "Workshop Rent", balance: 24000 }];
+
   const total_income = income.reduce((sum, row) => sum + row.balance, 0);
   const total_expenses = expenses.reduce((sum, row) => sum + row.balance, 0);
+  const total_other_expenses = other_expenses.reduce((sum, row) => sum + row.balance, 0);
+
   return {
     income,
     expenses,
+    other_expenses,
     total_income,
     total_expenses,
-    net_profit: total_income - total_expenses,
+    total_other_expenses,
+    net_profit: total_income - total_expenses - total_other_expenses,
   };
 }
 

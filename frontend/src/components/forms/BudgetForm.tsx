@@ -31,6 +31,8 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
 
   // Achieved figures only become visible once the budget is confirmed.
   const isConfirmed = form.status === "confirmed";
+  /** Draft is the only freely editable stage; revised and cancelled budgets are archives. */
+  const isEditable = form.status === "draft";
   const remaining = form.committed_amount - form.actual_amount;
   const achievedPercent =
     form.committed_amount > 0 ? (form.actual_amount / form.committed_amount) * 100 : 0;
@@ -57,6 +59,25 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
     if (!nextStatus) router.push("/budgets");
   }
 
+  /**
+   * Revising a confirmed budget moves the original to `revised` and opens a fresh
+   * draft carrying the original's name plus the word "Revised", linked both ways.
+   */
+  async function revise() {
+    setSaving(true);
+    // TODO: replace with real API once backend/budgets is ready
+    // (POST /api/budgets with revision_of_id set, and the original moved to `revised`).
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    setForm((previous) => ({
+      ...previous,
+      name: previous.name.endsWith("Revised") ? previous.name : `${previous.name} Revised`,
+      status: "draft",
+      revision_of_id: budget?.id ?? null,
+      actual_amount: 0,
+    }));
+    setSaving(false);
+  }
+
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-white">
       <PageHeader
@@ -64,12 +85,25 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
         subtitle="Analytic budget"
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="primary" size="sm" onClick={() => save()} disabled={saving}>
-              {saving ? "Saving…" : "Save"}
-            </Button>
+            {isEditable && (
+              <Button variant="primary" size="sm" onClick={() => save()} disabled={saving}>
+                {saving ? "Saving…" : "Save"}
+              </Button>
+            )}
             {form.status === "draft" && (
               <Button size="sm" onClick={() => save("confirmed")} disabled={saving}>
                 Confirm
+              </Button>
+            )}
+            {/* Revise is reachable only from Confirmed, per the board's stage mapping. */}
+            {isConfirmed && (
+              <Button variant="primary" size="sm" onClick={revise} disabled={saving}>
+                {saving ? "Revising…" : "Revise"}
+              </Button>
+            )}
+            {isEditable && (
+              <Button size="sm" onClick={() => save("cancelled")} disabled={saving}>
+                Cancel
               </Button>
             )}
           </div>
@@ -91,6 +125,7 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
             value={form.name}
             onChange={(event) => update("name", event.target.value)}
             error={errors.name}
+            disabled={!isEditable}
             required
           />
           <SelectField
@@ -103,6 +138,7 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
             }))}
             placeholder="Select an analytic account"
             error={errors.analytic_account_id}
+            disabled={!isEditable}
             required
           />
           <SelectField
@@ -112,6 +148,7 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
             options={MOCK_CONTACTS.map((contact) => ({ value: contact.id, label: contact.name }))}
             placeholder="Select a contact"
             error={errors.responsible_id}
+            disabled={!isEditable}
             required
           />
         </div>
@@ -123,6 +160,7 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
               type="date"
               value={form.period_start}
               onChange={(event) => update("period_start", event.target.value)}
+              disabled={!isEditable}
               required
             />
             <TextField
@@ -131,6 +169,7 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
               value={form.period_end}
               onChange={(event) => update("period_end", event.target.value)}
               error={errors.period_end}
+              disabled={!isEditable}
               required
             />
           </div>
@@ -143,6 +182,7 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
             onChange={(event) => update("committed_amount", Number(event.target.value))}
             error={errors.committed_amount}
             className="tnum font-mono"
+            disabled={!isEditable}
             required
           />
         </div>

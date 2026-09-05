@@ -63,17 +63,30 @@ export function BillForm({
   const [amountPaid, setAmountPaid] = useState(document.amount_paid);
   const [busy, setBusy] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const [showPayment, setShowPayment] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentVia, setPaymentVia] = useState<PaymentVia>("bank");
   const [paymentDate, setPaymentDate] = useState(today());
+  const [paymentNote, setPaymentNote] = useState("");
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
   const total = documentTotal(lines, withTax);
   const amountDue = total - amountPaid;
   const isDraft = status === "draft";
   const isPosted = status === "posted";
+
+  async function onSend() {
+    setSending(true);
+    setNotice(null);
+    // TODO: replace with real API once backend/mail is ready
+    // (POST /api/{vendor-bills|customer-invoices}/{id}/send — sent synchronously).
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    setSending(false);
+    setNotice("Document sent to the contact on file.");
+  }
 
   async function onPost() {
     // Mirrors the backend's 422 conditions so the user sees the rule before the request.
@@ -146,6 +159,22 @@ export function BillForm({
           trailing={
             <>
               <StatusBadge status={status} />
+              {/* TODO: replace with real API once backend/documents is ready
+                  (GET .../{id}/pdf for Print, POST .../{id}/send for Send). */}
+              <Button size="sm" onClick={() => window.print()}>
+                Print
+              </Button>
+              <Button size="sm" onClick={onSend} disabled={busy}>
+                {sending ? "Sending…" : "Send"}
+              </Button>
+              <Button size="sm" onClick={() => router.push("/reports/budget")}>
+                Budget
+              </Button>
+              {isPosted && amountPaid === 0 && (
+                <Button size="sm" onClick={() => setStatus("draft")}>
+                  Reset to Draft
+                </Button>
+              )}
               <Button size="sm" onClick={() => router.push(copy.listHref)}>
                 Back
               </Button>
@@ -192,6 +221,11 @@ export function BillForm({
 
         <div className="flex flex-col gap-3 border-t border-[var(--line)] p-5">
           {postError && <InlineAlert title="Cannot post this document">{postError}</InlineAlert>}
+          {notice && (
+            <p className="rounded-md bg-[var(--status-paid-wash)] px-3 py-2 text-[13px] text-[var(--status-paid)]">
+              {notice}
+            </p>
+          )}
 
           <div className="flex justify-end">
             <dl className="w-72 space-y-1.5 border-t-2 border-[var(--line-strong)] pt-2.5 text-[13px]">
@@ -235,6 +269,20 @@ export function BillForm({
             }
           />
           <div className="grid gap-5 p-5 md:grid-cols-3">
+            {/* Payment Type and Partner are fixed by the document — shown, not editable. */}
+            <TextField
+              label="Payment Type"
+              value={side === "bill" ? "Send" : "Receive"}
+              readOnly
+              disabled
+            />
+            <TextField
+              label="Partner"
+              value={contactName(document.contact_id)}
+              readOnly
+              disabled
+              hint="Autofilled from the document."
+            />
             <TextField
               label="Amount"
               type="number"
@@ -261,7 +309,16 @@ export function BillForm({
               type="date"
               value={paymentDate}
               onChange={(event) => setPaymentDate(event.target.value)}
+              hint="Defaults to today."
             />
+            <div className="md:col-span-2">
+              <TextField
+                label="Note"
+                value={paymentNote}
+                onChange={(event) => setPaymentNote(event.target.value)}
+                placeholder="Optional reference"
+              />
+            </div>
           </div>
           {paymentError && (
             <div className="px-5 pb-5">
