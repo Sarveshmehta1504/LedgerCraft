@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -20,6 +21,7 @@ import type { CustomerInvoice } from "@/types";
  * sharing the dashboard.
  */
 export default function PortalPage() {
+  const router = useRouter();
   const user = typeof window === "undefined" ? null : getCurrentUser();
   // /my/invoices is scoped to the caller's own contact, so it answers 403 for
   // staff accounts. Say that plainly instead of showing a failed request.
@@ -124,6 +126,7 @@ export default function PortalPage() {
           columns={columns}
           rows={invoices}
           rowKey={(invoice) => invoice.id}
+          onRowClick={(invoice) => router.push(`/portal/invoices/${invoice.id}`)}
           loading={loading}
           error={error}
           onRetry={retry}

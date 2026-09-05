@@ -94,3 +94,35 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Printing an invoice from the portal: the customer gets the document itself,
+   not the app around it. Used by the portal's Print button, which cannot reach
+   the server-rendered PDF because that route is staff-only. */
+@media print {
+  nav,
+  header,
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  .invoice-sheet {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Keep a table from splitting a row across two sheets. */
+  tr,
+  img {
+    break-inside: avoid;
+  }
+}

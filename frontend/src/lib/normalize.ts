@@ -224,6 +224,43 @@ export function mapSalesOrder(raw: Raw): SalesOrder {
   };
 }
 
+/** One line of a portal invoice, with the product name the API resolves for us. */
+export interface PortalInvoiceLine {
+  id: number;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  tax_percent: number;
+  tax_amount: number;
+  line_total: number;
+}
+
+/** GET /my/invoices/{id} — richer than the list row: lines, contact and amounts. */
+export interface PortalInvoice extends CustomerInvoice {
+  contact_name: string;
+  contact_email: string | null;
+  amount_due: number;
+  portal_lines: PortalInvoiceLine[];
+}
+
+export function mapPortalInvoice(raw: Raw): PortalInvoice {
+  return {
+    ...mapCustomerInvoice(raw),
+    contact_name: raw.contact?.name ?? "—",
+    contact_email: raw.contact?.email ?? null,
+    amount_due: num(raw.amount_due),
+    portal_lines: (raw.lines ?? []).map((line: Raw) => ({
+      id: line.id,
+      product_name: line.product?.name ?? "—",
+      quantity: num(line.quantity),
+      unit_price: num(line.unit_price),
+      tax_percent: num(line.tax_percent),
+      tax_amount: num(line.tax_amount),
+      line_total: num(line.line_total),
+    })),
+  };
+}
+
 export function mapVendorBill(raw: Raw): VendorBill {
   return {
     id: raw.id,

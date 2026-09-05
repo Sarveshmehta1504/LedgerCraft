@@ -18,6 +18,7 @@ import {
   mapJournalEntry,
   mapManagedUser,
   mapPayment,
+  mapPortalInvoice,
   mapProduct,
   mapProductCategory,
   mapProfitAndLoss,
@@ -26,7 +27,7 @@ import {
   mapVendorBill,
   mapVendorBillDetail,
 } from "./normalize";
-export type { VendorBillDetail, CustomerInvoiceDetail } from "./normalize";
+export type { VendorBillDetail, CustomerInvoiceDetail, PortalInvoice, PortalInvoiceLine } from "./normalize";
 import type { AnalyticAccountType, BudgetReportRow, ChartOfAccount, Contact, ContactType, DocumentLine, Journal, JournalType, PaymentVia, Product, ProductType, Role } from "@/types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -86,6 +87,19 @@ export const UsersApi = {
 export const PortalApi = {
   invoices: () => apiFetch<Raw[]>("/my/invoices").then((rows) => rows.map(mapCustomerInvoice)),
   bills: () => apiFetch<Raw[]>("/my/bills").then((rows) => rows.map(mapVendorBill)),
+  invoice: (id: number) => apiFetch<Raw>(`/my/invoices/${id}`).then(mapPortalInvoice),
+  /**
+   * The customer settling their own invoice; the server re-checks ownership.
+   * The pay response carries only a summary — no lines, no contact — so the
+   * full record is re-read rather than letting the screen lose its detail.
+   */
+  pay: async (id: number, input: { amount: number; payment_via?: PaymentVia; note?: string }) => {
+    await apiFetch<{ payment: Raw; invoice: Raw }>(`/my/invoices/${id}/pay`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return apiFetch<Raw>(`/my/invoices/${id}`).then(mapPortalInvoice);
+  },
 };
 
 export const AnalyticAccountsApi = {
