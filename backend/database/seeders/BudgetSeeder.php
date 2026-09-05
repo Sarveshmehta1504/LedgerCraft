@@ -11,109 +11,118 @@ use RuntimeException;
 class BudgetSeeder extends Seeder
 {
     /**
-     * Depends on AnalyticAccountSeeder and ContactSeeder. Achieved amount is
-     * derived on read from posted invoice/bill LINES carrying the analytic
-     * account - see docs/DB_SCHEMA.md - so it is never set here; it becomes
-     * non-zero once PurchaseDemoSeeder / SalesDemoSeeder post lines tagged with
-     * these analytic accounts inside this same period.
+     * Budgets over two periods: a closed first half and the half currently
+     * running.
+     *
+     * Two periods rather than one because a budget report that only ever shows
+     * the current period cannot demonstrate the period filter, and because a
+     * closed period is where over- and under-spend actually reads as a result
+     * rather than a work in progress.
+     *
+     * Achieved amount is never stored. It is derived on read by summing posted
+     * and paid invoice or bill LINES that carry the same analytic account and
+     * fall inside the period (see docs/DB_SCHEMA.md), so these rows only come
+     * alive once PurchaseDemoSeeder and SalesDemoSeeder have run. The periods
+     * below are pinned to the same window those seeders post into - shift one
+     * without the other and every budget reads 0% achieved.
+     *
+     * All four statuses appear. `revised` and `cancelled` rows stay in the list
+     * for history but are excluded from the report totals, which is the whole
+     * reason ReportService returns `counted_in_totals` per row.
      */
     public function run(): void
     {
-        $factoryOverheads = $this->analyticAccount('Factory Overheads');
-        $onlineSales = $this->analyticAccount('Online Sales Channel');
-        $logistics = $this->analyticAccount('Logistics & Delivery');
+        // The first half is closed; the second is open and runs a month past
+        // today, so "amount to achieve" is a live number rather than a verdict.
+        $h1 = ['start' => now()->subDays(210)->toDateString(), 'end' => now()->subDays(91)->toDateString()];
+        $h2 = ['start' => now()->subDays(90)->toDateString(), 'end' => now()->addDays(30)->toDateString()];
 
-        $responsibleVendor = $this->contact('Bright Woods Timber Co');
-        $responsibleCustomer = $this->contact('Nimesh Patel');
-        $responsibleLogistics = $this->contact('Apex Logistics Partners');
-
-        $periodStart = now()->subDays(90)->toDateString();
-        $periodEnd = now()->addDays(30)->toDateString();
-
-        Budget::firstOrCreate(
-            ['name' => 'Q3 Factory Overheads Budget'],
+        $budgets = [
+            // --- Closed period.
             [
-                'analytic_account_id' => $factoryOverheads->id,
-                'period_start' => $periodStart,
-                'period_end' => $periodEnd,
-                'committed_amount' => 200000,
-                'responsible_id' => $responsibleVendor->id,
-                'status' => 'confirmed',
+                'name' => 'Factory Overheads - H1 FY26', 'analytic' => 'Factory Overheads', 'period' => $h1,
+                'committed' => 500000, 'responsible' => 'Bright Woods Timber Co', 'status' => 'confirmed',
             ],
-        );
-
-        Budget::firstOrCreate(
-            ['name' => 'Online Sales Growth Target'],
             [
-                'analytic_account_id' => $onlineSales->id,
-                'period_start' => $periodStart,
-                'period_end' => $periodEnd,
-                'committed_amount' => 100000,
-                'responsible_id' => $responsibleCustomer->id,
-                'status' => 'confirmed',
+                'name' => 'Corporate & Bulk Orders - H1 FY26', 'analytic' => 'Corporate & Bulk Orders', 'period' => $h1,
+                'committed' => 1500000, 'responsible' => 'Hotel Saffron Grand', 'status' => 'confirmed',
             ],
-        );
-
-        Budget::firstOrCreate(
-            ['name' => 'Logistics & Delivery Q3'],
             [
-                'analytic_account_id' => $logistics->id,
-                'period_start' => $periodStart,
-                'period_end' => $periodEnd,
-                'committed_amount' => 20000,
-                'responsible_id' => $responsibleLogistics->id,
-                'status' => 'draft',
+                // Never confirmed before the period closed - it stayed a plan.
+                'name' => 'Logistics & Delivery - H1 FY26', 'analytic' => 'Logistics & Delivery', 'period' => $h1,
+                'committed' => 25000, 'responsible' => 'Apex Logistics Partners', 'status' => 'draft',
             ],
-        );
 
-        $this->seedRevisionPair($factoryOverheads->id, $responsibleVendor->id, $periodStart, $periodEnd);
-        $this->seedCancelled($logistics->id, $responsibleLogistics->id, $periodStart, $periodEnd);
+            // --- Current period.
+            [
+                'name' => 'Factory Overheads - H2 FY26', 'analytic' => 'Factory Overheads', 'period' => $h2,
+                'committed' => 350000, 'responsible' => 'Bright Woods Timber Co', 'status' => 'confirmed',
+            ],
+            [
+                'name' => 'Logistics & Delivery - H2 FY26', 'analytic' => 'Logistics & Delivery', 'period' => $h2,
+                'committed' => 25000, 'responsible' => 'Apex Logistics Partners', 'status' => 'confirmed',
+            ],
+            [
+                // Deliberately under-committed against what was actually spent,
+                // so one row on the report is over 100% and the over-budget
+                // state is on screen without anyone having to create it.
+                'name' => 'Home Expo 2026 Campaign', 'analytic' => 'Marketing & Exhibitions', 'period' => $h2,
+                'committed' => 30000, 'responsible' => 'Bright Woods Timber Co', 'status' => 'confirmed',
+            ],
+            [
+                'name' => 'Online Sales Target - H2 FY26', 'analytic' => 'Online Sales Channel', 'period' => $h2,
+                'committed' => 200000, 'responsible' => 'Nimesh Patel', 'status' => 'confirmed',
+            ],
+            [
+                'name' => 'Corporate & Bulk Orders - H2 FY26', 'analytic' => 'Corporate & Bulk Orders', 'period' => $h2,
+                'committed' => 350000, 'responsible' => 'Zenith Coworking LLP', 'status' => 'confirmed',
+            ],
+            [
+                // Still a proposal - drafts count towards the totals, they just
+                // are not committed yet.
+                'name' => 'Retail Showroom Target - H2 FY26', 'analytic' => 'Retail Showroom', 'period' => $h2,
+                'committed' => 120000, 'responsible' => 'Riya Mehta', 'status' => 'draft',
+            ],
+            [
+                // Abandoned. Stays visible, excluded from totals.
+                'name' => 'Delhi Trade Show Stand (cancelled)', 'analytic' => 'Marketing & Exhibitions', 'period' => $h2,
+                'committed' => 40000, 'responsible' => 'Apex Logistics Partners', 'status' => 'cancelled',
+            ],
+        ];
+
+        foreach ($budgets as $budget) {
+            $this->budget($budget);
+        }
+
+        // A superseded budget and the replacement that supersedes it, so the
+        // revision flow is on screen without anyone having to click Revise
+        // first. The report lists both and counts only the replacement - which
+        // is exactly the case a naive total gets wrong.
+        $original = $this->budget([
+            'name' => 'Showroom Refit Budget', 'analytic' => 'Showroom Refit', 'period' => $h2,
+            'committed' => 90000, 'responsible' => 'Glasscore Interiors Supply', 'status' => 'revised',
+        ]);
+
+        $this->budget([
+            'name' => 'Showroom Refit Budget - Rev 2', 'analytic' => 'Showroom Refit', 'period' => $h2,
+            'committed' => 140000, 'responsible' => 'Glasscore Interiors Supply', 'status' => 'confirmed',
+            'revision_of_id' => $original->id,
+        ]);
     }
 
-    /**
-     * A superseded budget and the replacement that supersedes it, so the
-     * revision flow is visible in the demo without anyone having to click
-     * Revise first. The report lists both but only counts the replacement.
-     */
-    private function seedRevisionPair(int $analyticId, int $responsibleId, string $start, string $end): void
+    /** @param  array<string, mixed>  $spec */
+    private function budget(array $spec): Budget
     {
-        $original = Budget::firstOrCreate(
-            ['name' => 'Showroom Refit Budget'],
+        return Budget::firstOrCreate(
+            ['name' => $spec['name']],
             [
-                'analytic_account_id' => $analyticId,
-                'period_start' => $start,
-                'period_end' => $end,
-                'committed_amount' => 150000,
-                'responsible_id' => $responsibleId,
-                'status' => 'revised',
-            ],
-        );
-
-        Budget::firstOrCreate(
-            ['name' => 'Showroom Refit Budget Revised'],
-            [
-                'analytic_account_id' => $analyticId,
-                'period_start' => $start,
-                'period_end' => $end,
-                'committed_amount' => 225000,
-                'responsible_id' => $responsibleId,
-                'status' => 'confirmed',
-                'revision_of_id' => $original->id,
-            ],
-        );
-    }
-
-    private function seedCancelled(int $analyticId, int $responsibleId, string $start, string $end): void
-    {
-        Budget::firstOrCreate(
-            ['name' => 'Trade Show Stand (cancelled)'],
-            [
-                'analytic_account_id' => $analyticId,
-                'period_start' => $start,
-                'period_end' => $end,
-                'committed_amount' => 40000,
-                'responsible_id' => $responsibleId,
-                'status' => 'cancelled',
+                'analytic_account_id' => $this->analyticAccount($spec['analytic'])->id,
+                'period_start' => $spec['period']['start'],
+                'period_end' => $spec['period']['end'],
+                'committed_amount' => $spec['committed'],
+                'responsible_id' => $this->contact($spec['responsible'])->id,
+                'status' => $spec['status'],
+                'revision_of_id' => $spec['revision_of_id'] ?? null,
             ],
         );
     }

@@ -2,60 +2,40 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
     /**
+     * Builds Urban Furniture from nothing to roughly seven months of trading.
+     *
      * Order matters: roles before users, accounts before journals, categories
-     * before products. Every seeder is idempotent, so this is safe to re-run.
+     * before products, contacts before the portal logins that link to them, and
+     * the opening balance before any transaction that draws on it. Every seeder
+     * is idempotent, so this is safe to re-run on a database that already has
+     * data - see docs/SEEDING.md.
      */
     public function run(): void
     {
         $this->call([
+            // Configuration: fixed, never created during a demo.
             RoleSeeder::class,
             ChartOfAccountSeeder::class,
             JournalSeeder::class,
+
+            // Back-office logins.
+            UserSeeder::class,
+
+            // Master data.
             ProductCategorySeeder::class,
-        ]);
-
-        // Login is by login_id. Passwords satisfy the signup policy: >8 chars,
-        // one lowercase, one uppercase, one special character.
-        // Addresses are real, reachable inboxes on yopmail.com so password
-        // reset and Send-by-mail can be demonstrated live. example.com and
-        // .test addresses are rejected by the mail provider.
-        $admin = User::firstOrCreate(
-            ['login_id' => 'adminuser'],
-            [
-                'name' => 'Urban Furniture Admin',
-                'email' => 'admin_ledgercraft@yopmail.com',
-                'password' => Hash::make('Admin@123'),
-            ],
-        );
-        $admin->syncRoles(['admin']);
-
-        $accountant = User::firstOrCreate(
-            ['login_id' => 'accountant1'],
-            [
-                'name' => 'Urban Furniture Accountant',
-                'email' => 'accountant_ledgercraft@yopmail.com',
-                'password' => Hash::make('Account@123'),
-            ],
-        );
-        $accountant->syncRoles(['accountant']);
-
-        // Master data, then opening balances, then the transactions that
-        // reference them - see docs/SEEDING.md for why each of these posts
-        // through a service rather than a raw insert.
-        $this->call([
-            ContactSeeder::class,
             ProductSeeder::class,
+            ContactSeeder::class,
             AnalyticAccountSeeder::class,
             PortalUserSeeder::class,
-            OpeningBalanceSeeder::class,
+
+            // Planning, then the money.
             BudgetSeeder::class,
+            OpeningBalanceSeeder::class,
             PurchaseDemoSeeder::class,
             SalesDemoSeeder::class,
         ]);
