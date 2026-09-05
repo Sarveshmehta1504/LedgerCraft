@@ -115,7 +115,7 @@ export function TopNav() {
   }, []);
 
   return (
-    <div ref={navRef} className="relative z-40 border-b border-[var(--line)] bg-white">
+    <div ref={navRef} className="no-print relative z-40 border-b border-[var(--line)] bg-white">
       {/* Below sm the logo sits on its own row and the tabs become a scrollable
           strip — shrinking four labels to fit 375px makes them unreadable. */}
       <div className="flex flex-col px-4 sm:flex-row sm:items-center sm:gap-1 sm:px-5">

@@ -99,10 +99,14 @@ body {
    not the app around it. Used by the portal's Print button, which cannot reach
    the server-rendered PDF because that route is staff-only. */
 @media print {
-  nav,
-  header,
+  /* Only opted-out chrome disappears. A blanket `header` rule also took out
+     PageHeader, which is where the invoice number and customer name live. */
   .no-print {
     display: none !important;
+  }
+
+  @page {
+    margin: 14mm;
   }
 
   body {
