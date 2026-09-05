@@ -77,7 +77,7 @@ export function ProductForm({ product }: { product?: Product }) {
     <form
       onSubmit={onSubmit}
       noValidate
-      className="overflow-hidden rounded-lg border border-[var(--line)] bg-white"
+      className="rounded-lg border border-[var(--line)] bg-white [&>header:first-child]:rounded-t-lg"
     >
       <PageHeader
         title={product ? product.name : "New product"}
