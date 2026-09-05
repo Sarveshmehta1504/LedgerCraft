@@ -108,22 +108,15 @@ export function BillForm({
   }
 
   async function onSend() {
-    // Leaving the prompt empty lets the API use the contact's own address;
-    // cancelling it stops the send entirely.
-    const entered = window.prompt(
-      `Email ${number} to which address?\nLeave blank to use ${copy.partnerLabel.toLowerCase()}'s address on file.`,
-      "",
-    );
-    if (entered === null) return;
-    const to = entered.trim() || undefined;
-
+    // No recipient is passed: the API mails the contact's own address, which is
+    // the only one this document should ever go to.
     setSending(true);
     setNotice(null);
     setSendError(null);
     try {
-      if (isBill(doc)) await VendorBillsApi.send(doc.id, to);
-      else await CustomerInvoicesApi.send(doc.id, to);
-      setNotice(to ? `${number} sent to ${to}.` : `${number} sent to the address on file.`);
+      if (isBill(doc)) await VendorBillsApi.send(doc.id);
+      else await CustomerInvoicesApi.send(doc.id);
+      setNotice(`${number} emailed to ${doc.contact_name}.`);
     } catch (err) {
       setSendError(err instanceof ApiError ? err.message : "Could not send this document.");
     } finally {
