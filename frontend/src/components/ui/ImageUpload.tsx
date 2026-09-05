@@ -2,6 +2,7 @@
 
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { useRef, useState } from "react";
+import { PROFILE_IMAGE_SIZE, toSquareProfileImage } from "@/lib/image";
 import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES } from "@/lib/uploads";
 
 /**
@@ -37,8 +38,11 @@ export function ImageUpload({
 
     setUploading(true);
     try {
+      // Cropped to a square before it leaves the browser, so every stored
+      // avatar is the same size and the original's aspect never reaches the API.
+      const square = await toSquareProfileImage(file);
       const body = new FormData();
-      body.append("file", file);
+      body.append("file", square);
       const res = await fetch("/api/uploads", { method: "POST", body });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(payload.message ?? "Could not upload that image.");
@@ -69,7 +73,7 @@ export function ImageUpload({
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
-        className={`relative flex h-[168px] items-center justify-center overflow-hidden rounded-md border border-dashed transition-colors duration-150 ${
+        className={`relative flex aspect-square w-full max-w-[220px] items-center justify-center overflow-hidden rounded-md border border-dashed transition-colors duration-150 ${
           dragging ? "border-[var(--accent)] bg-[var(--accent-wash)]" : "border-[var(--line-strong)]"
         } ${disabled ? "bg-[var(--surface-raised)]" : "bg-white"}`}
       >
@@ -105,9 +109,11 @@ export function ImageUpload({
             ) : (
               <ImagePlus size={20} />
             )}
-            <span className="text-[13px]">{uploading ? "Uploading…" : label}</span>
+            <span className="text-[13px]">{uploading ? "Processing…" : label}</span>
             {!uploading && (
-              <span className="text-[11px] text-[var(--text-subtle)]">PNG, JPG or WEBP</span>
+              <span className="text-[11px] text-[var(--text-subtle)]">
+                Square · {PROFILE_IMAGE_SIZE}×{PROFILE_IMAGE_SIZE}
+              </span>
             )}
           </button>
         )}
