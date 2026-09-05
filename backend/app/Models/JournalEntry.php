@@ -46,13 +46,28 @@ class JournalEntry extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /**
+     * Money always renders with two decimals. sum() comes back as a float, so
+     * casting it straight to a string yields "2500.5" - which reads as a
+     * different amount on an invoice and breaks string comparisons.
+     */
     public function totalDebit(): string
     {
-        return (string) $this->lines()->sum('debit');
+        return $this->money($this->lines()->sum('debit'));
     }
 
     public function totalCredit(): string
     {
-        return (string) $this->lines()->sum('credit');
+        return $this->money($this->lines()->sum('credit'));
+    }
+
+    public function isBalanced(): bool
+    {
+        return $this->totalDebit() === $this->totalCredit();
+    }
+
+    private function money(mixed $amount): string
+    {
+        return number_format((float) $amount, 2, '.', '');
     }
 }

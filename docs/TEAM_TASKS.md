@@ -18,11 +18,11 @@ names once assigned).
 
 # Hour 0-1 — Setup (whole team together)
 
-* [ ] SETUP-001 Create GitHub repo, push initial scaffold to `main` (see README "Initial Repository Setup")
-* [ ] SETUP-002 Laravel 12 install in `backend/`, Sanctum + Spatie installed and configured
+* [x] SETUP-001 Create GitHub repo, push initial scaffold to `main` (see README "Initial Repository Setup")
+* [x] SETUP-002 Laravel 12 install in `backend/`, Sanctum + Spatie installed and configured
 * [ ] SETUP-003 Next.js install in `frontend/`, Tailwind + shadcn/ui configured
-* [ ] SETUP-004 `GET /api/health` working, homepage displays it (the AGENTS.md integration test)
-* [ ] SETUP-005 MySQL DB created, `.env` configured, `migrate` runs clean
+* [-] SETUP-004 `GET /api/health` working, homepage displays it (the AGENTS.md integration test) — API side verified (`{"code":200,"status":"ok","message":"API is healthy"}`); homepage half blocked on SETUP-003
+* [x] SETUP-005 MySQL DB created, `.env` configured, `migrate` runs clean — 11 migrations, verified reversible (rollback + re-run)
 * [ ] SETUP-006 Create 4 team branches from `main`, everyone rebases onto latest `main` before starting
 
 ---
@@ -31,12 +31,25 @@ names once assigned).
 
 ## Backend — owner: member-1 (Master Data + Ledger core)
 
-* [ ] BE-001 Migrations: users(+contact_id), contacts, products, chart_of_accounts, journals
-* [ ] BE-002 Migrations: journal_entries, journal_entry_lines, analytic_accounts, budgets
-* [ ] BE-003 RoleSeeder (admin/accountant/user) + CoA seeder using the 8 account types — Cash (`cash`), Bank (`bank`), Debtors (`asset`), Creditors (`liability`), Sale Income (`income`), Purchase Expense (`expense`), Capital (`capital`), plus at least one `other_expense` account so P&L has all three expense rows + Journal seeder (Sales/Purchase/Bank/Cash)
-* [ ] BE-004 Contacts CRUD API + Products CRUD API + policies + archive/unarchive actions (`archived_at`, `active()` scope)
-* [ ] BE-005 Chart of Accounts CRUD API + Journals CRUD API
-* [ ] BE-006 JournalEntryService: create balanced entry in a DB transaction, reject if debit != credit — this is the single most important class in the codebase, write it once and reuse it everywhere below
+* [x] BE-001 Migrations: users(+contact_id), contacts, products, chart_of_accounts, journals
+* [x] BE-002 Migrations: journal_entries, journal_entry_lines, analytic_accounts, budgets
+* [x] BE-003 RoleSeeder (admin/accountant/user) + CoA seeder using the 8 account types — Cash (`cash`), Bank (`bank`), Debtors (`asset`), Creditors (`liability`), Sale Income (`income`), Purchase Expense (`expense`), Capital (`capital`), plus at least one `other_expense` account so P&L has all three expense rows + Journal seeder (Sales/Purchase/Bank/Cash)
+* [x] BE-004 Contacts CRUD API + Products CRUD API + policies + archive/unarchive actions (`archived_at`, `active()` scope)
+* [x] BE-005 Chart of Accounts CRUD API + Journals CRUD API
+* [x] BE-006 JournalEntryService: create balanced entry in a DB transaction, reject if debit != credit — this is the single most important class in the codebase, write it once and reuse it everywhere below
+
+**Lane complete.** All six delivered on the `parv` working tree, plus BE-019/020/024
+(auth). 14 tests pass (`php artisan test`), Pint clean. Notes for whoever picks up
+the next lane:
+
+* Post every ledger write through `App\Services\JournalEntryService` — never
+  insert into `journal_entries`/`journal_entry_lines` directly. It enforces the
+  balance invariant inside the transaction and throws
+  `UnbalancedJournalEntryException`, which renders itself as a 422.
+* Money is compared in integer paise, not floats. Keep it that way.
+* Master data uses `archived_at` + the `active()` scope, not soft deletes.
+* Seeded logins (login is by `login_id`, not email): `adminuser` / `Admin@123`,
+  `accountant1` / `Account@123`.
 
 ## Backend — owner: member-2 (Transaction Flow + Reports)
 
@@ -89,8 +102,9 @@ names once assigned).
 * [ ] FE-015 Aging report page
 * [ ] FE-016 Dashboard KPI cards + 1-2 charts
 * [ ] INT-007 Invoice/Bill PDF generation wired (barryvdh/laravel-dompdf)
-* [ ] BE-020 Forgot/Reset password endpoints + reset-link Mailable + password policy rule
-* [ ] BE-024 Public signup endpoint — role `user` hardcoded server-side, `role` in payload ignored; creates + links a `customer` Contact in the same transaction (reuse an existing contact with the same email)
+* [x] BE-019 Auth endpoints: `POST /auth/login` (by `login_id`), `POST /auth/logout`, `GET /auth/me` — Sanctum tokens, single error message `Invalid Login Id or Password`, throttled
+* [x] BE-020 Forgot/Reset password endpoints + reset-link Mailable + password policy rule — reset link points at `FRONTEND_URL/reset-password`, token 60-min single-use, reset revokes all tokens, no account enumeration
+* [x] BE-024 Public signup endpoint — role `user` hardcoded server-side, `role` in payload ignored; creates + links a `customer` Contact in the same transaction (reuse an existing contact with the same email)
 * [ ] BE-025 Admin Users CRUD + role assignment endpoints behind `role:admin`
 * [ ] FE-022 Signup page (no role selector) + Admin Users screen with role dropdown
 * [ ] BE-021 SMTP configured in `.env` (MAIL_MAILER=smtp, Mailtrap or Gmail app password) — default `log` sends nothing. Send synchronously: no `ShouldQueue`, no queue worker to run during the demo
