@@ -318,6 +318,39 @@ Rules worth knowing:
 
 ---
 
+# Reports
+
+Admin + Accountant only (portal users get `403`). Everything is computed live
+from `journal_entry_lines` — nothing is cached or stored, so a report can never
+drift from the ledger.
+
+* `GET /reports/profit-and-loss?from=&to=` — both dates optional
+* `GET /reports/balance-sheet?as_of=` — optional
+* `GET /reports/trial-balance?as_of=` — every account with debit/credit totals
+
+## How balances are signed
+
+```text
+debit-normal  (asset, bank, cash, expense, other_expense)  balance = debit - credit
+credit-normal (liability, income, capital)                 balance = credit - debit
+```
+
+Balance Sheet sections: **Assets** = `asset` + `bank` + `cash`;
+**Liabilities** = `liability`; **Capital** = `capital` + retained earnings.
+
+## Retained earnings — why the sheet balances
+
+Income and expense accounts are not part of the balance sheet, so their net
+(the P&L result) is carried into the equity side as `capital.retained_earnings`.
+Without it the two sides cannot agree. `balanced` is returned as a boolean and
+compared in paise, so a rounding artefact cannot make a balanced sheet look
+broken.
+
+`balance_sheet.capital.retained_earnings` always equals
+`profit_and_loss.net_income` for the same cut-off date.
+
+---
+
 # Chart of Accounts
 
 * `GET /accounts` — filter: `type`
