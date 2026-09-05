@@ -4,9 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
+import { Combobox } from "@/components/ui/Combobox";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MOCK_CATEGORIES } from "@/lib/mock-data";
-import type { Product, ProductType } from "@/types";
+import type { Product, ProductCategory, ProductType } from "@/types";
 
 const EMPTY: Omit<Product, "id"> = {
   name: "",
@@ -21,6 +22,23 @@ export function ProductForm({ product }: { product?: Product }) {
   const [form, setForm] = useState<Omit<Product, "id">>(product ?? EMPTY);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState<ProductCategory[]>(MOCK_CATEGORIES);
+
+  /**
+   * Creates the category locally so the product form never blocks on a second
+   * screen. Negative ids mark records that exist only client-side so far.
+   */
+  function createCategory(name: string) {
+    // TODO: replace with real API once backend/product-categories is ready
+    // (POST /api/product-categories, then use the id it returns).
+    const created: ProductCategory = {
+      id: -(categories.length + 1),
+      name,
+      parent_id: null,
+    };
+    setCategories((previous) => [...previous, created]);
+    return { value: created.id, label: created.name };
+  }
 
   function update<K extends keyof typeof form>(field: K, value: (typeof form)[K]) {
     setForm((previous) => ({ ...previous, [field]: value }));
@@ -86,17 +104,18 @@ export function ProductForm({ product }: { product?: Product }) {
             ]}
             required
           />
-          <SelectField
+          <Combobox
             label="Category"
-            value={form.category_id || ""}
-            onChange={(event) => update("category_id", Number(event.target.value))}
-            options={MOCK_CATEGORIES.map((category) => ({
+            value={form.category_id || null}
+            onChange={(next) => update("category_id", next ?? 0)}
+            options={categories.map((category) => ({
               value: category.id,
               label: category.name,
             }))}
-            placeholder="Select a category"
+            onCreate={createCategory}
+            placeholder="Search or type a new category"
             error={errors.category_id}
-            hint="A category must exist before the product can be saved."
+            hint="Type a name that does not exist yet to create it on the fly."
             required
           />
         </div>

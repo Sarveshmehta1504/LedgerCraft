@@ -38,6 +38,11 @@
 
   --danger: #b91c1c;
   --danger-wash: #fef2f2;
+
+  /* Brand mark — ink on ground, accent closes the balance. */
+  --logo-ground: #18181b;
+  --logo-ink: #ffffff;
+  --logo-accent: #2dd4bf;
 }
 
 @theme inline {
