@@ -54,9 +54,10 @@ the next lane:
   | ------------- | -------------- | ---------- | ------------------------------------ |
   | `adminuser`   | `Admin@123`    | admin      | admin_ledgercraft@yopmail.com        |
   | `accountant1` | `Account@123`  | accountant | accountant_ledgercraft@yopmail.com   |
+  | `nimeshp`     | `Nimesh@123`   | user       | linked to the *Nimesh Patel* contact |
 
-  No portal (`user`) account is seeded — create one via `POST /api/auth/signup`,
-  which also creates its linked customer Contact.
+  The portal account is seeded with one fully outstanding and one part-paid
+  invoice, so the portal's Pay action has something to act on.
 
   Addresses are real yopmail.com inboxes (read them at yopmail.com, no login
   needed) so password reset and Send-by-mail can be shown working in the demo.

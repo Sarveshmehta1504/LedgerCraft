@@ -226,6 +226,40 @@ class SalesDemoSeeder extends Seeder
         ]);
         $invoices->post($sixtyOneToNinety, $admin->id);
 
+        // Unpaid and posted, for the portal user's own contact (Nimesh Patel).
+        // The contact portal's headline action is "pay my dues", so the demo
+        // account needs something outstanding to pay - without this every
+        // portal invoice is already settled and the Pay button has no subject.
+        $portalDue = $invoices->create([
+            'contact_id' => $nimesh->id,
+            'invoice_date' => now()->subDays(12)->toDateString(),
+            'due_date' => now()->addDays(6)->toDateString(),
+            'invoice_reference' => 'NMP-PORTAL-DUE',
+            'lines' => [
+                ['product_id' => $officeChair->id, 'quantity' => 2, 'unit_price' => 7800, 'tax_percent' => 18],
+                ['product_id' => $lamp->id, 'quantity' => 3, 'unit_price' => 900, 'tax_percent' => 12],
+            ],
+        ]);
+        $invoices->post($portalDue, $admin->id);
+
+        // Partly paid, also for the portal contact, so the portal shows a
+        // part-settled row next to a fully outstanding one.
+        $portalPartial = $invoices->create([
+            'contact_id' => $nimesh->id,
+            'invoice_date' => now()->subDays(30)->toDateString(),
+            'due_date' => now()->subDays(2)->toDateString(),
+            'invoice_reference' => 'NMP-PORTAL-PART',
+            'lines' => [
+                ['product_id' => $diningChair->id, 'quantity' => 4, 'unit_price' => 2200, 'tax_percent' => 18],
+            ],
+        ]);
+        $portalPartial = $invoices->post($portalPartial, $admin->id);
+        $invoices->registerPayment($portalPartial, [
+            'amount' => 4000,
+            'payment_via' => 'bank',
+            'date' => now()->subDays(20)->toDateString(),
+        ], $admin->id);
+
         $ninetyPlus = $invoices->create([
             'contact_id' => $devika->id,
             'invoice_date' => now()->subDays(160)->toDateString(),

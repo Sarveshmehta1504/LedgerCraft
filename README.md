@@ -240,9 +240,10 @@ public auth routes needs `Authorization: Bearer <token>`.
 | ------------- | ------------- | ---------- |
 | `adminuser`   | `Admin@123`   | admin      |
 | `accountant1` | `Account@123` | accountant |
+| `nimeshp`     | `Nimesh@123`  | user (portal) |
 
-No portal (`user`) account is seeded — create one with `POST /auth/signup`,
-which also creates its linked customer contact.
+The portal account is linked to the *Nimesh Patel* contact and has outstanding
+invoices, so "pay my dues from the portal" can be demonstrated.
 
 ```text
 auth        POST /auth/login | /auth/signup | /auth/logout | /auth/forgot-password
