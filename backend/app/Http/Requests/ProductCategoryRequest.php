@@ -14,13 +14,16 @@ class ProductCategoryRequest extends FormRequest
 
     public function rules(): array
     {
-        $required = $this->isMethod('POST') ? 'required' : 'sometimes|required';
+        // Must be an array, not the string 'sometimes|required': inside a rules
+        // array each element is one whole rule name, so the piped form is
+        // looked up as a single non-existent rule.
+        $required = $this->isMethod('POST') ? ['required'] : ['sometimes', 'required'];
         $categoryId = $this->route('product_category')?->id;
 
         return [
             // Unique within a parent: "Chairs" may exist under two parents.
             'name' => [
-                $required,
+                ...$required,
                 'string',
                 'max:255',
                 Rule::unique('product_categories')
