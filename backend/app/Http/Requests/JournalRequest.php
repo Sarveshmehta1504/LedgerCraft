@@ -2,15 +2,24 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AuthorizesResource;
 use App\Models\Journal;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class JournalRequest extends FormRequest
 {
-    public function authorize(): bool
+    use AuthorizesResource;
+
+    protected function resourceModel(): string
     {
-        return true;
+        return Journal::class;
+    }
+
+    /** @return array<int, string> */
+    protected function routeParameters(): array
+    {
+        return ['journal'];
     }
 
     public function rules(): array

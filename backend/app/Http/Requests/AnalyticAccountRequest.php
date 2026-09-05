@@ -2,15 +2,24 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AuthorizesResource;
 use App\Models\AnalyticAccount;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class AnalyticAccountRequest extends FormRequest
 {
-    public function authorize(): bool
+    use AuthorizesResource;
+
+    protected function resourceModel(): string
     {
-        return true;
+        return AnalyticAccount::class;
+    }
+
+    /** @return array<int, string> */
+    protected function routeParameters(): array
+    {
+        return ['analyticAccount'];
     }
 
     public function rules(): array

@@ -2,15 +2,24 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AuthorizesResource;
+use App\Models\Contact;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class ContactRequest extends FormRequest
 {
-    /** Authorization is handled by ContactPolicy in the controller. */
-    public function authorize(): bool
+    use AuthorizesResource;
+
+    protected function resourceModel(): string
     {
-        return true;
+        return Contact::class;
+    }
+
+    /** @return array<int, string> */
+    protected function routeParameters(): array
+    {
+        return ['contact'];
     }
 
     public function rules(): array

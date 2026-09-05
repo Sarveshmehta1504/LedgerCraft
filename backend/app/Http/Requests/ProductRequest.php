@@ -2,14 +2,24 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AuthorizesResource;
+use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class ProductRequest extends FormRequest
 {
-    public function authorize(): bool
+    use AuthorizesResource;
+
+    protected function resourceModel(): string
     {
-        return true;
+        return Product::class;
+    }
+
+    /** @return array<int, string> */
+    protected function routeParameters(): array
+    {
+        return ['product'];
     }
 
     public function rules(): array

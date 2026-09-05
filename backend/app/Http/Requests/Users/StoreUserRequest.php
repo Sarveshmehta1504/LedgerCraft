@@ -2,15 +2,17 @@
 
 namespace App\Http\Requests\Users;
 
+use App\Models\User;
 use App\Rules\StrongPassword;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreUserRequest extends FormRequest
 {
+    /** Creating accounts is admin-only, per UserPolicy. */
     public function authorize(): bool
     {
-        return true;
+        return (bool) $this->user()?->can('create', User::class);
     }
 
     public function rules(): array

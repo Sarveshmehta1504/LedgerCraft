@@ -2,13 +2,23 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AuthorizesResource;
+use App\Models\SalesOrder;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SalesOrderRequest extends FormRequest
 {
-    public function authorize(): bool
+    use AuthorizesResource;
+
+    protected function resourceModel(): string
     {
-        return true;
+        return SalesOrder::class;
+    }
+
+    /** @return array<int, string> */
+    protected function routeParameters(): array
+    {
+        return ['salesOrder'];
     }
 
     public function rules(): array
