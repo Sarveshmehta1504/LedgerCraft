@@ -1,15 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { InlineAlert } from "@/components/ui/States";
 import { formatMoney, today } from "@/lib/format";
-import { MOCK_ANALYTIC_ACCOUNTS, MOCK_CONTACTS } from "@/lib/mock-data";
-import type { Budget } from "@/types";
+import { ApiError } from "@/lib/api";
+import { AnalyticAccountsApi, BudgetsApi, ContactsApi } from "@/lib/resources";
+import { useAsyncData } from "@/lib/use-async-data";
+import type { AnalyticAccount, Budget, Contact } from "@/types";
 
 const EMPTY: Omit<Budget, "id"> = {
   name: "",
@@ -27,7 +29,20 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
   const router = useRouter();
   const [form, setForm] = useState<Omit<Budget, "id">>(budget ?? EMPTY);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // The two pickers are driven by live master data, not a snapshot.
+  const fetchOptions = useCallback(
+    () => Promise.all([AnalyticAccountsApi.list(), ContactsApi.list()]),
+    [],
+  );
+  const { data: options } = useAsyncData<[AnalyticAccount[], Contact[]]>(
+    fetchOptions,
+    "Could not load analytic accounts and contacts.",
+  );
+  const analyticAccounts = options?.[0] ?? [];
+  const contacts = options?.[1] ?? [];
 
   // Achieved figures only become visible once the budget is confirmed.
   const isConfirmed = form.status === "confirmed";
@@ -52,11 +67,36 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
     if (Object.keys(next).length > 0) return;
 
     setSaving(true);
-    if (nextStatus) update("status", nextStatus);
-    // TODO: replace with real API once backend/budgets is ready (POST /api/budgets).
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    setSaving(false);
-    if (!nextStatus) router.push("/budgets");
+    setFormError(null);
+    const payload = {
+      name: form.name,
+      analytic_account_id: form.analytic_account_id,
+      period_start: form.period_start,
+      period_end: form.period_end,
+      committed_amount: form.committed_amount,
+      responsible_id: form.responsible_id,
+    };
+    try {
+      // Confirming is a separate endpoint, so an unsaved draft is written first
+      // and only then transitioned — the status is never set client-side.
+      const saved = budget ? await BudgetsApi.update(budget.id, payload) : await BudgetsApi.create(payload);
+      if (nextStatus === "confirmed") {
+        const confirmed = await BudgetsApi.confirm(saved.id);
+        setForm({ ...confirmed });
+        setSaving(false);
+        return;
+      }
+      router.push("/budgets");
+    } catch (err) {
+      if (err instanceof ApiError && err.errors) {
+        const fieldErrors: Record<string, string> = {};
+        for (const [field, messages] of Object.entries(err.errors)) fieldErrors[field] = messages[0];
+        setErrors(fieldErrors);
+      } else {
+        setFormError(err instanceof ApiError ? err.message : "Could not save this budget.");
+      }
+      setSaving(false);
+    }
   }
 
   /**
@@ -64,18 +104,19 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
    * draft carrying the original's name plus the word "Revised", linked both ways.
    */
   async function revise() {
+    if (!budget) return;
     setSaving(true);
-    // TODO: replace with real API once backend/budgets is ready
-    // (POST /api/budgets with revision_of_id set, and the original moved to `revised`).
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    setForm((previous) => ({
-      ...previous,
-      name: previous.name.endsWith("Revised") ? previous.name : `${previous.name} Revised`,
-      status: "draft",
-      revision_of_id: budget?.id ?? null,
-      actual_amount: 0,
-    }));
-    setSaving(false);
+    setFormError(null);
+    try {
+      const revision = await BudgetsApi.revise(budget.id, {
+        name: form.name.endsWith("Revised") ? form.name : `${form.name} Revised`,
+      });
+      // The revision is a new record, so continue editing that one.
+      router.push(`/budgets/${revision.id}`);
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not revise this budget.");
+      setSaving(false);
+    }
   }
 
   return (
@@ -118,6 +159,12 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
         }
       />
 
+      {formError && (
+        <div className="border-b border-[var(--line)] p-5">
+          <InlineAlert title={formError} />
+        </div>
+      )}
+
       <div className="grid gap-x-8 gap-y-5 p-5 md:grid-cols-2">
         <div className="flex flex-col gap-5">
           <TextField
@@ -132,7 +179,7 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
             label="Analytic account"
             value={form.analytic_account_id || ""}
             onChange={(event) => update("analytic_account_id", Number(event.target.value))}
-            options={MOCK_ANALYTIC_ACCOUNTS.map((account) => ({
+            options={analyticAccounts.map((account) => ({
               value: account.id,
               label: account.name,
             }))}
@@ -145,7 +192,7 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
             label="Responsible"
             value={form.responsible_id || ""}
             onChange={(event) => update("responsible_id", Number(event.target.value))}
-            options={MOCK_CONTACTS.map((contact) => ({ value: contact.id, label: contact.name }))}
+            options={contacts.map((contact) => ({ value: contact.id, label: contact.name }))}
             placeholder="Select a contact"
             error={errors.responsible_id}
             disabled={!isEditable}

@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, formatMoney } from "@/lib/format";
-import { MOCK_BUDGETS } from "@/lib/mock-data";
-import type { AnalyticAccount } from "@/types";
+import { ApiError } from "@/lib/api";
+import { AnalyticAccountsApi, BudgetsApi } from "@/lib/resources";
+import { useAsyncData } from "@/lib/use-async-data";
+import { InlineAlert } from "@/components/ui/States";
+import type { AnalyticAccount, Budget } from "@/types";
 
 export function AnalyticAccountForm({ account }: { account?: AnalyticAccount }) {
   const router = useRouter();
@@ -17,11 +20,17 @@ export function AnalyticAccountForm({ account }: { account?: AnalyticAccount }) 
     account ?? { name: "", type: "expense" },
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   // The board's analytic form lists every budget that references this account.
+  const fetchBudgets = useCallback(() => BudgetsApi.list(), []);
+  const { data: allBudgets } = useAsyncData<Budget[]>(
+    fetchBudgets,
+    "The budgets service did not respond.",
+  );
   const relatedBudgets = account
-    ? MOCK_BUDGETS.filter((budget) => budget.analytic_account_id === account.id)
+    ? (allBudgets ?? []).filter((budget) => budget.analytic_account_id === account.id)
     : [];
 
   async function onSubmit(event: React.FormEvent) {
@@ -29,14 +38,27 @@ export function AnalyticAccountForm({ account }: { account?: AnalyticAccount }) 
     const next: Record<string, string> = {};
     if (!form.name.trim()) next.name = "Analytic account name is required.";
     setErrors(next);
+    setFormError(null);
     if (Object.keys(next).length > 0) return;
 
     setSaving(true);
-    // TODO: replace with real API once backend/analytic-accounts is ready
-    // (POST /api/analytic-accounts, or PUT /api/analytic-accounts/{id}).
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    setSaving(false);
-    router.push("/analytic-accounts");
+    try {
+      const payload = { name: form.name, type: form.type };
+      if (account) await AnalyticAccountsApi.update(account.id, payload);
+      else await AnalyticAccountsApi.create(payload);
+      router.push("/analytic-accounts");
+    } catch (err) {
+      if (err instanceof ApiError && err.errors) {
+        const fieldErrors: Record<string, string> = {};
+        for (const [field, messages] of Object.entries(err.errors)) fieldErrors[field] = messages[0];
+        setErrors(fieldErrors);
+      } else {
+        setFormError(
+          err instanceof ApiError ? err.message : "Could not save this analytic account.",
+        );
+      }
+      setSaving(false);
+    }
   }
 
   return (
@@ -60,6 +82,12 @@ export function AnalyticAccountForm({ account }: { account?: AnalyticAccount }) 
             </Button>
           }
         />
+
+        {formError && (
+          <div className="border-b border-[var(--line)] p-5">
+            <InlineAlert title={formError} />
+          </div>
+        )}
 
         <div className="grid max-w-2xl gap-5 p-5 md:grid-cols-2">
           <TextField

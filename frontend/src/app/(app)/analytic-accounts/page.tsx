@@ -9,30 +9,35 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ViewSwitcher, type ViewMode } from "@/components/shared/ViewSwitcher";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { formatMoney, titleCase } from "@/lib/format";
-import { MOCK_ANALYTIC_ACCOUNTS, MOCK_BUDGETS, mockRequest } from "@/lib/mock-data";
+import { AnalyticAccountsApi, BudgetsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
-import type { AnalyticAccount } from "@/types";
-
-/** Budgets referencing an analytic account — surfaced on the list and kanban card. */
-function budgetSummary(accountId: number) {
-  const budgets = MOCK_BUDGETS.filter((budget) => budget.analytic_account_id === accountId);
-  return {
-    count: budgets.length,
-    committed: budgets.reduce((sum, budget) => sum + budget.committed_amount, 0),
-  };
-}
+import type { AnalyticAccount, Budget } from "@/types";
 
 export default function AnalyticAccountsPage() {
   const router = useRouter();
   const [view, setView] = useState<ViewMode>("list");
 
-  // TODO: replace with real API once backend/analytic-accounts is ready (GET /api/analytic-accounts).
-  const fetchData = useCallback(() => mockRequest(MOCK_ANALYTIC_ACCOUNTS), []);
-  const { data, loading, error, retry } = useAsyncData<AnalyticAccount[]>(
+  // The accounts endpoint carries a budgets_count but not the committed total,
+  // so the budgets list is fetched alongside it and both figures come from there.
+  const fetchData = useCallback(
+    () => Promise.all([AnalyticAccountsApi.list(), BudgetsApi.list()]),
+    [],
+  );
+  const { data, loading, error, retry } = useAsyncData<[AnalyticAccount[], Budget[]]>(
     fetchData,
     "The analytic accounts service did not respond.",
   );
-  const accounts = data ?? [];
+  const accounts = data?.[0] ?? [];
+  const budgets = data?.[1] ?? [];
+
+  /** Budgets referencing an analytic account — surfaced on the list and kanban card. */
+  function budgetSummary(accountId: number) {
+    const matching = budgets.filter((budget) => budget.analytic_account_id === accountId);
+    return {
+      count: matching.length,
+      committed: matching.reduce((sum, budget) => sum + budget.committed_amount, 0),
+    };
+  }
 
   const columns: Column<AnalyticAccount>[] = [
     {

@@ -1,15 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { InlineAlert } from "@/components/ui/States";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatMoney, moneyEquals, today } from "@/lib/format";
-import { MOCK_ACCOUNTS, MOCK_CONTACTS, MOCK_JOURNALS } from "@/lib/mock-data";
-import type { JournalEntry } from "@/types";
+import { AccountsApi, ContactsApi, JournalsApi } from "@/lib/resources";
+import { useAsyncData } from "@/lib/use-async-data";
+import type { ChartOfAccount, Contact, Journal, JournalEntry } from "@/types";
 
 interface EditableLine {
   id: string;
@@ -18,16 +19,6 @@ interface EditableLine {
   debit: number;
   credit: number;
 }
-
-const accountOptions = MOCK_ACCOUNTS.map((account) => ({
-  value: account.id,
-  label: `${account.code} · ${account.name}`,
-}));
-
-const contactOptions = MOCK_CONTACTS.map((contact) => ({
-  value: contact.id,
-  label: contact.name,
-}));
 
 function blankLine(): EditableLine {
   return {
@@ -41,7 +32,9 @@ function blankLine(): EditableLine {
 
 export function JournalEntryForm({ entry }: { entry?: JournalEntry }) {
   const router = useRouter();
-  const readOnly = entry?.status === "posted";
+  // The API writes entries itself when a document is posted and exposes no
+  // update route, so an entry that exists is always read-only here.
+  const readOnly = Boolean(entry);
 
   const [date, setDate] = useState(entry?.date ?? today());
   const [journalId, setJournalId] = useState<number | null>(entry?.journal_id ?? null);
@@ -50,14 +43,35 @@ export function JournalEntryForm({ entry }: { entry?: JournalEntry }) {
       ? entry.lines.map((line) => ({
           id: String(line.id),
           account_id: line.account_id,
-          contact_id: line.contact_id,
+          // Ledger lines carry no contact — the partner lives on the source document.
+          contact_id: null,
           debit: line.debit,
           credit: line.credit,
         }))
       : [blankLine(), blankLine()],
   );
   const [attempted, setAttempted] = useState(false);
-  const [posting, setPosting] = useState(false);
+  const [postError, setPostError] = useState<string | null>(null);
+
+  // Real master data, so an existing entry resolves its account and journal
+  // names against the same records the ledger was written from.
+  const fetchRefs = useCallback(
+    () => Promise.all([AccountsApi.list(), JournalsApi.list(), ContactsApi.list()]),
+    [],
+  );
+  const { data: refs } = useAsyncData<[ChartOfAccount[], Journal[], Contact[]]>(
+    fetchRefs,
+    "Could not load accounts and journals.",
+  );
+  const accountOptions = (refs?.[0] ?? []).map((account) => ({
+    value: account.id,
+    label: `${account.code} · ${account.name}`,
+  }));
+  const journals = refs?.[1] ?? [];
+  const contactOptions = (refs?.[2] ?? []).map((contact) => ({
+    value: contact.id,
+    label: contact.name,
+  }));
 
   const totals = useMemo(() => {
     const debit = lines.reduce((sum, line) => sum + (Number(line.debit) || 0), 0);
@@ -85,12 +99,12 @@ export function JournalEntryForm({ entry }: { entry?: JournalEntry }) {
   async function onPost() {
     setAttempted(true);
     if (!canPost) return;
-    setPosting(true);
-    // TODO: replace with real API once backend/journal-entries is ready
-    // (the backend re-validates the balance server-side — this check is UX, not security).
-    await new Promise((resolve) => setTimeout(resolve, 450));
-    setPosting(false);
-    router.push("/journal-entries");
+    // The ledger has no create route by design: GET /api/journal-entries is
+    // read-only because entries are written by the system when a bill, invoice
+    // or payment is posted. Saying so beats faking a save that never lands.
+    setPostError(
+      "Journal entries are posted automatically when a bill, invoice or payment is confirmed — they cannot be entered by hand.",
+    );
   }
 
   return (
@@ -100,14 +114,14 @@ export function JournalEntryForm({ entry }: { entry?: JournalEntry }) {
         subtitle={entry ? "Journal entry" : "Manual double-entry"}
         actions={
           !readOnly && (
-            <Button variant="primary" size="sm" onClick={onPost} disabled={posting}>
-              {posting ? "Posting…" : "Post"}
+            <Button variant="primary" size="sm" onClick={onPost}>
+              Post
             </Button>
           )
         }
         trailing={
           <>
-            {entry && <StatusBadge status={entry.status} />}
+            {entry && <StatusBadge status="posted" />}
             {!readOnly && (
               <Button size="sm" onClick={() => router.push("/journal-entries")}>
                 Cancel
@@ -133,7 +147,7 @@ export function JournalEntryForm({ entry }: { entry?: JournalEntry }) {
           label="Journal"
           value={journalId ?? ""}
           onChange={(event) => setJournalId(event.target.value ? Number(event.target.value) : null)}
-          options={MOCK_JOURNALS.map((journal) => ({ value: journal.id, label: journal.name }))}
+          options={journals.map((journal) => ({ value: journal.id, label: journal.name }))}
           placeholder="Select a journal"
           error={attempted && journalId === null ? "Select a journal." : undefined}
           disabled={readOnly}
@@ -286,6 +300,8 @@ export function JournalEntryForm({ entry }: { entry?: JournalEntry }) {
             . A journal entry cannot be posted until total debit equals total credit.
           </InlineAlert>
         )}
+
+        {postError && <InlineAlert title="Cannot post manually">{postError}</InlineAlert>}
 
         {attempted && !hasValue && (
           <InlineAlert title="Nothing to post">

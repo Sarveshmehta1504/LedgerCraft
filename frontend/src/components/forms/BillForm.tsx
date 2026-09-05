@@ -10,10 +10,10 @@ import { InlineAlert } from "@/components/ui/States";
 import { LineItemTable } from "@/components/shared/LineItemTable";
 import { ApiError } from "@/lib/api";
 import { formatMoney, today } from "@/lib/format";
-import { AccountsApi, CustomerInvoicesApi, ProductsApi, VendorBillsApi } from "@/lib/resources";
+import { AccountsApi, AnalyticAccountsApi, CustomerInvoicesApi, ProductsApi, VendorBillsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
 import type { CustomerInvoiceDetail, VendorBillDetail } from "@/lib/resources";
-import type { ChartOfAccount, DocumentLine, PaymentVia, Product } from "@/types";
+import type { AnalyticAccount, ChartOfAccount, DocumentLine, PaymentVia, Product } from "@/types";
 
 type Side = "bill" | "invoice";
 
@@ -57,6 +57,12 @@ export function BillForm({
   const fetchAccounts = useCallback(() => AccountsApi.list(), []);
   const { data: accountsData } = useAsyncData<ChartOfAccount[]>(fetchAccounts, "Could not load accounts.");
   const accounts = accountsData ?? [];
+
+  const fetchAnalytics = useCallback(() => AnalyticAccountsApi.list(), []);
+  const { data: analyticsData } = useAsyncData<AnalyticAccount[]>(
+    fetchAnalytics,
+    "Could not load analytic accounts.",
+  );
 
   const [doc, setDoc] = useState(document);
   const number = isBill(doc) ? doc.bill_number : doc.invoice_number;
@@ -213,6 +219,7 @@ export function BillForm({
           priceField={side === "invoice" ? "sales_price" : "cost_price"}
           products={products}
           accounts={accounts}
+          analyticAccounts={analyticsData ?? []}
         />
 
         <div className="flex flex-col gap-3 border-t border-[var(--line)] p-5">

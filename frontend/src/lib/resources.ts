@@ -7,11 +7,15 @@
 import { apiFetch } from "./api";
 import {
   mapAccount,
+  mapAnalyticAccount,
   mapBalanceSheet,
+  mapBudget,
+  mapBudgetReportRow,
   mapContact,
   mapCustomerInvoice,
   mapCustomerInvoiceDetail,
   mapJournal,
+  mapJournalEntry,
   mapManagedUser,
   mapPayment,
   mapProduct,
@@ -23,7 +27,7 @@ import {
   mapVendorBillDetail,
 } from "./normalize";
 export type { VendorBillDetail, CustomerInvoiceDetail } from "./normalize";
-import type { ChartOfAccount, Contact, ContactType, DocumentLine, Journal, JournalType, PaymentVia, Product, ProductType, Role } from "@/types";
+import type { AnalyticAccountType, BudgetReportRow, ChartOfAccount, Contact, ContactType, DocumentLine, Journal, JournalType, PaymentVia, Product, ProductType, Role } from "@/types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Raw = any;
@@ -72,6 +76,60 @@ export const UsersApi = {
     apiFetch<Raw>(`/users/${id}`, { method: "DELETE" }).then(mapManagedUser),
   reactivate: (id: number) =>
     apiFetch<Raw>(`/users/${id}/reactivate`, { method: "PATCH" }).then(mapManagedUser),
+};
+
+export const AnalyticAccountsApi = {
+  list: () => apiFetch<Raw[]>("/analytic-accounts").then((rows) => rows.map(mapAnalyticAccount)),
+  get: (id: number) => apiFetch<Raw>(`/analytic-accounts/${id}`).then(mapAnalyticAccount),
+  create: (input: { name: string; type: AnalyticAccountType }) =>
+    apiFetch<Raw>("/analytic-accounts", { method: "POST", body: JSON.stringify(input) }).then(
+      mapAnalyticAccount,
+    ),
+  update: (id: number, input: { name: string; type: AnalyticAccountType }) =>
+    apiFetch<Raw>(`/analytic-accounts/${id}`, { method: "PUT", body: JSON.stringify(input) }).then(
+      mapAnalyticAccount,
+    ),
+  remove: (id: number) => apiFetch<Raw>(`/analytic-accounts/${id}`, { method: "DELETE" }),
+};
+
+export const BudgetsApi = {
+  list: () => apiFetch<Raw[]>("/budgets").then((rows) => rows.map(mapBudget)),
+  get: (id: number) => apiFetch<Raw>(`/budgets/${id}`).then(mapBudget),
+  create: (input: {
+    name: string;
+    analytic_account_id: number;
+    period_start: string;
+    period_end: string;
+    committed_amount: number;
+    responsible_id: number | null;
+  }) => apiFetch<Raw>("/budgets", { method: "POST", body: JSON.stringify(input) }).then(mapBudget),
+  update: (
+    id: number,
+    input: {
+      name: string;
+      analytic_account_id: number;
+      period_start: string;
+      period_end: string;
+      committed_amount: number;
+      responsible_id: number | null;
+    },
+  ) => apiFetch<Raw>(`/budgets/${id}`, { method: "PUT", body: JSON.stringify(input) }).then(mapBudget),
+  remove: (id: number) => apiFetch<Raw>(`/budgets/${id}`, { method: "DELETE" }),
+  confirm: (id: number) =>
+    apiFetch<Raw>(`/budgets/${id}/confirm`, { method: "POST" }).then(mapBudget),
+  cancel: (id: number) => apiFetch<Raw>(`/budgets/${id}/cancel`, { method: "POST" }).then(mapBudget),
+  /** Moves the original to `revised` and returns the new draft linked back to it. */
+  revise: (id: number, input?: Partial<{ name: string; committed_amount: number }>) =>
+    apiFetch<Raw>(`/budgets/${id}/revise`, {
+      method: "POST",
+      body: JSON.stringify(input ?? {}),
+    }).then(mapBudget),
+};
+
+/** Read-only: the ledger is written by the system when documents are posted. */
+export const JournalEntriesApi = {
+  list: () => apiFetch<Raw[]>("/journal-entries").then((rows) => rows.map(mapJournalEntry)),
+  get: (id: number) => apiFetch<Raw>(`/journal-entries/${id}`).then(mapJournalEntry),
 };
 
 export const ContactsApi = {
@@ -203,4 +261,9 @@ export const ReportsApi = {
     const qs = from && to ? `?from=${from}&to=${to}` : "";
     return apiFetch<Raw>(`/reports/profit-and-loss${qs}`).then(mapProfitAndLoss);
   },
+  /** The API returns totals alongside the rows; the screen recomputes only what it shows. */
+  budget: () =>
+    apiFetch<Raw>("/reports/budget").then((raw) =>
+      (raw.budgets ?? []).map(mapBudgetReportRow),
+    ) as Promise<BudgetReportRow[]>,
 };

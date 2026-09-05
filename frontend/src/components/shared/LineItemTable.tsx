@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/Button";
 import { formatMoney } from "@/lib/format";
-import { MOCK_ANALYTIC_ACCOUNTS } from "@/lib/mock-data";
 import type { AnalyticAccount, ChartOfAccount, DocumentLine, Product } from "@/types";
 
 /**
@@ -71,7 +70,7 @@ export function LineItemTable({
   priceField = "sales_price",
   products,
   accounts,
-  analyticAccounts = MOCK_ANALYTIC_ACCOUNTS,
+  analyticAccounts = [],
 }: LineItemTableProps) {
   function update(id: string, patch: Partial<DocumentLine>) {
     onChange(lines.map((line) => (line.id === id ? { ...line, ...patch } : line)));

@@ -7,12 +7,17 @@
  */
 
 import type {
+  AnalyticAccount,
   BalanceSheet,
+  Budget,
+  BudgetReportRow,
   ChartOfAccount,
   Contact,
   CustomerInvoice,
   DocumentLine,
   Journal,
+  JournalEntry,
+  JournalEntryLine,
   ManagedUser,
   Payment,
   Product,
@@ -29,6 +34,86 @@ import type {
 type Raw = any;
 
 const num = (value: unknown): number => (value === null || value === undefined ? 0 : Number(value));
+
+/** Laravel sends dates as full ISO timestamps; the date inputs want `YYYY-MM-DD`. */
+const day = (value: unknown): string =>
+  typeof value === "string" && value.length >= 10 ? value.slice(0, 10) : "";
+
+export function mapAnalyticAccount(raw: Raw): AnalyticAccount {
+  return {
+    id: raw.id,
+    name: raw.name,
+    type: raw.type,
+  };
+}
+
+/**
+ * The API calls the live-computed figure `achieved_amount`; the UI has always
+ * called it `actual_amount`, so the rename happens here rather than in every
+ * screen that reads it.
+ */
+export function mapBudget(raw: Raw): Budget {
+  return {
+    id: raw.id,
+    name: raw.name,
+    analytic_account_id: raw.analytic_account_id,
+    period_start: day(raw.period_start),
+    period_end: day(raw.period_end),
+    committed_amount: num(raw.committed_amount),
+    actual_amount: num(raw.achieved_amount),
+    responsible_id: raw.responsible_id,
+    status: raw.status,
+    revision_of_id: raw.revision_of_id ?? null,
+  };
+}
+
+export function mapBudgetReportRow(raw: Raw): BudgetReportRow {
+  const planned = num(raw.committed_amount);
+  const actual = num(raw.achieved_amount);
+  return {
+    budget_id: raw.id,
+    name: raw.name,
+    analytic_account: raw.analytic_account?.name ?? "—",
+    planned_amount: planned,
+    actual_amount: actual,
+    variance: actual - planned,
+  };
+}
+
+export function mapJournalEntryLine(raw: Raw): JournalEntryLine {
+  return {
+    id: raw.id,
+    journal_entry_id: raw.journal_entry_id,
+    account_id: raw.account_id,
+    account_name: raw.account ? `${raw.account.code} ${raw.account.name}` : null,
+    debit: num(raw.debit),
+    credit: num(raw.credit),
+    analytic_account_id: raw.analytic_account_id ?? null,
+    analytic_account_name: raw.analytic_account?.name ?? null,
+    description: raw.description ?? null,
+  };
+}
+
+/**
+ * Entries are system-generated when a document is posted, so the API has no
+ * status column — anything that exists is already in the ledger. `total` is the
+ * debit side, which equals the credit side on every balanced entry.
+ */
+export function mapJournalEntry(raw: Raw): JournalEntry {
+  return {
+    id: raw.id,
+    journal_id: raw.journal_id,
+    journal_name: raw.journal?.name ?? null,
+    date: day(raw.date),
+    reference: raw.reference ?? null,
+    source_type: raw.source_type,
+    source_id: raw.source_id ?? null,
+    total_debit: num(raw.total_debit),
+    total_credit: num(raw.total_credit),
+    balanced: Boolean(raw.balanced),
+    lines: Array.isArray(raw.lines) ? raw.lines.map(mapJournalEntryLine) : [],
+  };
+}
 
 export function mapUser(raw: Raw): User {
   return {

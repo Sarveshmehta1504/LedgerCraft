@@ -1,11 +1,23 @@
-import { notFound } from "next/navigation";
-import { JournalEntryForm } from "@/components/forms/JournalEntryForm";
-import { MOCK_JOURNAL_ENTRIES } from "@/lib/mock-data";
+"use client";
 
-export default async function JournalEntryPage({ params }: PageProps<"/journal-entries/[id]">) {
-  const { id } = await params;
-  // TODO: replace with real API once backend/journal-entries is ready (GET /api/journal-entries/{id}).
-  const entry = MOCK_JOURNAL_ENTRIES.find((record) => String(record.id) === id);
-  if (!entry) notFound();
+import { useParams } from "next/navigation";
+import { useCallback } from "react";
+import { JournalEntryForm } from "@/components/forms/JournalEntryForm";
+import { ErrorState, TableSkeleton } from "@/components/ui/States";
+import { JournalEntriesApi } from "@/lib/resources";
+import { useAsyncData } from "@/lib/use-async-data";
+import type { JournalEntry } from "@/types";
+
+export default function JournalEntryPage() {
+  const { id } = useParams<{ id: string }>();
+  const fetchData = useCallback(() => JournalEntriesApi.get(Number(id)), [id]);
+  const { data: entry, loading, error, retry } = useAsyncData<JournalEntry>(
+    fetchData,
+    "Could not load this journal entry.",
+  );
+
+  if (loading) return <TableSkeleton rows={4} columns={4} />;
+  if (error || !entry)
+    return <ErrorState message={error ?? "Journal entry not found."} onRetry={retry} />;
   return <JournalEntryForm entry={entry} />;
 }

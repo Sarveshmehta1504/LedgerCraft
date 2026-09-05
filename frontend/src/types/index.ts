@@ -98,37 +98,54 @@ export interface Journal {
 
 /* ---- Ledger ---- */
 
-export type JournalEntrySource = "vendor_bill" | "customer_invoice" | "payment" | "manual";
+export type JournalEntrySource =
+  | "vendor_bill"
+  | "customer_invoice"
+  | "payment"
+  | "opening_balance"
+  | "manual";
 
 export interface JournalEntryLine {
   id: number;
   journal_entry_id: number;
   account_id: number;
-  contact_id: number | null;
+  /** Resolved `code name` from the API, so the row needs no second lookup. */
+  account_name: string | null;
   debit: number;
   credit: number;
   analytic_account_id: number | null;
+  analytic_account_name: string | null;
   description: string | null;
 }
 
+/**
+ * Mirrors GET /api/journal-entries. The ledger is read-only over the API —
+ * entries are written by the system when a document is posted — so there is no
+ * draft/posted status: an entry that exists is posted.
+ */
 export interface JournalEntry {
   id: number;
   journal_id: number;
+  journal_name: string | null;
   date: string;
   reference: string | null;
   source_type: JournalEntrySource;
   source_id: number | null;
-  status: "draft" | "posted";
-  total: number;
+  total_debit: number;
+  total_credit: number;
+  balanced: boolean;
+  /** Only populated by the detail endpoint; the list omits lines. */
   lines: JournalEntryLine[];
 }
 
 /* ---- Analytic accounting ---- */
 
+export type AnalyticAccountType = "income" | "expense";
+
 export interface AnalyticAccount {
   id: number;
   name: string;
-  type: "income" | "expense";
+  type: AnalyticAccountType;
 }
 
 export type BudgetStatus = "draft" | "confirmed" | "revised" | "cancelled";

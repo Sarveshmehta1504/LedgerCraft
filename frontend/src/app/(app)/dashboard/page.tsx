@@ -5,15 +5,9 @@ import { useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, formatMoney } from "@/lib/format";
-import {
-  ContactsApi,
-  CustomerInvoicesApi,
-  PurchaseOrdersApi,
-  SalesOrdersApi,
-  VendorBillsApi,
-} from "@/lib/resources";
+import { BudgetsApi, ContactsApi, CustomerInvoicesApi, PurchaseOrdersApi, SalesOrdersApi, VendorBillsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
-import type { Contact, CustomerInvoice, PurchaseOrder, SalesOrder, VendorBill } from "@/types";
+import type { Budget, Contact, CustomerInvoice, PurchaseOrder, SalesOrder, VendorBill } from "@/types";
 
 function countBy<T extends { status: string }>(rows: T[], status: string) {
   return rows.filter((row) => row.status === status).length;
@@ -72,6 +66,10 @@ export default function DashboardPage() {
   const { data: billsData } = useAsyncData<VendorBill[]>(fetchBills, "Could not load bills.");
   const bills = billsData ?? [];
 
+  const fetchBudgets = useCallback(() => BudgetsApi.list(), []);
+  const { data: budgetsData } = useAsyncData<Budget[]>(fetchBudgets, "Could not load budgets.");
+  const budgets = budgetsData ?? [];
+
   const fetchContacts = useCallback(() => ContactsApi.list(), []);
   const { data: contactsData } = useAsyncData<Contact[]>(fetchContacts, "Could not load contacts.");
   const contactName = (id: number) => (contactsData ?? []).find((c) => c.id === id)?.name ?? "—";
@@ -125,14 +123,19 @@ export default function DashboardPage() {
             { label: "Draft", value: String(countBy(purchaseOrders, "draft")) },
           ]}
         />
-        {/* TODO: replace with real API once backend/budgets exists — there is no budgets route yet. */}
         <Panel
           title="Budget Reports"
           action={{ label: "Report", href: "/reports/budget" }}
           metrics={[
-            { label: "Achieved", value: "1" },
-            { label: "Budget", value: "3" },
-            { label: "Committed", value: "2" },
+            {
+              label: "Achieved",
+              value: String(budgets.filter((budget) => budget.actual_amount > 0).length),
+            },
+            { label: "Budget", value: String(budgets.length) },
+            {
+              label: "Committed",
+              value: String(budgets.filter((budget) => budget.status === "confirmed").length),
+            },
           ]}
         />
       </div>

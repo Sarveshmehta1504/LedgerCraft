@@ -14,9 +14,9 @@ import {
 } from "@/components/shared/LineItemTable";
 import { ApiError } from "@/lib/api";
 import { formatMoney, today } from "@/lib/format";
-import { AccountsApi, ContactsApi, ProductsApi, PurchaseOrdersApi, SalesOrdersApi } from "@/lib/resources";
+import { AccountsApi, AnalyticAccountsApi, ContactsApi, ProductsApi, PurchaseOrdersApi, SalesOrdersApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
-import type { ChartOfAccount, Contact, DocumentLine, Product, PurchaseOrder, SalesOrder } from "@/types";
+import type { AnalyticAccount, ChartOfAccount, Contact, DocumentLine, Product, PurchaseOrder, SalesOrder } from "@/types";
 
 type Side = "purchase" | "sales";
 
@@ -67,6 +67,12 @@ export function OrderForm({
 
   const fetchAccounts = useCallback(() => AccountsApi.list(), []);
   const { data: accountsData } = useAsyncData<ChartOfAccount[]>(fetchAccounts, "Could not load accounts.");
+
+  const fetchAnalytics = useCallback(() => AnalyticAccountsApi.list(), []);
+  const { data: analyticsData } = useAsyncData<AnalyticAccount[]>(
+    fetchAnalytics,
+    "Could not load analytic accounts.",
+  );
   const accounts = accountsData ?? [];
   const defaultAccountId = accounts.find((a) => a.code === DEFAULT_ACCOUNT_CODE[side])?.id ?? null;
 
@@ -217,6 +223,7 @@ export function OrderForm({
         priceField={side === "sales" ? "sales_price" : "cost_price"}
         products={products}
         accounts={accounts}
+        analyticAccounts={analyticsData ?? []}
       />
 
       <div className="flex flex-col gap-3 border-t border-[var(--line)] p-5">

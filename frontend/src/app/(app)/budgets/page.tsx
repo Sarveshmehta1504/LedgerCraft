@@ -8,9 +8,9 @@ import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, formatMoney } from "@/lib/format";
-import { MOCK_BUDGETS, analyticName, mockRequest } from "@/lib/mock-data";
+import { AnalyticAccountsApi, BudgetsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
-import type { Budget } from "@/types";
+import type { AnalyticAccount, Budget } from "@/types";
 
 /** Achieved % is only meaningful once a budget is confirmed. */
 function achievedPercent(budget: Budget): number | null {
@@ -20,13 +20,21 @@ function achievedPercent(budget: Budget): number | null {
 
 export default function BudgetsPage() {
   const router = useRouter();
-  // TODO: replace with real API once backend/budgets is ready (GET /api/budgets).
-  const fetchData = useCallback(() => mockRequest(MOCK_BUDGETS), []);
-  const { data, loading, error, retry } = useAsyncData<Budget[]>(
+  // Budget rows carry analytic_account_id only, so the names come from the
+  // analytic accounts list rather than a per-row lookup.
+  const fetchData = useCallback(
+    () => Promise.all([BudgetsApi.list(), AnalyticAccountsApi.list()]),
+    [],
+  );
+  const { data, loading, error, retry } = useAsyncData<[Budget[], AnalyticAccount[]]>(
     fetchData,
     "The budgets service did not respond.",
   );
-  const budgets = data ?? [];
+  const budgets = data?.[0] ?? [];
+  const analyticAccounts = data?.[1] ?? [];
+
+  const analyticName = (id: number | null): string =>
+    analyticAccounts.find((account) => account.id === id)?.name ?? "—";
 
   const columns: Column<Budget>[] = [
     {

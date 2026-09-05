@@ -5,9 +5,8 @@ import { ReportShell } from "@/components/shared/ReportShell";
 import { BudgetPie } from "@/components/shared/BudgetPie";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { formatMoney } from "@/lib/format";
-import { mockRequest } from "@/lib/mock-data";
 import { useAsyncData } from "@/lib/use-async-data";
-import { buildBudgetReport } from "@/lib/reports";
+import { ReportsApi } from "@/lib/resources";
 import type { BudgetReportRow } from "@/types";
 
 /**
@@ -62,8 +61,7 @@ function BudgetChart({ rows }: { rows: BudgetReportRow[] }) {
 }
 
 export default function BudgetReportPage() {
-  // TODO: replace with real API once backend/reports is ready (GET /api/reports/budget?budget_id=…).
-  const fetchData = useCallback(() => mockRequest(buildBudgetReport()), []);
+  const fetchData = useCallback(() => ReportsApi.budget(), []);
   const { data, loading, error, retry } = useAsyncData<BudgetReportRow[]>(
     fetchData,
     "The reporting service did not respond.",
