@@ -1,4 +1,7 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+"use client";
+
+import { Eye, EyeOff } from "lucide-react";
+import { useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
 
 const control =
   "h-9 w-full rounded-md border bg-white px-2.5 text-sm text-[var(--text)] " +
@@ -43,16 +46,32 @@ interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   hint?: string;
 }
 
-export function TextField({ label, error, hint, id, className = "", ...props }: TextFieldProps) {
+export function TextField({ label, error, hint, id, className = "", type, ...props }: TextFieldProps) {
   const fieldId = id ?? `field-${label.toLowerCase().replace(/\s+/g, "-")}`;
+  const [revealed, setRevealed] = useState(false);
+  const isPassword = type === "password";
+
   return (
     <FieldShell label={label} htmlFor={fieldId} error={error} hint={hint} required={props.required}>
-      <input
-        id={fieldId}
-        aria-invalid={Boolean(error)}
-        className={`${control} ${borderFor(error)} ${className}`}
-        {...props}
-      />
+      <div className="relative">
+        <input
+          id={fieldId}
+          aria-invalid={Boolean(error)}
+          type={isPassword ? (revealed ? "text" : "password") : type}
+          className={`${control} ${borderFor(error)} ${isPassword ? "pr-9" : ""} ${className}`}
+          {...props}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setRevealed((value) => !value)}
+            aria-label={revealed ? "Hide password" : "Show password"}
+            className="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-[var(--text-subtle)] transition-colors duration-150 hover:text-[var(--text)]"
+          >
+            {revealed ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        )}
+      </div>
     </FieldShell>
   );
 }
