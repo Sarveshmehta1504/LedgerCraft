@@ -50,11 +50,13 @@ export function BillForm({
   const copy = COPY[side];
   const withTax = side === "invoice";
 
-  const isBill = (doc: VendorBill | CustomerInvoice): doc is VendorBill => side === "bill";
-  const number = isBill(document) ? document.bill_number : document.invoice_number;
-  const reference = isBill(document) ? document.bill_reference : document.invoice_reference;
-  const docDate = isBill(document) ? document.bill_date : document.invoice_date;
-  const originId = isBill(document) ? document.purchase_order_id : document.sales_order_id;
+  // Bills and invoices carry the same fields under different names.
+  const number = "bill_number" in document ? document.bill_number : document.invoice_number;
+  const reference =
+    "bill_reference" in document ? document.bill_reference : document.invoice_reference;
+  const docDate = "bill_date" in document ? document.bill_date : document.invoice_date;
+  const originId =
+    "purchase_order_id" in document ? document.purchase_order_id : document.sales_order_id;
 
   const [status, setStatus] = useState<string>(document.status);
   const [lines, setLines] = useState<DocumentLine[]>(document.lines);

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -10,6 +10,7 @@ import { ViewSwitcher, type ViewMode } from "@/components/shared/ViewSwitcher";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { formatMoney, titleCase } from "@/lib/format";
 import { MOCK_CATEGORIES, MOCK_PRODUCTS, categoryName, mockRequest } from "@/lib/mock-data";
+import { useAsyncData } from "@/lib/use-async-data";
 import type { Product } from "@/types";
 
 export default function ProductsPage() {
@@ -17,26 +18,13 @@ export default function ProductsPage() {
   const [view, setView] = useState<ViewMode>("list");
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // TODO: replace with real API once backend/products is ready (GET /api/products).
-      setProducts(await mockRequest(MOCK_PRODUCTS));
-    } catch {
-      setError("The products service did not respond.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  // TODO: replace with real API once backend/products is ready (GET /api/products).
+  const fetchData = useCallback(() => mockRequest(MOCK_PRODUCTS), []);
+  const { data, loading, error, retry } = useAsyncData<Product[]>(
+    fetchData,
+    "The products service did not respond.",
+  );
+  const products = data ?? [];
 
   const visible = products.filter((product) => {
     const term = search.trim().toLowerCase();
@@ -122,7 +110,7 @@ export default function ProductsPage() {
           onRowClick={(product) => router.push(`/products/${product.id}`)}
           loading={loading}
           error={error}
-          onRetry={load}
+          onRetry={retry}
           emptyTitle="No products yet"
           emptyDescription="Add the items you trade before creating orders."
           emptyAction={
@@ -136,7 +124,7 @@ export default function ProductsPage() {
       ) : loading ? (
         <TableSkeleton rows={4} columns={4} />
       ) : error ? (
-        <ErrorState message={error} onRetry={load} />
+        <ErrorState message={error} onRetry={retry} />
       ) : visible.length === 0 ? (
         <EmptyState title="No products match" description="Try a different search or category." />
       ) : (

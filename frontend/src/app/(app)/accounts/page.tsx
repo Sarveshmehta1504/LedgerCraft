@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { titleCase } from "@/lib/format";
 import { MOCK_ACCOUNTS, mockRequest } from "@/lib/mock-data";
+import { useAsyncData } from "@/lib/use-async-data";
 import type { AccountType, ChartOfAccount } from "@/types";
 
 /** All eight types, in report order — this list doubles as a reference screen. */
@@ -24,26 +25,13 @@ const TYPE_ORDER: AccountType[] = [
 
 export default function ChartOfAccountsPage() {
   const router = useRouter();
-  const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // TODO: replace with real API once backend/accounts is ready (GET /api/accounts).
-      setAccounts(await mockRequest(MOCK_ACCOUNTS));
-    } catch {
-      setError("The chart of accounts service did not respond.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  // TODO: replace with real API once backend/accounts is ready (GET /api/accounts).
+  const fetchData = useCallback(() => mockRequest(MOCK_ACCOUNTS), []);
+  const { data, loading, error, retry } = useAsyncData<ChartOfAccount[]>(
+    fetchData,
+    "The chart of accounts service did not respond.",
+  );
+  const accounts = data ?? [];
 
   const grouped = TYPE_ORDER.map((type) => ({
     type,
@@ -67,7 +55,7 @@ export default function ChartOfAccountsPage() {
       {loading ? (
         <TableSkeleton rows={8} columns={3} />
       ) : error ? (
-        <ErrorState message={error} onRetry={load} />
+        <ErrorState message={error} onRetry={retry} />
       ) : accounts.length === 0 ? (
         <EmptyState
           title="No accounts configured"

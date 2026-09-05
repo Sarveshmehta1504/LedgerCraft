@@ -72,8 +72,6 @@ export function TopNav() {
     };
   }, []);
 
-  useEffect(() => setOpenTab(null), [pathname]);
-
   return (
     <div ref={navRef} className="relative z-40 border-b border-[var(--line)] bg-white">
       <div className="flex items-center gap-1 px-5">
@@ -119,6 +117,7 @@ export function TopNav() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setOpenTab(null)}
                 className="rounded px-2 py-1.5 text-sm text-[var(--text-muted)] transition-colors duration-150 hover:bg-[var(--surface-raised)] hover:text-[var(--text)]"
               >
                 {item.label}
