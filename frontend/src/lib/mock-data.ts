@@ -1,26 +1,15 @@
 /**
  * PLACEHOLDER DATA — NOT REAL RECORDS.
  *
- * The backend currently exposes only GET /api/health (verified against
- * backend/routes/api.php). Every collection below stands in for an endpoint that
- * does not exist yet. Each consumer carries its own TODO marker naming the
- * module it is waiting on; delete this file once the API is live.
+ * The backend now has real endpoints for contacts, products, chart of accounts,
+ * journals, purchase/sales orders, vendor bills, customer invoices and reports
+ * (see src/lib/resources.ts) — those screens no longer read from here. What's
+ * left below backs the modules that still have no matching route: manual
+ * Journal Entries, Analytic Accounts and Budgets. Each consumer carries its own
+ * TODO marker naming the endpoint it's waiting on.
  */
 
-import type {
-  AnalyticAccount,
-  Budget,
-  ChartOfAccount,
-  Contact,
-  CustomerInvoice,
-  Journal,
-  JournalEntry,
-  Product,
-  ProductCategory,
-  PurchaseOrder,
-  SalesOrder,
-  VendorBill,
-} from "@/types";
+import type { AnalyticAccount, Budget, ChartOfAccount, Contact, Journal, JournalEntry } from "@/types";
 
 export const MOCK_CONTACTS: Contact[] = [
   {
@@ -90,22 +79,7 @@ export const MOCK_CONTACTS: Contact[] = [
   },
 ];
 
-export const MOCK_CATEGORIES: ProductCategory[] = [
-  { id: 1, name: "Seating", parent_id: null },
-  { id: 2, name: "Tables", parent_id: null },
-  { id: 3, name: "Storage", parent_id: null },
-  { id: 4, name: "Raw Material", parent_id: null },
-  { id: 5, name: "Hardware", parent_id: 4 },
-];
 
-export const MOCK_PRODUCTS: Product[] = [
-  { id: 1, name: "Aravalli Lounge Chair", type: "goods", sales_price: 18400, cost_price: 11250, category_id: 1 },
-  { id: 2, name: "Kadam Dining Table 6-Seater", type: "goods", sales_price: 42750, cost_price: 27900, category_id: 2 },
-  { id: 3, name: "Nilgiri Sideboard", type: "goods", sales_price: 31600, cost_price: 19800, category_id: 3 },
-  { id: 4, name: "Teak Plank 8ft", type: "goods", sales_price: 4250, cost_price: 2870, category_id: 4 },
-  { id: 5, name: "Soft-Close Hinge Set", type: "goods", sales_price: 640, cost_price: 385, category_id: 5 },
-  { id: 6, name: "On-Site Assembly", type: "service", sales_price: 2500, cost_price: 900, category_id: 1 },
-];
 
 export const MOCK_ACCOUNTS: ChartOfAccount[] = [
   { id: 1, code: "1000", name: "Cash", type: "cash" },
@@ -205,137 +179,9 @@ export const MOCK_JOURNAL_ENTRIES: JournalEntry[] = [
   },
 ];
 
-export const MOCK_PURCHASE_ORDERS: PurchaseOrder[] = [
-  {
-    id: 1,
-    contact_id: 1,
-    date: "2026-08-28",
-    status: "billed",
-    total: 30000,
-    lines: [
-      { id: "po1-l1", product_id: 4, account_id: 9, analytic_account_id: 3, quantity: 8, unit_price: 2870 },
-      { id: "po1-l2", product_id: 5, account_id: 9, analytic_account_id: 3, quantity: 18, unit_price: 385 },
-    ],
-  },
-  {
-    id: 2,
-    contact_id: 5,
-    date: "2026-09-03",
-    status: "confirmed",
-    total: 13475,
-    lines: [{ id: "po2-l1", product_id: 5, account_id: 9, analytic_account_id: 3, quantity: 35, unit_price: 385 }],
-  },
-  {
-    id: 3,
-    contact_id: 3,
-    date: "2026-09-04",
-    status: "draft",
-    total: 8610,
-    lines: [{ id: "po3-l1", product_id: 4, account_id: 9, analytic_account_id: 3, quantity: 3, unit_price: 2870 }],
-  },
-];
 
-export const MOCK_VENDOR_BILLS: VendorBill[] = [
-  {
-    id: 1,
-    purchase_order_id: 1,
-    contact_id: 1,
-    bill_number: "Bill/2026/0001",
-    bill_reference: "BT-26-4417",
-    bill_date: "2026-09-01",
-    due_date: "2026-09-30",
-    status: "posted",
-    total: 30000,
-    amount_paid: 12000,
-    journal_entry_id: 1,
-    lines: [
-      { id: "vb1-l1", product_id: 4, account_id: 9, analytic_account_id: 3, quantity: 8, unit_price: 2870 },
-      { id: "vb1-l2", product_id: 5, account_id: 9, analytic_account_id: 3, quantity: 18, unit_price: 385 },
-    ],
-  },
-  {
-    id: 2,
-    purchase_order_id: null,
-    contact_id: 5,
-    bill_number: "Bill/2026/0002",
-    bill_reference: null,
-    bill_date: "2026-09-04",
-    due_date: "2026-10-04",
-    status: "draft",
-    total: 13475,
-    amount_paid: 0,
-    journal_entry_id: null,
-    lines: [{ id: "vb2-l1", product_id: 5, account_id: 9, analytic_account_id: 3, quantity: 35, unit_price: 385 }],
-  },
-];
 
-export const MOCK_SALES_ORDERS: SalesOrder[] = [
-  {
-    id: 1,
-    contact_id: 2,
-    date: "2026-08-30",
-    status: "invoiced",
-    total: 89880,
-    lines: [
-      { id: "so1-l1", product_id: 2, account_id: 8, analytic_account_id: 2, quantity: 2, unit_price: 42750, tax_percent: 5 },
-    ],
-  },
-  {
-    id: 2,
-    contact_id: 4,
-    date: "2026-09-02",
-    status: "confirmed",
-    total: 19320,
-    lines: [
-      { id: "so2-l1", product_id: 1, account_id: 8, analytic_account_id: 1, quantity: 1, unit_price: 18400, tax_percent: 5 },
-    ],
-  },
-  {
-    id: 3,
-    contact_id: 3,
-    date: "2026-09-05",
-    status: "draft",
-    total: 33180,
-    lines: [
-      { id: "so3-l1", product_id: 3, account_id: 8, analytic_account_id: 1, quantity: 1, unit_price: 31600, tax_percent: 5 },
-    ],
-  },
-];
 
-export const MOCK_CUSTOMER_INVOICES: CustomerInvoice[] = [
-  {
-    id: 1,
-    sales_order_id: 1,
-    contact_id: 2,
-    invoice_number: "INV/2026/0001",
-    invoice_reference: "RI-PO-8842",
-    invoice_date: "2026-09-02",
-    due_date: "2026-09-17",
-    status: "posted",
-    total: 89880,
-    amount_paid: 40000,
-    journal_entry_id: 2,
-    lines: [
-      { id: "ci1-l1", product_id: 2, account_id: 8, analytic_account_id: 2, quantity: 2, unit_price: 42750, tax_percent: 5 },
-    ],
-  },
-  {
-    id: 2,
-    sales_order_id: null,
-    contact_id: 4,
-    invoice_number: "INV/2026/0002",
-    invoice_reference: null,
-    invoice_date: "2026-09-04",
-    due_date: "2026-09-19",
-    status: "paid",
-    total: 19320,
-    amount_paid: 19320,
-    journal_entry_id: null,
-    lines: [
-      { id: "ci2-l1", product_id: 1, account_id: 8, analytic_account_id: 1, quantity: 1, unit_price: 18400, tax_percent: 5 },
-    ],
-  },
-];
 
 /** Simulates network latency so loading states are actually exercised in the demo. */
 export function mockRequest<T>(payload: T, delay = 320): Promise<T> {
@@ -353,18 +199,11 @@ export function accountName(id: number | null): string {
   return account ? `${account.code} · ${account.name}` : "—";
 }
 
-export function productName(id: number | null): string {
-  if (id === null) return "—";
-  return MOCK_PRODUCTS.find((product) => product.id === id)?.name ?? "—";
-}
 
 export function journalName(id: number): string {
   return MOCK_JOURNALS.find((journal) => journal.id === id)?.name ?? "—";
 }
 
-export function categoryName(id: number): string {
-  return MOCK_CATEGORIES.find((category) => category.id === id)?.name ?? "—";
-}
 
 export function analyticName(id: number | null): string {
   if (id === null) return "—";

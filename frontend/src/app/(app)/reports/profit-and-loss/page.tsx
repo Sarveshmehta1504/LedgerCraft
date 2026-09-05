@@ -4,9 +4,8 @@ import { useCallback, useState } from "react";
 import { ReportSection, ReportShell } from "@/components/shared/ReportShell";
 import { ErrorState, InlineAlert, TableSkeleton } from "@/components/ui/States";
 import { formatMoney } from "@/lib/format";
-import { mockRequest } from "@/lib/mock-data";
+import { ReportsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
-import { buildProfitAndLoss } from "@/lib/reports";
 import type { ProfitAndLoss } from "@/types";
 
 export default function ProfitAndLossPage() {
@@ -15,16 +14,13 @@ export default function ProfitAndLossPage() {
 
   const invalidRange = Boolean(from && to && to < from);
 
-  // TODO: replace with real API once backend/reports is ready
-  // (GET /api/reports/profit-and-loss?from=…&to=…, passing `from` and `to` as query params).
-  const fetchData = useCallback(() => mockRequest(buildProfitAndLoss()), []);
-  const { data, loading, error, retry } = useAsyncData<ProfitAndLoss>(
+  const fetchData = useCallback(() => ReportsApi.profitAndLoss(from, to), [from, to]);
+  const { data: report, loading, error, retry } = useAsyncData<ProfitAndLoss>(
     fetchData,
     "The reporting service did not respond.",
   );
-  const report = data;
 
-  const profitable = (report?.net_profit ?? 0) >= 0;
+  const profitable = (report?.net_income ?? 0) >= 0;
 
   return (
     <ReportShell
@@ -71,20 +67,20 @@ export default function ProfitAndLossPage() {
           <div className="divide-y divide-[var(--line)]">
             <ReportSection
               heading="Income"
-              rows={report.income}
-              total={report.total_income}
+              rows={report.income.accounts}
+              total={report.income.total}
               formatValue={formatMoney}
             />
             <ReportSection
               heading="Expenses"
-              rows={report.expenses}
-              total={report.total_expenses}
+              rows={report.purchase_expense.accounts}
+              total={report.purchase_expense.total}
               formatValue={formatMoney}
             />
             <ReportSection
               heading="Other Expenses"
-              rows={report.other_expenses}
-              total={report.total_other_expenses}
+              rows={report.other_expense.accounts}
+              total={report.other_expense.total}
               formatValue={formatMoney}
             />
           </div>
@@ -98,7 +94,7 @@ export default function ProfitAndLossPage() {
                 profitable ? "text-[var(--status-paid)]" : "text-[var(--danger)]"
               }`}
             >
-              {formatMoney(Math.abs(report.net_profit))}
+              {formatMoney(Math.abs(report.net_income))}
             </span>
           </div>
         </>
