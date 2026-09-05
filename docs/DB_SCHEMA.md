@@ -234,6 +234,8 @@ The Analytic form shows every budget in which the analytic account is used:
 | responsible_id       | bigint FK | No       | —       | → contacts.id (selected from Contacts) |
 | status               | enum      | No       | 'draft' | draft / confirmed / revised / cancelled |
 | revision_of_id       | bigint FK | Yes      | null    | → budgets.id (original budget)   |
+| created_at           | timestamp | No       | —       |                                   |
+| updated_at           | timestamp | No       | —       | When the stage last changed       |
 
 **Achieved amount is derived, never stored.** For an analytic account, sum the
 matching lines within `period_start`/`period_end`:
@@ -250,6 +252,18 @@ amount_to_achieve = committed_amount - achieved_amount
 
 Clicking the Achieved Amount opens the list of all invoices/bills sharing that
 analytic account within the budget period.
+
+Budgets are the only table here that mutates, so they carry full timestamps —
+`updated_at` is what tells you when a budget was confirmed or superseded.
+
+**Timestamp conventions for the ledger tables:**
+
+| Table                 | Timestamps                                          |
+| --------------------- | ---------------------------------------------------- |
+| `budgets`             | `created_at` + `updated_at` (stage changes)          |
+| `journal_entries`     | `created_at` only — immutable audit record; model sets `const UPDATED_AT = null` |
+| `journal_entry_lines` | none — `$timestamps = false`                         |
+| `analytic_accounts`   | none — `$timestamps = false`                         |
 
 **Budget stages (design board):**
 
