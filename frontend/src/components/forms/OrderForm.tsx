@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { ReadOnlyField, SelectField, TextField } from "@/components/ui/Field";
+import { Combobox } from "@/components/ui/Combobox";
+import { ReadOnlyField, TextField } from "@/components/ui/Field";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { InlineAlert } from "@/components/ui/States";
@@ -237,15 +238,15 @@ export function OrderForm({
 
       <div className="grid max-w-2xl gap-5 p-5 md:grid-cols-2">
         {isDraft ? (
-          <SelectField
+          <Combobox
             label={copy.partnerLabel}
-            value={contactId ?? ""}
-            onChange={(event) => {
+            value={contactId}
+            onChange={(value) => {
               touched();
-              setContactId(event.target.value ? Number(event.target.value) : null);
+              setContactId(value);
             }}
             options={partnerOptions}
-            placeholder={`Select a ${copy.partnerLabel.toLowerCase()}`}
+            placeholder={`Search ${copy.partnerLabel.toLowerCase()}s…`}
             error={errors.contact_id}
             required
           />

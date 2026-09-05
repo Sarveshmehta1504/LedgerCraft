@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/Button";
 import { formatMoney } from "@/lib/format";
+import { ComboboxControl } from "@/components/ui/Combobox";
 import type { AnalyticAccount, ChartOfAccount, DocumentLine, Product } from "@/types";
 
 /**
@@ -35,11 +36,6 @@ export function blankDocumentLine(defaultAccountId: number | null): DocumentLine
     tax_percent: 0,
   };
 }
-
-const cellSelect =
-  "h-8 w-full cursor-pointer rounded border border-[var(--line-strong)] bg-white px-2 text-[13px] " +
-  "focus:outline-2 focus:-outline-offset-1 focus:outline-[var(--accent)] " +
-  "disabled:cursor-default disabled:bg-[var(--surface-raised)]";
 
 /** How a locked cell prints its value: same row rhythm, no control chrome. */
 const cellText = "block py-1 text-[13px] text-[var(--text)]";
@@ -85,6 +81,18 @@ export function LineItemTable({
     const account = id === null ? undefined : accounts.find((item) => item.id === id);
     return account ? `${account.code} · ${account.name}` : "—";
   };
+
+  // Built once, not per row: a ten-line document would otherwise rebuild the
+  // same three lists thirty times on every keystroke.
+  const productOptions = products.map((product) => ({ value: product.id, label: product.name }));
+  const accountOptions = accounts.map((account) => ({
+    value: account.id,
+    label: `${account.code} · ${account.name}`,
+  }));
+  const analyticOptions = analyticAccounts.map((analytic) => ({
+    value: analytic.id,
+    label: analytic.name,
+  }));
 
   function update(id: string, patch: Partial<DocumentLine>) {
     onChange(lines.map((line) => (line.id === id ? { ...line, ...patch } : line)));
@@ -133,44 +141,28 @@ export function LineItemTable({
                   {readOnly ? (
                     <span className={cellText}>{nameOf(products, line.product_id)}</span>
                   ) : (
-                    <select
-                      aria-label={`Product on line ${index + 1}`}
-                      className={cellSelect}
-                      value={line.product_id ?? ""}
-                      onChange={(event) =>
-                        onProductChange(line.id, event.target.value ? Number(event.target.value) : null)
-                      }
-                    >
-                      <option value="">Select product</option>
-                      {products.map((product) => (
-                        <option key={product.id} value={product.id}>
-                          {product.name}
-                        </option>
-                      ))}
-                    </select>
+                    <ComboboxControl
+                      ariaLabel={`Product on line ${index + 1}`}
+                      size="sm"
+                      value={line.product_id}
+                      onChange={(value) => onProductChange(line.id, value)}
+                      options={productOptions}
+                      placeholder="Search products…"
+                    />
                   )}
                 </td>
                 <td className="px-3 py-1.5">
                   {readOnly ? (
                     <span className={cellText}>{accountLabel(line.account_id)}</span>
                   ) : (
-                    <select
-                      aria-label={`Account on line ${index + 1}`}
-                      className={cellSelect}
-                      value={line.account_id ?? ""}
-                      onChange={(event) =>
-                        update(line.id, {
-                          account_id: event.target.value ? Number(event.target.value) : null,
-                        })
-                      }
-                    >
-                      <option value="">Select account</option>
-                      {accounts.map((account) => (
-                        <option key={account.id} value={account.id}>
-                          {account.code} · {account.name}
-                        </option>
-                      ))}
-                    </select>
+                    <ComboboxControl
+                      ariaLabel={`Account on line ${index + 1}`}
+                      size="sm"
+                      value={line.account_id}
+                      onChange={(value) => update(line.id, { account_id: value })}
+                      options={accountOptions}
+                      placeholder="Search accounts…"
+                    />
                   )}
                 </td>
                 <td className="px-3 py-1.5">
@@ -179,23 +171,15 @@ export function LineItemTable({
                       {nameOf(analyticAccounts, line.analytic_account_id)}
                     </span>
                   ) : (
-                    <select
-                      aria-label={`Analytic account on line ${index + 1}`}
-                      className={cellSelect}
-                      value={line.analytic_account_id ?? ""}
-                      onChange={(event) =>
-                        update(line.id, {
-                          analytic_account_id: event.target.value ? Number(event.target.value) : null,
-                        })
-                      }
-                    >
-                      <option value="">None</option>
-                      {analyticAccounts.map((analytic) => (
-                        <option key={analytic.id} value={analytic.id}>
-                          {analytic.name}
-                        </option>
-                      ))}
-                    </select>
+                    <ComboboxControl
+                      ariaLabel={`Analytic account on line ${index + 1}`}
+                      size="sm"
+                      value={line.analytic_account_id}
+                      onChange={(value) => update(line.id, { analytic_account_id: value })}
+                      options={analyticOptions}
+                      placeholder="None"
+                      clearLabel="None"
+                    />
                   )}
                 </td>
                 <td className="w-20 px-3 py-1.5">

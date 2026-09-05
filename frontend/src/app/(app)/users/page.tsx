@@ -171,9 +171,21 @@ export default function UsersPage() {
     {
       key: "contact",
       header: "Linked contact",
-      render: (user) => (
-        <span className="text-[var(--text-muted)]">{user.contact?.name ?? "—"}</span>
-      ),
+      render: (user) =>
+        user.role === "user" ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              openRoleEditor(user);
+            }}
+            className="cursor-pointer rounded text-[var(--text-muted)] underline decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          >
+            {user.contact?.name ?? "Link a contact"}
+          </button>
+        ) : (
+          <span className="text-[var(--text-muted)]">{user.contact?.name ?? "—"}</span>
+        ),
     },
     {
       key: "actions",
@@ -184,7 +196,7 @@ export default function UsersPage() {
         return (
           <div className="flex items-center justify-end gap-2">
             <Button size="sm" disabled={busyId === user.id} onClick={() => openRoleEditor(user)}>
-              Change role
+              Edit access
             </Button>
             <Button
               size="sm"
@@ -317,7 +329,7 @@ export default function UsersPage() {
         onClose={() => setTarget(null)}
         as="form"
         onSubmit={saveRole}
-        title="Change role"
+        title="Role and linked contact"
         description={
           target ? `${target.name} · ${target.login_id}` : undefined
         }
@@ -327,7 +339,7 @@ export default function UsersPage() {
               Cancel
             </Button>
             <Button type="submit" variant="primary" size="sm" disabled={savingRole}>
-              {savingRole ? "Saving…" : "Save role"}
+              {savingRole ? "Saving…" : "Save changes"}
             </Button>
           </>
         }
@@ -359,7 +371,7 @@ export default function UsersPage() {
                 label: contact.name,
               }))}
               placeholder="Search contacts…"
-              hint="The portal account can only see this contact's documents."
+              hint="Change this to point the account at a different customer. It only ever sees this contact's documents."
               required
             />
           )}

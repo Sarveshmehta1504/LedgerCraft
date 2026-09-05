@@ -260,7 +260,7 @@ export default function PortalInvoicePage() {
         onClose={() => setPayOpen(false)}
         as="form"
         onSubmit={pay}
-        width="lg"
+        width="xl"
         padded={false}
         title="Confirm payment"
         description={`${current.invoice_number} · billed to ${current.contact_name}`}
@@ -281,112 +281,126 @@ export default function PortalInvoicePage() {
           </>
         }
       >
-        {/* The figure is the whole point of a checkout, so it leads — mono and
-            tabular so the digits do not shift as the amount changes. */}
-        <div className="border-y border-[var(--line)] bg-[var(--surface-sunken)] px-5 py-4">
-          <p className="text-[11px] uppercase tracking-wide text-[var(--text-subtle)]">
-            Amount due
-          </p>
-          <p className="tnum mt-0.5 font-mono text-[28px] font-semibold leading-none tracking-tight text-[var(--text)]">
-            {formatMoney(due)}
-          </p>
-          <p className="mt-2 text-[12px] text-[var(--text-muted)]">
-            {formatMoney(current.amount_paid)} of {formatMoney(current.total)} already paid
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-5 px-5 py-5">
-          {payError && <InlineAlert title={payError} />}
-
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-[13px] font-medium text-[var(--text-muted)]">
-              How much are you paying?
-            </legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <ChoiceCard
-                selected={mode === "full"}
-                onSelect={() => {
-                  setMode("full");
-                  setPayError(null);
-                }}
-                title="Pay in full"
-                caption={formatMoney(due)}
-              />
-              <ChoiceCard
-                selected={mode === "part"}
-                onSelect={() => {
-                  setMode("part");
-                  setPayError(null);
-                }}
-                title="Part payment"
-                caption="Choose an amount"
-              />
+        {/* Landscape: the figure and the reassurance sit in a rail on the left,
+            the decisions on the right. Stacked, this ran past the fold on a
+            laptop — a confirmation the customer has to scroll is a worse
+            confirmation. */}
+        <div className="grid border-t border-[var(--line)] sm:grid-cols-[13rem_1fr] lg:grid-cols-[15rem_1fr]">
+          <aside className="flex flex-col gap-3 border-b border-[var(--line)] bg-[var(--surface-sunken)] px-5 py-4 sm:border-b-0 sm:border-r">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-[var(--text-subtle)]">
+                Amount due
+              </p>
+              <p className="tnum mt-0.5 font-mono text-[26px] font-semibold leading-none tracking-tight text-[var(--text)]">
+                {formatMoney(due)}
+              </p>
             </div>
-            {mode === "part" && (
-              <div className="mt-1">
-                <TextField
-                  label="Amount to pay"
-                  type="number"
-                  min={0}
-                  max={due}
-                  step="0.01"
-                  value={amount}
-                  onChange={(event) => {
-                    setAmount(Number(event.target.value));
+            <dl className="flex flex-col gap-1 text-[12px]">
+              <div className="flex justify-between gap-3">
+                <dt className="text-[var(--text-muted)]">Invoice total</dt>
+                <dd className="tnum font-mono">{formatMoney(current.total)}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-[var(--text-muted)]">Already paid</dt>
+                <dd className="tnum font-mono">{formatMoney(current.amount_paid)}</dd>
+              </div>
+            </dl>
+            <p className="mt-auto hidden text-[11px] leading-relaxed text-[var(--text-subtle)] sm:block">
+              Recorded against {current.invoice_number} straight away. Urban Furniture never asks
+              for card or UPI PIN details here.
+            </p>
+          </aside>
+
+          <div className="flex flex-col gap-4 px-5 py-4">
+            {payError && <InlineAlert title={payError} />}
+
+            <fieldset>
+              <legend className="mb-1.5 text-[13px] font-medium text-[var(--text-muted)]">
+                How much are you paying?
+              </legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <ChoiceCard
+                  selected={mode === "full"}
+                  onSelect={() => {
+                    setMode("full");
                     setPayError(null);
                   }}
-                  className="tnum font-mono"
-                  hint={`Anything up to ${formatMoney(due)}. The balance stays on the invoice.`}
-                  required
+                  title="Pay in full"
+                  caption={formatMoney(due)}
+                />
+                <ChoiceCard
+                  selected={mode === "part"}
+                  onSelect={() => {
+                    setMode("part");
+                    setPayError(null);
+                  }}
+                  title="Part payment"
+                  caption="Choose an amount"
                 />
               </div>
-            )}
-          </fieldset>
+              {mode === "part" && (
+                <div className="mt-2">
+                  <TextField
+                    label="Amount to pay"
+                    type="number"
+                    min={0}
+                    max={due}
+                    step="0.01"
+                    value={amount}
+                    onChange={(event) => {
+                      setAmount(Number(event.target.value));
+                      setPayError(null);
+                    }}
+                    className="tnum font-mono"
+                    hint={`Up to ${formatMoney(due)}; the balance stays on the invoice.`}
+                    required
+                  />
+                </div>
+              )}
+            </fieldset>
 
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-[13px] font-medium text-[var(--text-muted)]">
-              How are you paying?
-            </legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <ChoiceCard
-                selected={via === "bank"}
-                onSelect={() => setVia("bank")}
-                icon={<Landmark size={16} />}
-                title="Bank transfer"
-                caption="NEFT, IMPS or UPI"
+            <fieldset>
+              <legend className="mb-1.5 text-[13px] font-medium text-[var(--text-muted)]">
+                How are you paying?
+              </legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <ChoiceCard
+                  selected={via === "bank"}
+                  onSelect={() => setVia("bank")}
+                  icon={<Landmark size={16} />}
+                  title="Bank transfer"
+                  caption="NEFT, IMPS or UPI"
+                />
+                <ChoiceCard
+                  selected={via === "cash"}
+                  onSelect={() => setVia("cash")}
+                  icon={<Banknote size={16} />}
+                  title="Cash"
+                  caption="Paid in person"
+                />
+              </div>
+            </fieldset>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <TextField
+                label="Reference"
+                value={reference}
+                onChange={(event) => setReference(event.target.value)}
+                placeholder={via === "bank" ? "UTR or transaction ID" : "Receipt number"}
               />
-              <ChoiceCard
-                selected={via === "cash"}
-                onSelect={() => setVia("cash")}
-                icon={<Banknote size={16} />}
-                title="Cash"
-                caption="Paid in person"
+              <TextField
+                label="Note"
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                placeholder="Anything we should know"
               />
             </div>
-          </fieldset>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
-              label="Reference"
-              value={reference}
-              onChange={(event) => setReference(event.target.value)}
-              placeholder={via === "bank" ? "UTR or transaction ID" : "Receipt number"}
-              hint="Optional, but it makes this easy to trace later."
-            />
-            <TextField
-              label="Note"
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              placeholder="Anything we should know"
-            />
+            <p className="text-[11px] leading-relaxed text-[var(--text-subtle)] sm:hidden">
+              Recorded against {current.invoice_number} straight away. Urban Furniture never asks
+              for card or UPI PIN details here.
+            </p>
           </div>
-
-          {/* An honest trust line: this records a payment against the ledger, it
-              is not a card gateway, and saying otherwise would be a lie. */}
-          <p className="text-[12px] leading-relaxed text-[var(--text-subtle)]">
-            Confirming records this payment against {current.invoice_number} straight away and
-            updates your balance. Urban Furniture never asks for card or UPI PIN details here.
-          </p>
         </div>
       </Modal>
 

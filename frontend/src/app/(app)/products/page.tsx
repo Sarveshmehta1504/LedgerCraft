@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { ComboboxControl } from "@/components/ui/Combobox";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ViewSwitcher, type ViewMode } from "@/components/shared/ViewSwitcher";
@@ -95,19 +96,17 @@ export default function ProductsPage() {
           aria-label="Search products"
           className="h-8 w-64 rounded-md border border-[var(--line-strong)] px-2.5 text-sm transition-colors duration-150 placeholder:text-[var(--text-subtle)] focus:outline-2 focus:-outline-offset-1 focus:outline-[var(--accent)]"
         />
-        <select
-          value={categoryId}
-          onChange={(event) => setCategoryId(event.target.value)}
-          aria-label="Filter by category"
-          className="h-8 cursor-pointer rounded-md border border-[var(--line-strong)] px-2 text-[13px] transition-colors duration-150 focus:outline-2 focus:-outline-offset-1 focus:outline-[var(--accent)]"
-        >
-          <option value="">All categories</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
+        <div className="w-56">
+          <ComboboxControl
+            ariaLabel="Filter by category"
+            size="sm"
+            value={categoryId ? Number(categoryId) : null}
+            onChange={(value) => setCategoryId(value === null ? "" : String(value))}
+            options={categories.map((category) => ({ value: category.id, label: category.name }))}
+            placeholder="All categories"
+            clearLabel="All categories"
+          />
+        </div>
       </div>
 
       {view === "list" ? (

@@ -11,6 +11,8 @@ import type { User } from "@/types";
  */
 const TOKEN_KEY = "ledgercraft.token";
 const USER_KEY = "ledgercraft.user";
+/** When the current token stops working, so it can be replaced before it does. */
+const EXPIRES_KEY = "ledgercraft.expires_at";
 
 /** Where an unauthenticated visitor is sent. */
 export const LOGIN_PATH = "/login";
@@ -35,9 +37,20 @@ export function getCurrentUser(): User | null {
   }
 }
 
-export function setSession(token: string, user: User): void {
+export function setSession(token: string, user: User, expiresAt?: string | null): void {
   window.localStorage.setItem(TOKEN_KEY, token);
   window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+  if (expiresAt) window.localStorage.setItem(EXPIRES_KEY, expiresAt);
+  else window.localStorage.removeItem(EXPIRES_KEY);
+}
+
+/** Epoch ms, or null when the session predates expiry tracking. */
+export function getSessionExpiry(): number | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(EXPIRES_KEY);
+  if (!raw) return null;
+  const at = Date.parse(raw);
+  return Number.isNaN(at) ? null : at;
 }
 
 /** Wipes every trace of the session. Safe to call when already signed out. */
@@ -45,6 +58,7 @@ export function clearSession(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(TOKEN_KEY);
   window.localStorage.removeItem(USER_KEY);
+  window.localStorage.removeItem(EXPIRES_KEY);
 }
 
 /**

@@ -33,7 +33,7 @@ export function Modal({
   description?: string;
   footer?: ReactNode;
   children: ReactNode;
-  width?: "sm" | "md" | "lg";
+  width?: "sm" | "md" | "lg" | "xl";
   as?: "div" | "form";
   /** Off when the body brings its own edge-to-edge sections. */
   padded?: boolean;
@@ -43,6 +43,15 @@ export function Modal({
   const returnFocusTo = useRef<HTMLElement | null>(null);
   const titleId = useId();
   const descriptionId = useId();
+
+  // Callers pass an inline arrow, so `onClose` is a new function on every
+  // render. Keeping it out of the effect's deps is what stops the effect below
+  // from tearing down and re-running on each keystroke — its cleanup restores
+  // focus to the trigger, which used to throw the caret out of the field.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -57,7 +66,7 @@ export function Modal({
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab" || !panelRef.current) return;
@@ -80,16 +89,16 @@ export function Modal({
       document.body.style.overflow = overflow;
       returnFocusTo.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
-  const widths = { sm: "max-w-sm", md: "max-w-[26rem]", lg: "max-w-lg" };
+  const widths = { sm: "max-w-sm", md: "max-w-[26rem]", lg: "max-w-lg", xl: "max-w-3xl" };
   const Panel = as;
 
   return (
     <div
-      className="modal-backdrop fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-zinc-900/35 px-4 py-[10vh] backdrop-blur-[2px]"
+      className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/35 p-4 backdrop-blur-[2px] sm:p-6"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -102,9 +111,9 @@ export function Modal({
         aria-describedby={description ? descriptionId : undefined}
         onSubmit={onSubmit}
         noValidate={as === "form" ? true : undefined}
-        className={`modal-panel w-full ${widths[width]} overflow-hidden rounded-xl border border-[var(--line)] bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04),0_12px_32px_-8px_rgba(24,24,27,0.18)]`}
+        className={`modal-panel flex max-h-full w-full flex-col ${widths[width]} overflow-hidden rounded-xl border border-[var(--line)] bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04),0_12px_32px_-8px_rgba(24,24,27,0.18)]`}
       >
-        <header className="flex items-start justify-between gap-4 px-5 pb-3 pt-4">
+        <header className="flex shrink-0 items-start justify-between gap-4 px-5 pb-3 pt-4">
           <div className="min-w-0">
             <h2 id={titleId} className="text-[15px] font-semibold tracking-tight text-[var(--text)]">
               {title}
@@ -125,10 +134,10 @@ export function Modal({
           </button>
         </header>
 
-        <div className={padded ? "px-5 pb-5" : "pb-0"}>{children}</div>
+        <div className={`min-h-0 flex-1 overflow-y-auto ${padded ? "px-5 pb-5" : ""}`}>{children}</div>
 
         {footer && (
-          <footer className="flex items-center justify-end gap-2 border-t border-[var(--line)] bg-[var(--surface-sunken)] px-5 py-3">
+          <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--line)] bg-[var(--surface-sunken)] px-5 py-3">
             {footer}
           </footer>
         )}
