@@ -5,7 +5,16 @@ import type { ApiEnvelope } from "@/types";
  * { code, message, data } envelope from docs/API_DOCUMENTATION.md, so unwrap it
  * here once rather than in every screen.
  */
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+/**
+ * The API base has no hardcoded fallback on purpose: a missing variable should
+ * surface immediately rather than silently pointing the app at someone's laptop.
+ * Copy .env.example to .env.local to set it.
+ */
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+if (typeof window !== "undefined" && !API_URL) {
+  throw new Error("NEXT_PUBLIC_API_URL is not set — copy .env.example to .env.local.");
+}
 
 const TOKEN_KEY = "ledgercraft.token";
 

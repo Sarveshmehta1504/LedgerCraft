@@ -81,6 +81,12 @@ export default function ProfitAndLossPage() {
               total={report.total_expenses}
               formatValue={formatMoney}
             />
+            <ReportSection
+              heading="Other Expenses"
+              rows={report.other_expenses}
+              total={report.total_other_expenses}
+              formatValue={formatMoney}
+            />
           </div>
 
           <div className="flex items-center justify-between border-t-2 border-[var(--line-strong)] bg-[var(--surface-sunken)] px-5 py-3">

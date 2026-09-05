@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import { ReportShell } from "@/components/shared/ReportShell";
+import { BudgetPie } from "@/components/shared/BudgetPie";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { formatMoney } from "@/lib/format";
 import { mockRequest } from "@/lib/mock-data";
@@ -82,7 +83,12 @@ export default function BudgetReportPage() {
         />
       ) : (
         <>
-          <BudgetChart rows={rows} />
+          <div className="grid divide-y divide-[var(--line)] lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+            <BudgetChart rows={rows} />
+            <BudgetPie
+              data={rows.map((row) => ({ name: row.analytic_account, value: row.planned_amount }))}
+            />
+          </div>
           <div className="overflow-x-auto border-t border-[var(--line)]">
             <table className="w-full min-w-[640px] border-collapse text-sm">
               <thead>
