@@ -151,6 +151,8 @@ export interface AnalyticAccount {
   id: number;
   name: string;
   type: AnalyticAccountType;
+  /** Archived rather than deleted: a budget may still reference the account. */
+  archived_at: string | null;
 }
 
 export type BudgetStatus = "draft" | "confirmed" | "revised" | "cancelled";
@@ -197,6 +199,8 @@ export interface PurchaseOrder {
   number: string;
   contact_id: number;
   date: string;
+  /** Carried onto the bill on conversion, which is what puts it in the aging report. */
+  due_date: string | null;
   /** Present once the order has been converted. */
   bill?: ConvertedDocument | null;
   status: Extract<DocumentStatus, "draft" | "confirmed" | "billed">;
@@ -231,6 +235,8 @@ export interface SalesOrder {
   number: string;
   contact_id: number;
   date: string;
+  /** Carried onto the invoice on conversion, which is what puts it in the aging report. */
+  due_date: string | null;
   /** Present once the order has been converted. */
   invoice?: ConvertedDocument | null;
   status: Extract<DocumentStatus, "draft" | "confirmed" | "invoiced">;

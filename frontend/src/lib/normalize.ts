@@ -45,6 +45,7 @@ export function mapAnalyticAccount(raw: Raw): AnalyticAccount {
     id: raw.id,
     name: raw.name,
     type: raw.type,
+    archived_at: raw.archived_at ?? null,
   };
 }
 
@@ -221,6 +222,7 @@ export function mapPurchaseOrder(raw: Raw): PurchaseOrder {
     number: raw.number,
     contact_id: raw.contact_id,
     date: raw.date,
+    due_date: raw.due_date ?? null,
     bill: raw.bill
       ? { id: raw.bill.id, number: raw.bill.bill_number, status: raw.bill.status }
       : null,
@@ -236,6 +238,7 @@ export function mapSalesOrder(raw: Raw): SalesOrder {
     number: raw.number,
     contact_id: raw.contact_id,
     date: raw.date,
+    due_date: raw.due_date ?? null,
     invoice: raw.invoice
       ? { id: raw.invoice.id, number: raw.invoice.invoice_number, status: raw.invoice.status }
       : null,

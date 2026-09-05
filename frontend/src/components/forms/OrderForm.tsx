@@ -86,6 +86,7 @@ export function OrderForm({
 
   const [contactId, setContactId] = useState<number | null>(order?.contact_id ?? null);
   const [date, setDate] = useState(order?.date.slice(0, 10) ?? today());
+  const [dueDate, setDueDate] = useState(order?.due_date?.slice(0, 10) ?? "");
   const [status, setStatus] = useState<string>(order?.status ?? "draft");
   const [converted, setConverted] = useState<ConvertedDocument | null>(convertedOf(order));
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
@@ -117,6 +118,7 @@ export function OrderForm({
   function validate(): boolean {
     const next: Record<string, string> = {};
     if (contactId === null) next.contact_id = `Select a ${copy.partnerLabel.toLowerCase()}.`;
+    if (dueDate && dueDate < date) next.due_date = "Due date cannot be before the order date.";
     if (lines.some((line) => line.product_id === null)) next.lines = "Every line needs a product.";
     if (lines.some((line) => line.quantity <= 0 || line.unit_price < 0))
       next.lines = "Quantity must be greater than zero and price cannot be negative.";
@@ -137,13 +139,14 @@ export function OrderForm({
         if (!id) {
           const created =
             side === "purchase"
-              ? await PurchaseOrdersApi.create({ contact_id: contactId!, date, lines })
-              : await SalesOrdersApi.create({ contact_id: contactId!, date, lines });
+              ? await PurchaseOrdersApi.create({ contact_id: contactId!, date, due_date: dueDate || null, lines })
+              : await SalesOrdersApi.create({ contact_id: contactId!, date, due_date: dueDate || null, lines });
           id = created.id;
         } else {
           // Persist whatever was edited before confirming, not just on an explicit Save.
-          if (side === "purchase") await PurchaseOrdersApi.update(id, { contact_id: contactId!, date, lines });
-          else await SalesOrdersApi.update(id, { contact_id: contactId!, date, lines });
+          if (side === "purchase")
+            await PurchaseOrdersApi.update(id, { contact_id: contactId!, date, due_date: dueDate || null, lines });
+          else await SalesOrdersApi.update(id, { contact_id: contactId!, date, due_date: dueDate || null, lines });
         }
         if (action === "confirm") {
           const updated =
@@ -265,6 +268,22 @@ export function OrderForm({
           />
         ) : (
           <ReadOnlyField label="Date" value={formatDate(date)} />
+        )}
+        {isDraft ? (
+          <TextField
+            label="Due date"
+            type="date"
+            min={date}
+            value={dueDate}
+            onChange={(event) => {
+              touched();
+              setDueDate(event.target.value);
+            }}
+            error={errors.due_date}
+            hint={`Optional. Carried onto the ${copy.convertLabel.replace("Create ", "").toLowerCase()}, which is what puts it in the aging report.`}
+          />
+        ) : (
+          <ReadOnlyField label="Due date" value={dueDate ? formatDate(dueDate) : "—"} />
         )}
       </div>
 

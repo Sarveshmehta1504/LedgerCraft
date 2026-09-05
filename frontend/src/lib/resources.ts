@@ -93,7 +93,7 @@ export const PortalApi = {
    * The pay response carries only a summary — no lines, no contact — so the
    * full record is re-read rather than letting the screen lose its detail.
    */
-  pay: async (id: number, input: { amount: number; payment_via?: PaymentVia; note?: string }) => {
+  pay: async (id: number, input: { amount: number; payment_via?: PaymentVia; reference?: string; note?: string }) => {
     await apiFetch<{ payment: Raw; invoice: Raw }>(`/my/invoices/${id}/pay`, {
       method: "POST",
       body: JSON.stringify(input),
@@ -115,7 +115,11 @@ export const PortalApi = {
 };
 
 export const AnalyticAccountsApi = {
-  list: () => apiFetch<Raw[]>("/analytic-accounts").then((rows) => rows.map(mapAnalyticAccount)),
+  /** Archived accounts are excluded unless asked for — same contract as contacts and products. */
+  list: (archived?: "1" | "only") =>
+    apiFetch<Raw[]>(`/analytic-accounts${archived ? `?archived=${archived}` : ""}`).then((rows) =>
+      rows.map(mapAnalyticAccount),
+    ),
   get: (id: number) => apiFetch<Raw>(`/analytic-accounts/${id}`).then(mapAnalyticAccount),
   create: (input: { name: string; type: AnalyticAccountType }) =>
     apiFetch<Raw>("/analytic-accounts", { method: "POST", body: JSON.stringify(input) }).then(
@@ -126,6 +130,13 @@ export const AnalyticAccountsApi = {
       mapAnalyticAccount,
     ),
   remove: (id: number) => apiFetch<Raw>(`/analytic-accounts/${id}`, { method: "DELETE" }),
+  /** Archive, not delete: budgets keep pointing at the account. Admin only. */
+  archive: (id: number) =>
+    apiFetch<Raw>(`/analytic-accounts/${id}/archive`, { method: "PATCH" }).then(mapAnalyticAccount),
+  unarchive: (id: number) =>
+    apiFetch<Raw>(`/analytic-accounts/${id}/unarchive`, { method: "PATCH" }).then(
+      mapAnalyticAccount,
+    ),
 };
 
 export const BudgetsApi = {
@@ -235,12 +246,12 @@ export const JournalsApi = {
 export const PurchaseOrdersApi = {
   list: () => apiFetch<Raw[]>("/purchase-orders").then((rows) => rows.map(mapPurchaseOrder)),
   get: (id: number) => apiFetch<Raw>(`/purchase-orders/${id}`).then(mapPurchaseOrder),
-  create: (input: { contact_id: number; date: string; lines: DocumentLine[] }) =>
+  create: (input: { contact_id: number; date: string; due_date?: string | null; lines: DocumentLine[] }) =>
     apiFetch<Raw>("/purchase-orders", {
       method: "POST",
       body: JSON.stringify({ ...input, lines: input.lines.map(toLinePayload) }),
     }).then(mapPurchaseOrder),
-  update: (id: number, input: { contact_id: number; date: string; lines: DocumentLine[] }) =>
+  update: (id: number, input: { contact_id: number; date: string; due_date?: string | null; lines: DocumentLine[] }) =>
     apiFetch<Raw>(`/purchase-orders/${id}`, {
       method: "PUT",
       body: JSON.stringify({ ...input, lines: input.lines.map(toLinePayload) }),
@@ -263,7 +274,7 @@ export const VendorBillsApi = {
       method: "POST",
       body: JSON.stringify(to ? { to } : {}),
     }),
-  registerPayment: (id: number, input: { amount: number; payment_via: PaymentVia; date?: string; note?: string }) =>
+  registerPayment: (id: number, input: { amount: number; payment_via: PaymentVia; date?: string; reference?: string; note?: string }) =>
     apiFetch<{ payment: Raw; bill: Raw }>(`/vendor-bills/${id}/payments`, {
       method: "POST",
       body: JSON.stringify(input),
@@ -273,12 +284,12 @@ export const VendorBillsApi = {
 export const SalesOrdersApi = {
   list: () => apiFetch<Raw[]>("/sales-orders").then((rows) => rows.map(mapSalesOrder)),
   get: (id: number) => apiFetch<Raw>(`/sales-orders/${id}`).then(mapSalesOrder),
-  create: (input: { contact_id: number; date: string; lines: DocumentLine[] }) =>
+  create: (input: { contact_id: number; date: string; due_date?: string | null; lines: DocumentLine[] }) =>
     apiFetch<Raw>("/sales-orders", {
       method: "POST",
       body: JSON.stringify({ ...input, lines: input.lines.map(toLinePayload) }),
     }).then(mapSalesOrder),
-  update: (id: number, input: { contact_id: number; date: string; lines: DocumentLine[] }) =>
+  update: (id: number, input: { contact_id: number; date: string; due_date?: string | null; lines: DocumentLine[] }) =>
     apiFetch<Raw>(`/sales-orders/${id}`, {
       method: "PUT",
       body: JSON.stringify({ ...input, lines: input.lines.map(toLinePayload) }),
@@ -301,7 +312,7 @@ export const CustomerInvoicesApi = {
       method: "POST",
       body: JSON.stringify(to ? { to } : {}),
     }),
-  registerPayment: (id: number, input: { amount: number; payment_via: PaymentVia; date?: string; note?: string }) =>
+  registerPayment: (id: number, input: { amount: number; payment_via: PaymentVia; date?: string; reference?: string; note?: string }) =>
     apiFetch<{ payment: Raw; invoice: Raw }>(`/customer-invoices/${id}/payments`, {
       method: "POST",
       body: JSON.stringify(input),

@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
+import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ApiError } from "@/lib/api";
 import { ReportsApi, type ReportName, type ReportParams } from "@/lib/resources";
@@ -43,14 +44,6 @@ export function ReportShell({
   const [to, setTo] = useState("");
   const [toError, setToError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!askOpen) return;
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setAskOpen(false);
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [askOpen]);
 
   async function onPrint() {
     setPrinting(true);
@@ -138,53 +131,40 @@ export function ReportShell({
 
       {children}
 
-      {askOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setAskOpen(false);
+      <Modal
+        open={askOpen}
+        onClose={() => setAskOpen(false)}
+        as="form"
+        onSubmit={onSend}
+        title="Email this report"
+        description={`${title}, attached as a PDF for the period on screen.`}
+        footer={
+          <>
+            <Button size="sm" onClick={() => setAskOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" size="sm" disabled={sending}>
+              {sending ? "Sending…" : "Send report"}
+            </Button>
+          </>
+        }
+      >
+        <TextField
+          label="Send to"
+          type="email"
+          autoComplete="off"
+          placeholder="name@company.com"
+          value={to}
+          onChange={(event) => {
+            setTo(event.target.value);
+            setToError(null);
           }}
-        >
-          <form
-            onSubmit={onSend}
-            noValidate
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Email ${title}`}
-            className="w-full max-w-lg rounded-lg border border-[var(--line)] bg-white shadow-lg [&>header:first-child]:rounded-t-lg"
-          >
-            <PageHeader
-              title="Email this report"
-              subtitle={`${title} — attached as a PDF for the period on screen`}
-              actions={
-                <Button type="submit" variant="primary" size="sm" disabled={sending}>
-                  {sending ? "Sending…" : "Send"}
-                </Button>
-              }
-              trailing={
-                <Button size="sm" onClick={() => setAskOpen(false)}>
-                  Cancel
-                </Button>
-              }
-            />
-            <div className="p-5">
-              <TextField
-                label="Send to"
-                type="email"
-                autoComplete="off"
-                value={to}
-                onChange={(event) => {
-                  setTo(event.target.value);
-                  setToError(null);
-                }}
-                error={toError ?? undefined}
-                hint="A report has no customer of its own, so it needs an address."
-                required
-              />
-            </div>
-          </form>
-        </div>
-      )}
+          error={toError ?? undefined}
+          hint="A report has no customer of its own, so it needs an address."
+          required
+        />
+      </Modal>
+
     </div>
   );
 }
