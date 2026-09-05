@@ -1,0 +1,158 @@
+# Frontend Requirements
+
+# 1. Login
+
+## Route
+`/login`
+
+## Components
+Login form, error message, loading state.
+
+## API
+`POST /api/auth/login` — store token, redirect by role: admin/invoicing_user →
+`/dashboard`, contact → `/portal`.
+
+---
+
+# 2. Dashboard (Admin / Invoicing User home)
+
+## Route
+`/dashboard`
+
+## Components
+* KPI cards (cash position, receivables, payables, overdue count) — P1
+* Quick links: New Sales Order, New Purchase Order, View Reports
+* Recent transactions list
+
+## API
+`GET /api/reports/dashboard` (P1) — for P0, a simple links/nav landing page is enough.
+
+## States
+Loading, Empty, Error, Success
+
+---
+
+# 3. Master Data — Contacts
+
+## Route
+`/contacts`, `/contacts/new`, `/contacts/[id]`
+
+## User Actions
+1. List/search/filter contacts by type
+2. Create/edit contact (name, type, email, mobile, address, profile image)
+3. Archive contact (Admin only — button hidden for Invoicing User)
+
+## API Dependencies
+`GET/POST/PUT /api/contacts`, `PATCH /api/contacts/{id}/archive`
+
+## Success
+Table updates optimistically or on refetch; toast confirms.
+
+## Failure
+Inline field errors from 422 `errors` payload; toast for 403/500.
+
+---
+
+# 4. Master Data — Products, Chart of Accounts, Journals
+
+Same pattern as Contacts: list + form + (archive for Admin). Routes:
+`/products`, `/accounts`, `/journals`. Chart of Accounts list should visually
+group by `type` (Assets/Liabilities/Income/Expense/Capital) — this doubles as a
+mini reference screen during the demo.
+
+---
+
+# 5. Purchase Flow
+
+## Routes
+`/purchases` (PO list), `/purchases/new`, `/purchases/[id]` (PO detail with
+"Convert to Bill" button), `/bills/[id]` (Bill detail with "Post" and
+"Register Payment" buttons)
+
+## User Actions
+1. Create PO: pick vendor contact, add product lines, quantity/unit price
+2. Confirm PO
+3. Convert to Bill → navigates to bill detail
+4. Post Bill → shows the generated journal entry inline (debit/credit rows) —
+   this is a good "show the ledger" moment for the demo
+5. Register Payment (Cash/Bank) → status updates to Paid when fully settled
+
+## API Dependencies
+See API_DOCUMENTATION.md → Purchase Flow
+
+## Success
+Status badges update live (Draft → Confirmed → Billed / Draft → Posted → Paid)
+
+## Failure
+422 overpayment / already-posted errors surfaced as inline alerts, not silent toasts —
+these are business-rule violations the user should understand, not just dismiss.
+
+---
+
+# 6. Sales Flow
+
+Same pattern as Purchase Flow. Routes: `/sales`, `/sales/new`, `/sales/[id]`,
+`/invoices/[id]`.
+
+---
+
+# 7. Reports
+
+## Routes
+`/reports/balance-sheet`, `/reports/profit-and-loss`, `/reports/budget`,
+`/reports/aging` (P1)
+
+## User Actions
+1. Pick a date/period
+2. View report table, grouped by account type
+3. (P1) Export to PDF
+
+## API Dependencies
+`GET /api/reports/balance-sheet`, `GET /api/reports/profit-and-loss`,
+`GET /api/reports/budget`
+
+## Success
+Numbers render immediately from the API response; a "Balance Check" line
+(Total Assets vs Total Liabilities+Capital) should visually confirm they match —
+strong demo signal that the ledger is correct.
+
+## Failure
+Invalid date range → inline message; empty period → "No transactions in this
+period" empty state, not a blank table.
+
+---
+
+# 8. Contact Portal (separate, restricted view)
+
+## Route
+`/portal` (own layout, no access to `/dashboard`, `/contacts`, etc. — enforce
+both client-side route guard AND rely on backend 403 as the real security
+boundary)
+
+## User Actions
+1. View list of own invoices/bills with status
+2. Open one, view line items
+3. Register a payment against it (Cash/Bank)
+
+## API Dependencies
+`GET /api/my/invoices`, `GET /api/my/bills`, `POST /api/my/invoices/{id}/pay`
+
+## Success
+Status flips to Paid immediately after payment.
+
+## Failure
+Attempting to view another contact's data should be structurally impossible
+from this UI (no ID is ever exposed that isn't the user's own) — do not rely on
+hiding a link as the only protection.
+
+---
+
+# Global Notes
+
+* Every list screen: Loading / Empty / Error / Success states, per
+  `UI_GUIDELINES.md`.
+* Role-based nav: render only the links the current role can use — read the
+  role off `/api/auth/me` once after login and store in a lightweight
+  client-side auth context.
+* All monetary values formatted consistently (2 decimals, currency symbol) via
+  one shared formatter utility — do not hand-format numbers per screen.
