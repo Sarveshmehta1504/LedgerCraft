@@ -9,8 +9,7 @@ Route::get('/user', function (Request $request) {
 
 Route::get('/health', function () {
     return response()->json([
-        'code' => 200,
-        'status' => 'ok',
-        'message' => 'API is healthy',
+        "code" => 200,
+        "message" => "Backend is running successfully"
     ]);
 });

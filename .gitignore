@@ -1,0 +1,76 @@
+# ---- OS ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Editors / IDEs ----
+.idea/
+.vscode/
+.fleet/
+.nova/
+.zed/
+*.swp
+*.swo
+
+# ---- Environment ----
+.env
+.env.*
+!.env.example
+
+# ---- Logs ----
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Dependencies ----
+node_modules/
+vendor/
+
+# ---- Build output ----
+dist/
+build/
+out/
+.next/
+.turbo/
+.cache/
+*.tsbuildinfo
+
+# ---- Backend (Laravel) ----
+backend/public/build/
+backend/public/hot
+backend/public/storage
+backend/storage/*.key
+backend/storage/pail
+backend/storage/framework/cache/data/*
+backend/storage/framework/sessions/*
+backend/storage/framework/testing/*
+backend/storage/framework/views/*
+backend/storage/logs/*
+backend/bootstrap/cache/*.php
+backend/auth.json
+backend/.phpunit.cache/
+backend/.phpunit.result.cache
+backend/.phpactor.json
+backend/database/*.sqlite
+backend/database/*.sqlite-journal
+backend/Homestead.json
+backend/Homestead.yaml
+
+# ---- Testing / coverage ----
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# ---- Misc ----
+*.local
+.eslintcache
+
+# ---- AI assistant config ----
+.claude/
+.agents/
+CLAUDE.md
+AGENTS.md
