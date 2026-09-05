@@ -146,6 +146,7 @@ class CustomerInvoiceService
                 'journal_id' => $journal->id,
                 'amount' => $amount,
                 'date' => $date,
+                'reference' => $data['reference'] ?? null,
                 'note' => $data['note'] ?? null,
             ]);
 

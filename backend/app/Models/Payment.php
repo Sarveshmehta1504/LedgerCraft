@@ -12,7 +12,7 @@ class Payment extends Model
 
     protected $fillable = [
         'contact_id', 'payment_type', 'payable_type', 'payable_id',
-        'payment_via', 'journal_id', 'amount', 'date', 'note', 'journal_entry_id',
+        'payment_via', 'journal_id', 'amount', 'date', 'reference', 'note', 'journal_entry_id',
     ];
 
     protected function casts(): array

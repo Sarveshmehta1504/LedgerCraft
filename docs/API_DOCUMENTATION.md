@@ -254,7 +254,10 @@ can badge archived rows.
 # Purchase Orders
 
 * `GET /purchase-orders` — filters: `status`, `contact_id`, `search` (by number)
-* `POST /purchase-orders` — body `{contact_id, date, lines:[{product_id, account_id?, analytic_account_id?, quantity, unit_price}]}`.
+* `POST /purchase-orders` — body `{contact_id, date, due_date?, lines:[{product_id, account_id?, analytic_account_id?, quantity, unit_price}]}`.
+  `due_date` must not precede `date`, and is copied onto the bill when the order
+  is converted, so a converted bill ages correctly. Orders have no `reference`
+  field — they are identified by their generated `number`.
   `number` is generated (`P00001`); `account_id` defaults to the Purchase
   Expense account; `subtotal = quantity * unit_price` and the header `total` is
   the sum of lines — both are computed server-side and ignored if sent.

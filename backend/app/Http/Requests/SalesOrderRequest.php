@@ -18,6 +18,8 @@ class SalesOrderRequest extends FormRequest
         return [
             'contact_id' => [...$required, 'exists:contacts,id'],
             'date' => [...$required, 'date'],
+            // Payment terms: must not fall before the order itself.
+            'due_date' => ['nullable', 'date', 'after_or_equal:date'],
             'lines' => [...$required, 'array', 'min:1'],
             'lines.*.product_id' => ['required', 'exists:products,id'],
             'lines.*.account_id' => ['nullable', 'exists:chart_of_accounts,id'],

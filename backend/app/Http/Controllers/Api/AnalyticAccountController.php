@@ -19,6 +19,7 @@ class AnalyticAccountController extends Controller
 
         $accounts = AnalyticAccount::query()
             ->withCount('budgets')
+            ->archiveFilter($request->query('archived'))
             ->when($request->query('type'), fn ($q, $type) => $q->where('type', $type))
             ->when($request->query('search'), fn ($q, $term) => $q->where('name', 'like', "%{$term}%"))
             ->orderBy('name')
@@ -56,6 +57,26 @@ class AnalyticAccountController extends Controller
         $analyticAccount->update($request->validated());
 
         return $this->ok('Analytic account updated successfully', $analyticAccount);
+    }
+
+    public function archive(AnalyticAccount $analyticAccount): JsonResponse
+    {
+        $this->authorize('archive', $analyticAccount);
+
+        $analyticAccount->archived_at = now();
+        $analyticAccount->save();
+
+        return $this->ok('Analytic account archived successfully', $analyticAccount);
+    }
+
+    public function unarchive(AnalyticAccount $analyticAccount): JsonResponse
+    {
+        $this->authorize('archive', $analyticAccount);
+
+        $analyticAccount->archived_at = null;
+        $analyticAccount->save();
+
+        return $this->ok('Analytic account unarchived successfully', $analyticAccount);
     }
 
     public function destroy(AnalyticAccount $analyticAccount): JsonResponse
