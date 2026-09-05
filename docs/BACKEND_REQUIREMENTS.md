@@ -13,10 +13,13 @@ behind them.
       users migration) + reset link email; tokens expire after 60 minutes and are
       single-use. Forgot-password responses must be identical whether or not the
       email exists (no account enumeration).
-* [ ] Mail transport configured — `MAIL_MAILER=smtp` with real credentials
-      (Mailtrap or a Gmail app password). The shipped default is
-      `MAIL_MAILER=log`, which writes to `storage/logs` and **sends nothing** —
-      switch it before the demo or the Send button will appear to work and won't.
+* [x] Mail transport configured — **Resend** via `resend/resend-laravel`
+      (`MAIL_MAILER=resend`, key in `RESEND_API_KEY`, read by
+      `config/services.php`). `.env.example` ships `MAIL_MAILER=log`, which
+      sends nothing, so each developer must set the key locally.
+* [ ] Forgot-password must **never** surface a mail failure to the caller: a
+      rejected recipient returning 500 while an unknown address returns 200 is
+      an account-enumeration oracle. Catch, log, return the same 200.
 * [ ] **Mail is sent synchronously** — `Mail::to(...)->send(...)`, never
       `->queue(...)`, and Mailables must **not** implement `ShouldQueue`. No queue
       worker is required for the demo; the request blocks for ~1s and returns the
