@@ -18,6 +18,8 @@ export default function BalanceSheetPage() {
 
   return (
     <ReportShell
+      report="balance-sheet"
+      params={{ as_of: asOf }}
       title="Balance Sheet"
       subtitle="Assets against liabilities and capital"
       controls={

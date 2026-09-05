@@ -63,3 +63,44 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   return body.data as T;
 }
+
+/**
+ * Downloads a generated file and hands the browser a save dialog.
+ *
+ * The PDF routes stream the document itself rather than the { code, message,
+ * data } envelope, so they cannot go through apiFetch — the token still has to
+ * be attached by hand, which rules out pointing a plain link at the URL.
+ * A failure still comes back as JSON, so the error message is read from there.
+ */
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/api${path}`, {
+    headers: {
+      Accept: "application/pdf",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!res.ok) {
+    if (res.status === 401 && token) endSession();
+    let message = `Could not generate the file (${res.status})`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+    } catch {
+      // A non-JSON error body leaves the status-based message above.
+    }
+    throw new ApiError(res.status, message);
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  // Revoking immediately can cancel the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}

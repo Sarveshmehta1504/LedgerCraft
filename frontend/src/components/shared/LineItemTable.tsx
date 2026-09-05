@@ -41,6 +41,11 @@ const cellSelect =
   "focus:outline-2 focus:-outline-offset-1 focus:outline-[var(--accent)] " +
   "disabled:cursor-default disabled:bg-[var(--surface-raised)]";
 
+/** How a locked cell prints its value: same row rhythm, no control chrome. */
+const cellText = "block py-1 text-[13px] text-[var(--text)]";
+
+const cellNumberText = "tnum block py-1 text-right font-mono text-[13px] text-[var(--text)]";
+
 const cellNumber =
   "tnum h-8 w-full rounded border border-[var(--line-strong)] bg-white px-2 text-right font-mono text-[13px] " +
   "focus:outline-2 focus:-outline-offset-1 focus:outline-[var(--accent)] " +
@@ -72,6 +77,15 @@ export function LineItemTable({
   accounts,
   analyticAccounts = [],
 }: LineItemTableProps) {
+  // A locked document shows its values as text — a disabled dropdown still reads
+  // as an input the user might be able to change, which it is not.
+  const nameOf = <T extends { id: number; name: string }>(list: T[], id: number | null) =>
+    (id === null ? undefined : list.find((item) => item.id === id)?.name) ?? "—";
+  const accountLabel = (id: number | null) => {
+    const account = id === null ? undefined : accounts.find((item) => item.id === id);
+    return account ? `${account.code} · ${account.name}` : "—";
+  };
+
   function update(id: string, patch: Partial<DocumentLine>) {
     onChange(lines.map((line) => (line.id === id ? { ...line, ...patch } : line)));
   }
@@ -116,101 +130,121 @@ export function LineItemTable({
                   {index + 1}
                 </td>
                 <td className="px-3 py-1.5">
-                  <select
-                    aria-label={`Product on line ${index + 1}`}
-                    className={cellSelect}
-                    disabled={readOnly}
-                    value={line.product_id ?? ""}
-                    onChange={(event) =>
-                      onProductChange(line.id, event.target.value ? Number(event.target.value) : null)
-                    }
-                  >
-                    <option value="">Select product</option>
-                    {products.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.name}
-                      </option>
-                    ))}
-                  </select>
+                  {readOnly ? (
+                    <span className={cellText}>{nameOf(products, line.product_id)}</span>
+                  ) : (
+                    <select
+                      aria-label={`Product on line ${index + 1}`}
+                      className={cellSelect}
+                      value={line.product_id ?? ""}
+                      onChange={(event) =>
+                        onProductChange(line.id, event.target.value ? Number(event.target.value) : null)
+                      }
+                    >
+                      <option value="">Select product</option>
+                      {products.map((product) => (
+                        <option key={product.id} value={product.id}>
+                          {product.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </td>
                 <td className="px-3 py-1.5">
-                  <select
-                    aria-label={`Account on line ${index + 1}`}
-                    className={cellSelect}
-                    disabled={readOnly}
-                    value={line.account_id ?? ""}
-                    onChange={(event) =>
-                      update(line.id, {
-                        account_id: event.target.value ? Number(event.target.value) : null,
-                      })
-                    }
-                  >
-                    <option value="">Select account</option>
-                    {accounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.code} · {account.name}
-                      </option>
-                    ))}
-                  </select>
+                  {readOnly ? (
+                    <span className={cellText}>{accountLabel(line.account_id)}</span>
+                  ) : (
+                    <select
+                      aria-label={`Account on line ${index + 1}`}
+                      className={cellSelect}
+                      value={line.account_id ?? ""}
+                      onChange={(event) =>
+                        update(line.id, {
+                          account_id: event.target.value ? Number(event.target.value) : null,
+                        })
+                      }
+                    >
+                      <option value="">Select account</option>
+                      {accounts.map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.code} · {account.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </td>
                 <td className="px-3 py-1.5">
-                  <select
-                    aria-label={`Analytic account on line ${index + 1}`}
-                    className={cellSelect}
-                    disabled={readOnly}
-                    value={line.analytic_account_id ?? ""}
-                    onChange={(event) =>
-                      update(line.id, {
-                        analytic_account_id: event.target.value ? Number(event.target.value) : null,
-                      })
-                    }
-                  >
-                    <option value="">None</option>
-                    {analyticAccounts.map((analytic) => (
-                      <option key={analytic.id} value={analytic.id}>
-                        {analytic.name}
-                      </option>
-                    ))}
-                  </select>
+                  {readOnly ? (
+                    <span className={cellText}>
+                      {nameOf(analyticAccounts, line.analytic_account_id)}
+                    </span>
+                  ) : (
+                    <select
+                      aria-label={`Analytic account on line ${index + 1}`}
+                      className={cellSelect}
+                      value={line.analytic_account_id ?? ""}
+                      onChange={(event) =>
+                        update(line.id, {
+                          analytic_account_id: event.target.value ? Number(event.target.value) : null,
+                        })
+                      }
+                    >
+                      <option value="">None</option>
+                      {analyticAccounts.map((analytic) => (
+                        <option key={analytic.id} value={analytic.id}>
+                          {analytic.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </td>
                 <td className="w-20 px-3 py-1.5">
-                  <input
-                    aria-label={`Quantity on line ${index + 1}`}
-                    type="number"
-                    min={0}
-                    step="1"
-                    className={cellNumber}
-                    disabled={readOnly}
-                    value={line.quantity}
-                    onChange={(event) => update(line.id, { quantity: Number(event.target.value) })}
-                  />
+                  {readOnly ? (
+                    <span className={cellNumberText}>{line.quantity}</span>
+                  ) : (
+                    <input
+                      aria-label={`Quantity on line ${index + 1}`}
+                      type="number"
+                      min={0}
+                      step="1"
+                      className={cellNumber}
+                      value={line.quantity}
+                      onChange={(event) => update(line.id, { quantity: Number(event.target.value) })}
+                    />
+                  )}
                 </td>
                 <td className="w-28 px-3 py-1.5">
-                  <input
-                    aria-label={`Unit price on line ${index + 1}`}
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    className={cellNumber}
-                    disabled={readOnly}
-                    value={line.unit_price}
-                    onChange={(event) => update(line.id, { unit_price: Number(event.target.value) })}
-                  />
-                </td>
-                {withTax && (
-                  <td className="w-20 px-3 py-1.5">
+                  {readOnly ? (
+                    <span className={cellNumberText}>{formatMoney(line.unit_price)}</span>
+                  ) : (
                     <input
-                      aria-label={`Tax percent on line ${index + 1}`}
+                      aria-label={`Unit price on line ${index + 1}`}
                       type="number"
                       min={0}
                       step="0.01"
                       className={cellNumber}
-                      disabled={readOnly}
-                      value={line.tax_percent ?? 0}
-                      onChange={(event) =>
-                        update(line.id, { tax_percent: Number(event.target.value) })
-                      }
+                      value={line.unit_price}
+                      onChange={(event) => update(line.id, { unit_price: Number(event.target.value) })}
                     />
+                  )}
+                </td>
+                {withTax && (
+                  <td className="w-20 px-3 py-1.5">
+                    {readOnly ? (
+                      <span className={cellNumberText}>{line.tax_percent ?? 0}</span>
+                    ) : (
+                      <input
+                        aria-label={`Tax percent on line ${index + 1}`}
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        className={cellNumber}
+                        value={line.tax_percent ?? 0}
+                        onChange={(event) =>
+                          update(line.id, { tax_percent: Number(event.target.value) })
+                        }
+                      />
+                    )}
                   </td>
                 )}
                 <td className="tnum w-32 px-3 py-1.5 text-right font-mono text-[13px]">

@@ -3,13 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { SelectField, TextField } from "@/components/ui/Field";
+import { ReadOnlyField, SelectField, TextField } from "@/components/ui/Field";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { InlineAlert } from "@/components/ui/States";
 import { LineItemTable } from "@/components/shared/LineItemTable";
 import { ApiError } from "@/lib/api";
-import { formatMoney, today } from "@/lib/format";
+import { formatDate, formatMoney, today } from "@/lib/format";
 import { AccountsApi, AnalyticAccountsApi, CustomerInvoicesApi, ProductsApi, VendorBillsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
 import type { CustomerInvoiceDetail, VendorBillDetail } from "@/lib/resources";
@@ -76,6 +76,8 @@ export function BillForm({
   const [postError, setPostError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const [showPayment, setShowPayment] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState(doc.amount_due);
@@ -88,14 +90,45 @@ export function BillForm({
   const isDraft = doc.status === "draft";
   const isPosted = doc.status === "posted";
 
+  async function onPrint() {
+    setPrinting(true);
+    setNotice(null);
+    setSendError(null);
+    try {
+      // The API streams the PDF itself, so this saves a file rather than
+      // opening the browser's print dialog on the screen's own markup.
+      if (isBill(doc)) await VendorBillsApi.pdf(doc.id, number);
+      else await CustomerInvoicesApi.pdf(doc.id, number);
+      setNotice(`${number} downloaded as a PDF.`);
+    } catch (err) {
+      setSendError(err instanceof ApiError ? err.message : "Could not generate the PDF.");
+    } finally {
+      setPrinting(false);
+    }
+  }
+
   async function onSend() {
+    // Leaving the prompt empty lets the API use the contact's own address;
+    // cancelling it stops the send entirely.
+    const entered = window.prompt(
+      `Email ${number} to which address?\nLeave blank to use ${copy.partnerLabel.toLowerCase()}'s address on file.`,
+      "",
+    );
+    if (entered === null) return;
+    const to = entered.trim() || undefined;
+
     setSending(true);
     setNotice(null);
-    // TODO: replace with real API once backend/mail is ready
-    // (POST /api/{vendor-bills|customer-invoices}/{id}/send — sent synchronously).
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    setSending(false);
-    setNotice("Document sent to the contact on file.");
+    setSendError(null);
+    try {
+      if (isBill(doc)) await VendorBillsApi.send(doc.id, to);
+      else await CustomerInvoicesApi.send(doc.id, to);
+      setNotice(to ? `${number} sent to ${to}.` : `${number} sent to the address on file.`);
+    } catch (err) {
+      setSendError(err instanceof ApiError ? err.message : "Could not send this document.");
+    } finally {
+      setSending(false);
+    }
   }
 
   async function onPost() {
@@ -169,12 +202,10 @@ export function BillForm({
           trailing={
             <>
               <StatusBadge status={doc.status} />
-              {/* TODO: replace with real API once backend/documents is ready
-                  (GET .../{id}/pdf for Print, POST .../{id}/send for Send). */}
-              <Button size="sm" onClick={() => window.print()}>
-                Print
+              <Button size="sm" onClick={onPrint} disabled={printing}>
+                {printing ? "Preparing…" : "Print"}
               </Button>
-              <Button size="sm" onClick={onSend} disabled={busy}>
+              <Button size="sm" onClick={onSend} disabled={sending}>
                 {sending ? "Sending…" : "Send"}
               </Button>
               <Button size="sm" onClick={() => router.push("/reports/budget")}>
@@ -188,14 +219,9 @@ export function BillForm({
         />
 
         <div className="grid gap-x-8 gap-y-5 p-5 md:grid-cols-3">
-          <TextField label={copy.partnerLabel} value={doc.contact_name} readOnly disabled />
-          <TextField label="Date" type="date" value={docDate.slice(0, 10)} readOnly disabled />
-          <TextField
-            label={`${copy.partnerLabel} reference`}
-            value={reference ?? "—"}
-            readOnly
-            disabled
-          />
+          <ReadOnlyField label={copy.partnerLabel} value={doc.contact_name} />
+          <ReadOnlyField label="Date" value={formatDate(docDate)} />
+          <ReadOnlyField label={`${copy.partnerLabel} reference`} value={reference ?? "—"} />
           {/* A document created from an order links back to it; a standalone one hides the link. */}
           {originId !== null && originNumber && (
             <div className="flex flex-col gap-1.5">
@@ -224,6 +250,7 @@ export function BillForm({
 
         <div className="flex flex-col gap-3 border-t border-[var(--line)] p-5">
           {postError && <InlineAlert title="Cannot post this document">{postError}</InlineAlert>}
+          {sendError && <InlineAlert title="Could not complete that">{sendError}</InlineAlert>}
           {notice && (
             <p className="rounded-md bg-[var(--status-paid-wash)] px-3 py-2 text-[13px] text-[var(--status-paid)]">
               {notice}
@@ -273,7 +300,7 @@ export function BillForm({
           />
           <div className="grid gap-5 p-5 md:grid-cols-3">
             {/* Payment Type and Partner are fixed by the document — shown, not editable. */}
-            <TextField label="Payment Type" value={side === "bill" ? "Send" : "Receive"} readOnly disabled />
+            <ReadOnlyField label="Payment Type" value={side === "bill" ? "Send" : "Receive"} />
             <TextField
               label="Partner"
               value={doc.contact_name}

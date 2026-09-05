@@ -4,7 +4,7 @@
  * the matching mapper in lib/normalize.ts before handing it to a component.
  */
 
-import { apiFetch } from "./api";
+import { apiFetch, downloadFile } from "./api";
 import {
   mapAccount,
   mapAnalyticAccount,
@@ -155,6 +155,8 @@ export const ContactsApi = {
     address_state?: string | null;
     address_country?: string | null;
     address_pin?: string | null;
+    /** Path returned by /api/uploads — the API stores the string, not the file. */
+    profile_image?: string | null;
   }) => apiFetch<Raw>("/contacts", { method: "POST", body: JSON.stringify(input) }).then(mapContact),
   update: (id: number, input: Partial<Contact>) =>
     apiFetch<Raw>(`/contacts/${id}`, { method: "PUT", body: JSON.stringify(input) }).then(mapContact),
@@ -227,6 +229,14 @@ export const VendorBillsApi = {
   list: () => apiFetch<Raw[]>("/vendor-bills").then((rows) => rows.map(mapVendorBill)),
   get: (id: number) => apiFetch<Raw>(`/vendor-bills/${id}`).then(mapVendorBillDetail),
   post: (id: number) => apiFetch<Raw>(`/vendor-bills/${id}/post`, { method: "POST" }).then(mapVendorBillDetail),
+  pdf: (id: number, number: string) =>
+    downloadFile(`/vendor-bills/${id}/pdf`, `${number.replace(/\//g, "-")}.pdf`),
+  /** Omitting `to` lets the API fall back to the vendor's own email. */
+  send: (id: number, to?: string) =>
+    apiFetch<null>(`/vendor-bills/${id}/send`, {
+      method: "POST",
+      body: JSON.stringify(to ? { to } : {}),
+    }),
   registerPayment: (id: number, input: { amount: number; payment_via: PaymentVia; date?: string; note?: string }) =>
     apiFetch<{ payment: Raw; bill: Raw }>(`/vendor-bills/${id}/payments`, {
       method: "POST",
@@ -257,12 +267,38 @@ export const CustomerInvoicesApi = {
   get: (id: number) => apiFetch<Raw>(`/customer-invoices/${id}`).then(mapCustomerInvoiceDetail),
   post: (id: number) =>
     apiFetch<Raw>(`/customer-invoices/${id}/post`, { method: "POST" }).then(mapCustomerInvoiceDetail),
+  pdf: (id: number, number: string) =>
+    downloadFile(`/customer-invoices/${id}/pdf`, `${number.replace(/\//g, "-")}.pdf`),
+  /** Omitting `to` lets the API fall back to the customer's own email. */
+  send: (id: number, to?: string) =>
+    apiFetch<null>(`/customer-invoices/${id}/send`, {
+      method: "POST",
+      body: JSON.stringify(to ? { to } : {}),
+    }),
   registerPayment: (id: number, input: { amount: number; payment_via: PaymentVia; date?: string; note?: string }) =>
     apiFetch<{ payment: Raw; invoice: Raw }>(`/customer-invoices/${id}/payments`, {
       method: "POST",
       body: JSON.stringify(input),
     }).then((res) => ({ payment: mapPayment(res.payment), invoice: mapCustomerInvoiceDetail(res.invoice) })),
 };
+
+/** The three reports the API will render; anything else is a 404 by design. */
+export type ReportName = "balance-sheet" | "profit-and-loss" | "budget";
+
+/** Period selection, passed straight through to the PDF and mail routes. */
+export interface ReportParams {
+  as_of?: string;
+  from?: string;
+  to?: string;
+}
+
+function reportQuery(params?: ReportParams): string {
+  const query = new URLSearchParams();
+  if (params?.as_of) query.set("as_of", params.as_of);
+  if (params?.from) query.set("from", params.from);
+  if (params?.to) query.set("to", params.to);
+  return query.toString() ? `?${query}` : "";
+}
 
 export const ReportsApi = {
   balanceSheet: (asOf?: string) =>
@@ -271,6 +307,15 @@ export const ReportsApi = {
     const qs = from && to ? `?from=${from}&to=${to}` : "";
     return apiFetch<Raw>(`/reports/profit-and-loss${qs}`).then(mapProfitAndLoss);
   },
+  /** Downloads the report as a PDF, with the same period the screen is showing. */
+  pdf: (report: ReportName, params?: ReportParams) =>
+    downloadFile(`/reports/${report}/pdf${reportQuery(params)}`, `${report}.pdf`),
+  /** Mails the report. A report has no contact of its own, so `to` is required. */
+  send: (report: ReportName, to: string, params?: ReportParams) =>
+    apiFetch<null>(`/reports/${report}/send${reportQuery(params)}`, {
+      method: "POST",
+      body: JSON.stringify({ to }),
+    }),
   /** The API returns totals alongside the rows; the screen recomputes only what it shows. */
   budget: () =>
     apiFetch<Raw>("/reports/budget").then((raw) =>

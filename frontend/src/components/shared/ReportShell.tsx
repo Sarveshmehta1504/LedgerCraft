@@ -5,34 +5,66 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { ApiError } from "@/lib/api";
+import { ReportsApi, type ReportName, type ReportParams } from "@/lib/resources";
 
 /**
  * Report chrome shared by every report: period controls plus the Print / Send
- * actions the mockup puts in the header.
+ * actions the mockup puts in the header. `report` and `params` are what the PDF
+ * and mail routes need, so the rendered figures and the sent file always cover
+ * the same period.
  */
 export function ReportShell({
   title,
   subtitle,
+  report,
+  params,
   controls,
   children,
 }: {
   title: string;
   subtitle: string;
+  report: ReportName;
+  params?: ReportParams;
   controls?: ReactNode;
   children: ReactNode;
 }) {
   const router = useRouter();
   const [sending, setSending] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  async function onPrint() {
+    setPrinting(true);
+    setNotice(null);
+    setProblem(null);
+    try {
+      await ReportsApi.pdf(report, params);
+      setNotice(`${title} downloaded as a PDF.`);
+    } catch (err) {
+      setProblem(err instanceof ApiError ? err.message : "Could not generate the PDF.");
+    } finally {
+      setPrinting(false);
+    }
+  }
 
   async function onSend() {
+    // A report has no contact of its own, so the API requires a recipient.
+    const to = window.prompt(`Email ${title} to which address?`)?.trim();
+    if (!to) return;
+
     setSending(true);
     setNotice(null);
-    // TODO: replace with real API once backend/reports is ready
-    // (POST /api/reports/{report}/send — mail is synchronous, so keep the spinner until it resolves).
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    setSending(false);
-    setNotice("Report queued for delivery.");
+    setProblem(null);
+    try {
+      await ReportsApi.send(report, to, params);
+      setNotice(`${title} sent to ${to}.`);
+    } catch (err) {
+      setProblem(err instanceof ApiError ? err.message : "Could not send the report.");
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -42,9 +74,8 @@ export function ReportShell({
         subtitle={subtitle}
         trailing={
           <>
-            {/* TODO: replace with real API once backend/reports is ready (GET /api/reports/{report}/pdf). */}
-            <Button size="sm" onClick={() => window.print()}>
-              Print
+            <Button size="sm" onClick={onPrint} disabled={printing}>
+              {printing ? "Preparing…" : "Print"}
             </Button>
             <Button size="sm" onClick={onSend} disabled={sending}>
               {sending ? "Sending…" : "Send"}
@@ -65,6 +96,12 @@ export function ReportShell({
       {notice && (
         <p className="border-b border-[var(--line)] bg-[var(--status-paid-wash)] px-5 py-2 text-[13px] text-[var(--status-paid)]">
           {notice}
+        </p>
+      )}
+
+      {problem && (
+        <p className="border-b border-[var(--line)] bg-[var(--danger-wash)] px-5 py-2 text-[13px] text-[var(--danger)]">
+          {problem}
         </p>
       )}
 

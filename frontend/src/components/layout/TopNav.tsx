@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { FileText, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/brand/Logo";
 import { landingPathFor, logout } from "@/lib/auth";
@@ -119,7 +119,11 @@ export function TopNav() {
       {/* Below sm the logo sits on its own row and the tabs become a scrollable
           strip — shrinking four labels to fit 375px makes them unreadable. */}
       <div className="flex flex-col px-4 sm:flex-row sm:items-center sm:gap-1 sm:px-5">
-        <Link href={landingPathFor(user)} className="flex items-center py-2.5 sm:mr-4">
+        <Link
+          href={landingPathFor(user)}
+          onClick={() => setOpenTab(null)}
+          className="flex items-center py-2.5 sm:mr-4"
+        >
           <Logo size={20} />
         </Link>
 
@@ -133,8 +137,11 @@ export function TopNav() {
               type="button"
               aria-expanded={isOpen}
               aria-haspopup="true"
+              // A pointer press should open the menu, not leave a focus ring
+              // behind on the tab. Keyboard focus still lands here normally.
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => setOpenTab(isOpen ? null : tab.id)}
-              className={`relative shrink-0 cursor-pointer px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
+              className={`relative shrink-0 cursor-pointer rounded-md px-3 py-2.5 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] ${
                 isActive || isOpen
                   ? "text-[var(--text)]"
                   : "text-[var(--text-muted)] hover:text-[var(--text)]"
@@ -150,6 +157,37 @@ export function TopNav() {
         </div>
 
         <div className="mb-1.5 flex shrink-0 items-center gap-2.5 self-start sm:mb-0 sm:ml-auto sm:self-auto">
+          {/* The portal is a separate surface with its own data scope, so it needs
+              a labelled way in rather than only a redirect after sign-in. */}
+          {isPortal ? (
+            <Link
+              href="/portal"
+              onClick={() => setOpenTab(null)}
+              title="Your invoices"
+              className={`hidden rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors duration-150 sm:inline-flex sm:items-center sm:gap-1.5 ${
+                pathname.startsWith("/portal")
+                  ? "bg-[var(--surface-raised)] text-[var(--text)]"
+                  : "text-[var(--text-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]"
+              }`}
+            >
+              <FileText size={14} />
+              My Invoices
+            </Link>
+          ) : (
+            <Link
+              href="/portal"
+              onClick={() => setOpenTab(null)}
+              title="Preview what a customer sees"
+              className={`hidden rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors duration-150 sm:inline-flex sm:items-center sm:gap-1.5 ${
+                pathname.startsWith("/portal")
+                  ? "bg-[var(--surface-raised)] text-[var(--text)]"
+                  : "text-[var(--text-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]"
+              }`}
+            >
+              <FileText size={14} />
+              Customer Portal
+            </Link>
+          )}
           {/* Who is signed in, and as what — the three roles see different menus,
               so the badge makes the active role obvious rather than inferred. */}
           {user && (
@@ -181,7 +219,7 @@ export function TopNav() {
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpenTab(null)}
-                className="rounded px-2 py-1.5 text-sm text-[var(--text-muted)] transition-colors duration-150 hover:bg-[var(--surface-raised)] hover:text-[var(--text)]"
+                className="rounded px-2 py-1.5 text-sm text-[var(--text-muted)] transition-colors duration-150 hover:bg-[var(--surface-raised)] hover:text-[var(--text)] focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)]"
               >
                 {item.label}
               </Link>

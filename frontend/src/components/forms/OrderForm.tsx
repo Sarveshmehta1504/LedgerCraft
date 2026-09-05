@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { SelectField, TextField } from "@/components/ui/Field";
+import { ReadOnlyField, SelectField, TextField } from "@/components/ui/Field";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { InlineAlert } from "@/components/ui/States";
@@ -13,10 +13,10 @@ import {
   documentTotal,
 } from "@/components/shared/LineItemTable";
 import { ApiError } from "@/lib/api";
-import { formatMoney, today } from "@/lib/format";
+import { formatDate, formatMoney, today } from "@/lib/format";
 import { AccountsApi, AnalyticAccountsApi, ContactsApi, ProductsApi, PurchaseOrdersApi, SalesOrdersApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
-import type { AnalyticAccount, ChartOfAccount, Contact, DocumentLine, Product, PurchaseOrder, SalesOrder } from "@/types";
+import type { AnalyticAccount, ChartOfAccount, Contact, ConvertedDocument, DocumentLine, Product, PurchaseOrder, SalesOrder } from "@/types";
 
 type Side = "purchase" | "sales";
 
@@ -45,6 +45,14 @@ const COPY = {
     convertedStatus: "invoiced" as const,
   },
 };
+
+/** Purchase orders embed the created `bill`; sales orders embed the `invoice`. */
+function convertedOf(doc?: PurchaseOrder | SalesOrder | null): ConvertedDocument | null {
+  if (!doc) return null;
+  const withBill = doc as PurchaseOrder;
+  const withInvoice = doc as SalesOrder;
+  return withBill.bill ?? withInvoice.invoice ?? null;
+}
 
 export function OrderForm({
   side,
@@ -79,6 +87,8 @@ export function OrderForm({
   const [contactId, setContactId] = useState<number | null>(order?.contact_id ?? null);
   const [date, setDate] = useState(order?.date.slice(0, 10) ?? today());
   const [status, setStatus] = useState<string>(order?.status ?? "draft");
+  const [converted, setConverted] = useState<ConvertedDocument | null>(convertedOf(order));
+  const [savedNotice, setSavedNotice] = useState<string | null>(null);
   const [lines, setLines] = useState<DocumentLine[]>(order?.lines ?? []);
   const [linesInitialized, setLinesInitialized] = useState(Boolean(order));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -98,6 +108,11 @@ export function OrderForm({
   const partnerOptions = contacts
     .filter((contact) => copy.partnerTypes.includes(contact.type))
     .map((contact) => ({ value: contact.id, label: contact.name }));
+
+  /** Any edit invalidates the previous save notice. */
+  function touched() {
+    if (savedNotice) setSavedNotice(null);
+  }
 
   function validate(): boolean {
     const next: Record<string, string> = {};
@@ -131,10 +146,25 @@ export function OrderForm({
           else await SalesOrdersApi.update(id, { contact_id: contactId!, date, lines });
         }
         if (action === "confirm") {
-          if (side === "purchase") await PurchaseOrdersApi.confirm(id);
-          else await SalesOrdersApi.confirm(id);
-          setStatus(copy.confirmedStatus);
+          const updated =
+            side === "purchase"
+              ? await PurchaseOrdersApi.confirm(id)
+              : await SalesOrdersApi.confirm(id);
+          // Confirming an order already open on this URL is not a navigation, so
+          // the screen has to take the new status from the response and release
+          // the busy flag itself — pushing the same path would do neither.
+          if (order) {
+            setStatus(updated.status);
+            setConverted(convertedOf(updated));
+            setBusy(false);
+            return;
+          }
           router.push(`${copy.listHref}/${id}`);
+          return;
+        }
+        if (order) {
+          setBusy(false);
+          setSavedNotice("Saved.");
           return;
         }
         router.push(`${copy.listHref}/${id}`);
@@ -170,9 +200,18 @@ export function OrderForm({
                 </Button>
               </>
             )}
-            {isConfirmed && (
+            {isConfirmed && !converted && (
               <Button variant="primary" size="sm" onClick={() => run("convert")} disabled={busy}>
                 {busy ? "Working…" : copy.convertLabel}
+              </Button>
+            )}
+            {converted && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => router.push(`${copy.convertHref}/${converted.id}`)}
+              >
+                Open {converted.number}
               </Button>
             )}
           </div>
@@ -194,29 +233,47 @@ export function OrderForm({
       )}
 
       <div className="grid max-w-2xl gap-5 p-5 md:grid-cols-2">
-        <SelectField
-          label={copy.partnerLabel}
-          value={contactId ?? ""}
-          onChange={(event) => setContactId(event.target.value ? Number(event.target.value) : null)}
-          options={partnerOptions}
-          placeholder={`Select a ${copy.partnerLabel.toLowerCase()}`}
-          error={errors.contact_id}
-          disabled={!isDraft}
-          required
-        />
-        <TextField
-          label="Date"
-          type="date"
-          value={date}
-          onChange={(event) => setDate(event.target.value)}
-          disabled={!isDraft}
-          required
-        />
+        {isDraft ? (
+          <SelectField
+            label={copy.partnerLabel}
+            value={contactId ?? ""}
+            onChange={(event) => {
+              touched();
+              setContactId(event.target.value ? Number(event.target.value) : null);
+            }}
+            options={partnerOptions}
+            placeholder={`Select a ${copy.partnerLabel.toLowerCase()}`}
+            error={errors.contact_id}
+            required
+          />
+        ) : (
+          <ReadOnlyField
+            label={copy.partnerLabel}
+            value={partnerOptions.find((option) => option.value === contactId)?.label ?? "—"}
+          />
+        )}
+        {isDraft ? (
+          <TextField
+            label="Date"
+            type="date"
+            value={date}
+            onChange={(event) => {
+              touched();
+              setDate(event.target.value);
+            }}
+            required
+          />
+        ) : (
+          <ReadOnlyField label="Date" value={formatDate(date)} />
+        )}
       </div>
 
       <LineItemTable
         lines={lines}
-        onChange={setLines}
+        onChange={(next) => {
+          touched();
+          setLines(next);
+        }}
         withTax={withTax}
         readOnly={!isDraft}
         defaultAccountId={defaultAccountId}
@@ -229,7 +286,20 @@ export function OrderForm({
       <div className="flex flex-col gap-3 border-t border-[var(--line)] p-5">
         {errors.lines && <InlineAlert title={errors.lines} />}
 
-        {isConfirmed && (
+        {savedNotice && (
+          <p className="rounded-md bg-[var(--status-paid-wash)] px-3 py-2 text-[13px] text-[var(--status-paid)]">
+            {savedNotice}
+          </p>
+        )}
+
+        {converted && (
+          <InlineAlert tone="info" title={`${copy.convertLabel.replace("Create ", "")} ${converted.number} created`}>
+            This {copy.title.toLowerCase()} has been converted. Open {converted.number} to print, send
+            or register a payment against it.
+          </InlineAlert>
+        )}
+
+        {isConfirmed && !converted && (
           <InlineAlert tone="info" title={`Confirmed — ready to convert`}>
             {copy.convertLabel} copies the partner, products, quantities and prices onto the new
             document.

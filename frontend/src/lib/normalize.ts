@@ -200,6 +200,9 @@ export function mapPurchaseOrder(raw: Raw): PurchaseOrder {
     number: raw.number,
     contact_id: raw.contact_id,
     date: raw.date,
+    bill: raw.bill
+      ? { id: raw.bill.id, number: raw.bill.bill_number, status: raw.bill.status }
+      : null,
     status: raw.status,
     total: num(raw.total),
     lines: (raw.lines ?? []).map(mapLine),
@@ -212,6 +215,9 @@ export function mapSalesOrder(raw: Raw): SalesOrder {
     number: raw.number,
     contact_id: raw.contact_id,
     date: raw.date,
+    invoice: raw.invoice
+      ? { id: raw.invoice.id, number: raw.invoice.invoice_number, status: raw.invoice.status }
+      : null,
     status: raw.status,
     total: num(raw.total),
     lines: (raw.lines ?? []).map(mapLine),

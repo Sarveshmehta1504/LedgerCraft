@@ -192,6 +192,8 @@ export interface PurchaseOrder {
   number: string;
   contact_id: number;
   date: string;
+  /** Present once the order has been converted. */
+  bill?: ConvertedDocument | null;
   status: Extract<DocumentStatus, "draft" | "confirmed" | "billed">;
   total: number;
   lines: DocumentLine[];
@@ -212,11 +214,20 @@ export interface VendorBill {
   lines: DocumentLine[];
 }
 
+/** The document an order became, as the API embeds it once converted. */
+export interface ConvertedDocument {
+  id: number;
+  number: string;
+  status: string;
+}
+
 export interface SalesOrder {
   id: number;
   number: string;
   contact_id: number;
   date: string;
+  /** Present once the order has been converted. */
+  invoice?: ConvertedDocument | null;
   status: Extract<DocumentStatus, "draft" | "confirmed" | "invoiced">;
   total: number;
   lines: DocumentLine[];
