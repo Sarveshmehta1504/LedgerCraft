@@ -1,11 +1,22 @@
-import { notFound } from "next/navigation";
-import { ContactForm } from "@/components/forms/ContactForm";
-import { MOCK_CONTACTS } from "@/lib/mock-data";
+"use client";
 
-export default async function EditContactPage({ params }: PageProps<"/contacts/[id]">) {
-  const { id } = await params;
-  // TODO: replace with real API once backend/contacts is ready (GET /api/contacts/{id}).
-  const contact = MOCK_CONTACTS.find((record) => String(record.id) === id);
-  if (!contact) notFound();
+import { useParams } from "next/navigation";
+import { useCallback } from "react";
+import { ContactForm } from "@/components/forms/ContactForm";
+import { ErrorState, TableSkeleton } from "@/components/ui/States";
+import { ContactsApi } from "@/lib/resources";
+import { useAsyncData } from "@/lib/use-async-data";
+import type { Contact } from "@/types";
+
+export default function EditContactPage() {
+  const { id } = useParams<{ id: string }>();
+  const fetchData = useCallback(() => ContactsApi.get(Number(id)), [id]);
+  const { data: contact, loading, error, retry } = useAsyncData<Contact>(
+    fetchData,
+    "Could not load this contact.",
+  );
+
+  if (loading) return <TableSkeleton rows={4} columns={2} />;
+  if (error || !contact) return <ErrorState message={error ?? "Contact not found."} onRetry={retry} />;
   return <ContactForm contact={contact} />;
 }

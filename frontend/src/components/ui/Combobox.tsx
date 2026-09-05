@@ -14,7 +14,7 @@ interface ComboboxProps {
   options: ComboboxOption[];
   onChange: (value: number | null) => void;
   /** When provided, an unmatched search term can be created inline (many-to-one on the fly). */
-  onCreate?: (label: string) => ComboboxOption;
+  onCreate?: (label: string) => ComboboxOption | Promise<ComboboxOption>;
   placeholder?: string;
   error?: string;
   hint?: string;
@@ -75,9 +75,9 @@ export function Combobox({
     setQuery("");
   }
 
-  function create() {
+  async function create() {
     if (!onCreate) return;
-    const option = onCreate(query.trim());
+    const option = await onCreate(query.trim());
     commit(option);
   }
 

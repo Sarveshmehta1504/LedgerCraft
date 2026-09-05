@@ -9,22 +9,28 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ViewSwitcher, type ViewMode } from "@/components/shared/ViewSwitcher";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { formatMoney, titleCase } from "@/lib/format";
-import { MOCK_CATEGORIES, MOCK_PRODUCTS, categoryName, mockRequest } from "@/lib/mock-data";
+import { ProductCategoriesApi, ProductsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
-import type { Product } from "@/types";
+import type { Product, ProductCategory } from "@/types";
 
 export default function ProductsPage() {
   const router = useRouter();
   const [view, setView] = useState<ViewMode>("list");
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
-  // TODO: replace with real API once backend/products is ready (GET /api/products).
-  const fetchData = useCallback(() => mockRequest(MOCK_PRODUCTS), []);
+  const fetchData = useCallback(() => ProductsApi.list(), []);
   const { data, loading, error, retry } = useAsyncData<Product[]>(
     fetchData,
     "The products service did not respond.",
   );
   const products = data ?? [];
+
+  const fetchCategories = useCallback(() => ProductCategoriesApi.list(), []);
+  const { data: categoriesData } = useAsyncData<ProductCategory[]>(
+    fetchCategories,
+    "Could not load categories.",
+  );
+  const categories = categoriesData ?? [];
 
   const visible = products.filter((product) => {
     const term = search.trim().toLowerCase();
@@ -45,7 +51,7 @@ export default function ProductsPage() {
       key: "category",
       header: "Category",
       render: (product) => (
-        <span className="text-[var(--text-muted)]">{categoryName(product.category_id)}</span>
+        <span className="text-[var(--text-muted)]">{product.category?.name ?? "—"}</span>
       ),
     },
     { key: "type", header: "Type", render: (product) => titleCase(product.type) },
@@ -96,7 +102,7 @@ export default function ProductsPage() {
           className="h-8 cursor-pointer rounded-md border border-[var(--line-strong)] px-2 text-[13px] transition-colors duration-150 focus:outline-2 focus:-outline-offset-1 focus:outline-[var(--accent)]"
         >
           <option value="">All categories</option>
-          {MOCK_CATEGORIES.map((category) => (
+          {categories.map((category) => (
             <option key={category.id} value={category.id}>
               {category.name}
             </option>
@@ -145,7 +151,7 @@ export default function ProductsPage() {
             >
               <p className="text-sm font-medium text-[var(--text)]">{product.name}</p>
               <p className="mt-0.5 text-xs text-[var(--text-subtle)]">
-                {categoryName(product.category_id)} · {titleCase(product.type)}
+                {product.category?.name ?? "—"} · {titleCase(product.type)}
               </p>
               <div className="mt-3 flex items-baseline justify-between border-t border-[var(--line)] pt-2.5">
                 <span className="text-xs text-[var(--text-subtle)]">Sales</span>
