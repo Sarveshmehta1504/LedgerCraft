@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
+import { logout } from "@/lib/auth";
 import { useEffect, useRef, useState } from "react";
 
 /**
@@ -54,8 +56,14 @@ const NAV: { id: string; label: string; items: { label: string; href: string }[]
 
 export function TopNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const [openTab, setOpenTab] = useState<string | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
+
+  async function onLogout() {
+    await logout();
+    router.replace("/login");
+  }
 
   // A mega menu that survives an outside click or Escape is a nuisance, not a feature.
   useEffect(() => {
@@ -107,6 +115,15 @@ export function TopNav() {
           );
         })}
         </div>
+
+        <button
+          type="button"
+          onClick={onLogout}
+          className="mb-1 flex shrink-0 items-center gap-1.5 self-start px-3 py-2.5 text-sm font-medium text-[var(--text-muted)] transition-colors duration-150 hover:text-[var(--text)] sm:mb-0 sm:ml-auto sm:self-auto"
+        >
+          <LogOut size={15} />
+          Log out
+        </button>
       </div>
 
       {openTab && (
