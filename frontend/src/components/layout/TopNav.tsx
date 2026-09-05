@@ -148,7 +148,10 @@ export function TopNav() {
               }`}
             >
               {tab.label}
-              {(isActive || isOpen) && (
+              {/* Only the section actually being viewed is underlined. An open
+                  menu is already obvious from the panel below it, and marking
+                  both put two bars on the bar at once. */}
+              {isActive && (
                 <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-[var(--accent)]" />
               )}
             </button>

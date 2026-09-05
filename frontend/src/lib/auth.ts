@@ -1,10 +1,12 @@
 import { apiFetch } from "@/lib/api";
-import { clearSession, setSession } from "@/lib/session";
+import { clearSession, getCurrentUser as readCurrentUser, setSession } from "@/lib/session";
 import type { User } from "@/types";
 
 interface LoginResponse {
   user: User;
   token: string;
+  /** ISO timestamp; the API issues tokens with a fixed lifetime. */
+  expires_at?: string | null;
 }
 
 export { getCurrentUser } from "@/lib/session";
@@ -20,11 +22,11 @@ export async function fetchAuthenticatedUser(): Promise<User> {
 }
 
 export async function login(loginId: string, password: string): Promise<User> {
-  const { user, token } = await apiFetch<LoginResponse>("/auth/login", {
+  const { user, token, expires_at } = await apiFetch<LoginResponse>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ login_id: loginId, password }),
   });
-  setSession(token, user);
+  setSession(token, user, expires_at);
   return user;
 }
 
@@ -35,12 +37,29 @@ export async function signup(input: {
   password: string;
   password_confirmation: string;
 }): Promise<User> {
-  const { user, token } = await apiFetch<LoginResponse>("/auth/signup", {
+  const { user, token, expires_at } = await apiFetch<LoginResponse>("/auth/signup", {
     method: "POST",
     body: JSON.stringify(input),
   });
-  setSession(token, user);
+  setSession(token, user, expires_at);
   return user;
+}
+
+/**
+ * Swaps the live token for a fresh one and revokes the old.
+ *
+ * The API issues tokens with a fixed lifetime, so without this a session simply
+ * dies mid-use — typically while someone is halfway through a document. The
+ * replacement is written before anything else happens, so a failure here leaves
+ * the existing token untouched rather than stranding the caller.
+ */
+export async function refreshSession(): Promise<void> {
+  const { user, token, expires_at } = await apiFetch<LoginResponse>("/auth/refresh", {
+    method: "POST",
+  });
+  // The refresh payload carries the user too, but a stored one that is newer
+  // (a role changed in this tab) should not be thrown away silently.
+  setSession(token, user ?? readCurrentUser(), expires_at);
 }
 
 /**

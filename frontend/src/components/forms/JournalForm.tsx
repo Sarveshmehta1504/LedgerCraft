@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Combobox } from "@/components/ui/Combobox";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { InlineAlert } from "@/components/ui/States";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -102,29 +103,21 @@ export function JournalForm({ journal }: { journal?: Journal }) {
           options={TYPES.map((type) => ({ value: type, label: titleCase(type) }))}
           required
         />
-        <SelectField
+        <Combobox
           label="Default debit account"
-          value={form.default_debit_account ?? ""}
-          onChange={(event) =>
-            setForm({
-              ...form,
-              default_debit_account: event.target.value ? Number(event.target.value) : null,
-            })
-          }
+          value={form.default_debit_account}
+          onChange={(value) => setForm({ ...form, default_debit_account: value })}
           options={accountOptions}
-          placeholder="None"
+          placeholder="Search accounts…"
+          clearLabel="None"
         />
-        <SelectField
+        <Combobox
           label="Default credit account"
-          value={form.default_credit_account ?? ""}
-          onChange={(event) =>
-            setForm({
-              ...form,
-              default_credit_account: event.target.value ? Number(event.target.value) : null,
-            })
-          }
+          value={form.default_credit_account}
+          onChange={(value) => setForm({ ...form, default_credit_account: value })}
           options={accountOptions}
-          placeholder="None"
+          placeholder="Search accounts…"
+          clearLabel="None"
         />
       </div>
     </form>

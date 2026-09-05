@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Combobox } from "@/components/ui/Combobox";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -183,15 +184,15 @@ export function BudgetForm({ budget }: { budget?: Budget }) {
             disabled={!isEditable}
             required
           />
-          <SelectField
+          <Combobox
             label="Analytic account"
-            value={form.analytic_account_id || ""}
-            onChange={(event) => update("analytic_account_id", Number(event.target.value))}
+            value={form.analytic_account_id || null}
+            onChange={(value) => update("analytic_account_id", value ?? 0)}
             options={analyticAccounts.map((account) => ({
               value: account.id,
               label: account.name,
             }))}
-            placeholder="Select an analytic account"
+            placeholder="Search analytic accounts…"
             error={errors.analytic_account_id}
             disabled={!isEditable}
             required
