@@ -2,10 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Journal;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class ProductRequest extends FormRequest
+class JournalRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -21,11 +22,10 @@ class ProductRequest extends FormRequest
 
         return [
             'name' => [...$required, 'string', 'max:255'],
-            'type' => [...$required, Rule::in(['goods', 'service', 'combo'])],
-            'sales_price' => ['nullable', 'numeric', 'min:0'],
-            'cost_price' => ['nullable', 'numeric', 'min:0'],
-            // Category is mandatory - a product cannot exist without one.
-            'category_id' => [...$required, 'exists:product_categories,id'],
+            'type' => [...$required, Rule::in(Journal::TYPES)],
+            // Both defaults are optional, but must point at real accounts.
+            'default_debit_account' => ['nullable', 'exists:chart_of_accounts,id'],
+            'default_credit_account' => ['nullable', 'exists:chart_of_accounts,id'],
         ];
     }
 }
