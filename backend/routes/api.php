@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ChartOfAccountController;
 use App\Http\Controllers\Api\ContactController;
+use App\Http\Controllers\Api\CustomerInvoiceController;
 use App\Http\Controllers\Api\JournalController;
 use App\Http\Controllers\Api\ProductCategoryController;
 use App\Http\Controllers\Api\ProductController;
@@ -84,6 +85,12 @@ Route::middleware('auth:sanctum')->group(function () {
         ->parameters(['vendor-bills' => 'vendorBill']);
     Route::post('vendor-bills/{vendorBill}/post', [VendorBillController::class, 'post']);
     Route::post('vendor-bills/{vendorBill}/payments', [VendorBillController::class, 'registerPayment']);
+
+    // Customer invoices: draft -> posted (creates the journal entry) -> paid.
+    Route::apiResource('customer-invoices', CustomerInvoiceController::class)
+        ->parameters(['customer-invoices' => 'customerInvoice']);
+    Route::post('customer-invoices/{customerInvoice}/post', [CustomerInvoiceController::class, 'post']);
+    Route::post('customer-invoices/{customerInvoice}/payments', [CustomerInvoiceController::class, 'registerPayment']);
 
     Route::apiResource('journals', JournalController::class);
     Route::patch('journals/{journal}/archive', [JournalController::class, 'archive']);

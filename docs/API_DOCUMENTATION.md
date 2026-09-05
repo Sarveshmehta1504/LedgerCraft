@@ -265,6 +265,36 @@ never stored, so they cannot drift.
 
 ---
 
+# Customer Invoices
+
+The mirror of Vendor Bills:
+
+* `GET /customer-invoices` — filters: `status`, `contact_id`, `search`
+* `POST /customer-invoices` — standalone invoice; `invoice_number` generated
+  (`INV/2026/0001`). Lines accept `tax_percent`.
+* `GET /customer-invoices/{id}` — lines, contact, `sales_order` (when converted
+  from one), and the generated `journal_entry` with its lines
+* `PUT|DELETE /customer-invoices/{id}` — **draft only** (`409` otherwise)
+* `POST /customer-invoices/{id}/post` — creates **Debit Debtors / Credit Sale
+  Income** for the tax-inclusive total
+* `POST /customer-invoices/{id}/payments` — creates **Debit Cash|Bank / Credit
+  Debtors**, `payment_type` `receive`, and flips the invoice to `paid` once
+  settled. Same guards as bill payments.
+
+Invoice payloads carry the same derived footer totals as bills: `amount_paid`,
+`paid_via_cash`, `paid_via_bank`, `amount_due`.
+
+## Ledger summary
+
+| Action | Debit | Credit |
+| ------ | ----- | ------ |
+| Post vendor bill | Purchase Expense | Creditors |
+| Pay vendor bill | Creditors | Cash / Bank |
+| Post customer invoice | Debtors | Sale Income |
+| Receive invoice payment | Cash / Bank | Debtors |
+
+---
+
 # Chart of Accounts
 
 * `GET /accounts` — filter: `type`
