@@ -417,6 +417,13 @@ drift from the ledger.
 * `GET /journal-entries/{id}` — lines with account and analytic account, the
   journal, and who posted it
 
+Both carry a derived **`partner`** (`{id, name, type}`) — the customer or vendor
+the entry concerns. It is **not a column**: ledger lines hold no contact, so the
+partner is resolved by following `source_type`/`source_id` to the originating
+bill, invoice or payment. Entries with no document — the seeded opening balances
+— return `partner: null`. The list resolves them in bulk (3 extra queries, not
+one per row).
+
 **There are no write routes.** Entries are created by the system when a bill,
 invoice or payment is posted; exposing a create endpoint would allow an
 unbalanced entry straight into the ledger. `POST` returns `405`.

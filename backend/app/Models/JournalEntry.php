@@ -51,6 +51,26 @@ class JournalEntry extends Model
      * casting it straight to a string yields "2500.5" - which reads as a
      * different amount on an invoice and breaks string comparisons.
      */
+    /**
+     * The customer or vendor this entry concerns.
+     *
+     * Not a column: ledger lines carry no contact. The partner is derived by
+     * following source_type/source_id to the originating document, which is
+     * where the relationship actually lives. Entries with no document (none
+     * today) simply have no partner.
+     */
+    public function partner(): ?Contact
+    {
+        $document = match ($this->source_type) {
+            'vendor_bill' => VendorBill::select('id', 'contact_id')->find($this->source_id),
+            'customer_invoice' => CustomerInvoice::select('id', 'contact_id')->find($this->source_id),
+            'payment' => Payment::select('id', 'contact_id')->find($this->source_id),
+            default => null,
+        };
+
+        return $document?->contact;
+    }
+
     public function totalDebit(): string
     {
         return $this->money($this->lines()->sum('debit'));
