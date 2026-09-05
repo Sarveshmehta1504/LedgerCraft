@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ViewSwitcher, type ViewMode } from "@/components/shared/ViewSwitcher";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { titleCase } from "@/lib/format";
-import { MOCK_CONTACTS, mockRequest } from "@/lib/mock-data";
+import { ContactsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
 import type { Contact, ContactType } from "@/types";
 
@@ -40,8 +40,7 @@ export default function ContactsPage() {
   const [view, setView] = useState<ViewMode>("list");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"" | ContactType>("");
-  // TODO: replace with real API once backend/contacts is ready (GET /api/contacts).
-  const fetchData = useCallback(() => mockRequest(MOCK_CONTACTS), []);
+  const fetchData = useCallback(() => ContactsApi.list(), []);
   const { data, loading, error, retry } = useAsyncData<Contact[]>(
     fetchData,
     "The contacts service did not respond.",

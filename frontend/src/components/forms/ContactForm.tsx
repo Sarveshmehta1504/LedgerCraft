@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
+import { InlineAlert } from "@/components/ui/States";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { ApiError } from "@/lib/api";
+import { ContactsApi } from "@/lib/resources";
 import type { Contact, ContactType } from "@/types";
 
 const EMPTY: Omit<Contact, "id"> = {
@@ -24,6 +27,7 @@ export function ContactForm({ contact }: { contact?: Contact }) {
   const router = useRouter();
   const [form, setForm] = useState<Omit<Contact, "id">>(contact ?? EMPTY);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   function update<K extends keyof typeof form>(field: K, value: (typeof form)[K]) {
@@ -39,14 +43,24 @@ export function ContactForm({ contact }: { contact?: Contact }) {
     if (form.address_pin && !/^\d{6}$/.test(form.address_pin))
       next.address_pin = "Pincode must be 6 digits.";
     setErrors(next);
+    setFormError(null);
     if (Object.keys(next).length > 0) return;
 
     setSaving(true);
-    // TODO: replace with real API once backend/contacts is ready
-    // (POST /api/contacts, or PUT /api/contacts/{id} when editing).
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    setSaving(false);
-    router.push("/contacts");
+    try {
+      if (contact) await ContactsApi.update(contact.id, form);
+      else await ContactsApi.create(form);
+      router.push("/contacts");
+    } catch (err) {
+      if (err instanceof ApiError && err.errors) {
+        const fieldErrors: Record<string, string> = {};
+        for (const [field, messages] of Object.entries(err.errors)) fieldErrors[field] = messages[0];
+        setErrors(fieldErrors);
+      } else {
+        setFormError(err instanceof ApiError ? err.message : "Could not save this contact.");
+      }
+      setSaving(false);
+    }
   }
 
   return (
@@ -69,6 +83,12 @@ export function ContactForm({ contact }: { contact?: Contact }) {
           </Button>
         }
       />
+
+      {formError && (
+        <div className="border-b border-[var(--line)] p-5">
+          <InlineAlert title={formError} />
+        </div>
+      )}
 
       <div className="grid gap-x-8 gap-y-5 p-5 md:grid-cols-2">
         <div className="flex flex-col gap-5">
