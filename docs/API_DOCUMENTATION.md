@@ -82,9 +82,15 @@ matches the design board: `login_id` unique 6–12 chars, `email` unique, passwo
 >8 chars with lower + upper + special.
 
 Signup also **creates a `contacts` row of type `customer`** (name + email from the
-form) and links it via `users.contact_id`, in the same transaction as the user. If
-a contact with that email already exists, link to it rather than creating a
-duplicate.
+form) and links it via `users.contact_id`, in the same transaction as the user.
+
+**Always a new contact — never an existing one, even if the email matches.** A
+contact's email is data an admin typed in, not proof the signer-up controls that
+mailbox; adopting on a match allowed anyone who knew a customer's address to
+register and inherit their invoices. Linking an account to an existing customer
+is an admin action (`PUT /users/{id}`), done once identity is confirmed. The cost
+is a duplicate contact when a real customer self-registers, which an admin
+merges later.
 
 ---
 

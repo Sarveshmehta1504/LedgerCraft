@@ -67,10 +67,12 @@ behind them.
 
 Because signup writes into master data, two things need handling:
 
-* **Duplicate contacts.** If a `contacts` row already exists with that email,
-  link the new user to the existing contact instead of creating a second one —
-  otherwise the same customer ends up on two records and their invoices split
-  across both.
+* **Never adopt an existing contact by email.** Signup always creates a fresh
+  contact. Matching an existing one by email is account takeover: an email on a
+  contact record is unverified data, so anyone who knew a customer's address
+  could register and inherit their invoices, including paying against them.
+  Duplicates are the accepted trade-off; an admin relinks via `PUT /users/{id}`
+  once identity is confirmed. Covered by `SignupContactIsolationTest`.
 * **Fresh contacts are sparse.** Only name, email and `type = customer` are set;
   mobile and address are null until someone fills them in. Any list or form that
   assumes an address must tolerate nulls.

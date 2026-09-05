@@ -85,14 +85,24 @@ class AuthController extends Controller
         $data = $request->validated();
 
         $user = DB::transaction(function () use ($data) {
-            // Reuse an existing contact with this email rather than splitting
-            // the customer's invoices across two records.
-            $contact = Contact::where('email', $data['email'])->first()
-                ?? Contact::create([
-                    'name' => $data['name'],
-                    'type' => 'customer',
-                    'email' => $data['email'],
-                ]);
+            // ALWAYS a fresh contact - never adopt an existing one that happens
+            // to share this email.
+            //
+            // An email on a contact record is data an admin typed in, not proof
+            // that whoever is signing up controls that mailbox. Matching on it
+            // let anyone who knew a customer's address register and inherit
+            // that customer's invoices, including the ability to pay against
+            // them. Linking an account to an existing customer is an admin
+            // action (PUT /users/{id}), performed once identity is known.
+            //
+            // The cost is a duplicate contact when a real customer self-
+            // registers; an admin merges it later. That is a tidiness problem,
+            // where the alternative was account takeover.
+            $contact = Contact::create([
+                'name' => $data['name'],
+                'type' => 'customer',
+                'email' => $data['email'],
+            ]);
 
             $user = User::create([
                 'name' => $data['name'],
