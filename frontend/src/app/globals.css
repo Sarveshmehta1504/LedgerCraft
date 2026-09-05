@@ -86,3 +86,11 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Scrollable tab strips shouldn't show a bar on top of the labels. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

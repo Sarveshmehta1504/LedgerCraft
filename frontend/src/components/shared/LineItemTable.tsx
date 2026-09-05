@@ -216,7 +216,7 @@ export function LineItemTable({
                       type="button"
                       aria-label={`Remove line ${index + 1}`}
                       onClick={() => onChange(lines.filter((item) => item.id !== line.id))}
-                      className="cursor-pointer rounded px-1.5 py-1 text-[var(--text-subtle)] transition-colors duration-150 hover:bg-[var(--surface-raised)] hover:text-[var(--danger)]"
+                      className="inline-grid h-6 w-6 cursor-pointer place-items-center rounded text-[var(--text-subtle)] transition-colors duration-150 hover:bg-[var(--surface-raised)] hover:text-[var(--danger)]"
                     >
                       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
                         <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
