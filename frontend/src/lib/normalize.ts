@@ -171,11 +171,17 @@ export function mapContact(raw: Raw): Contact {
     address_country: raw.address_country,
     address_pin: raw.address_pin,
     profile_image: raw.profile_image,
+    archived_at: raw.archived_at ?? null,
   };
 }
 
 export function mapProductCategory(raw: Raw): ProductCategory {
-  return { id: raw.id, name: raw.name, parent_id: raw.parent_id };
+  return {
+    id: raw.id,
+    name: raw.name,
+    parent_id: raw.parent_id,
+    archived_at: raw.archived_at ?? null,
+  };
 }
 
 export function mapProduct(raw: Raw): Product {
@@ -187,11 +193,18 @@ export function mapProduct(raw: Raw): Product {
     cost_price: num(raw.cost_price),
     category_id: raw.category_id,
     category: raw.category ? mapProductCategory(raw.category) : undefined,
+    archived_at: raw.archived_at ?? null,
   };
 }
 
 export function mapAccount(raw: Raw): ChartOfAccount {
-  return { id: raw.id, code: raw.code, name: raw.name, type: raw.type };
+  return {
+    id: raw.id,
+    code: raw.code,
+    name: raw.name,
+    type: raw.type,
+    archived_at: raw.archived_at ?? null,
+  };
 }
 
 export function mapJournal(raw: Raw): Journal {
@@ -201,6 +214,7 @@ export function mapJournal(raw: Raw): Journal {
     type: raw.type,
     default_debit_account: raw.default_debit_account,
     default_credit_account: raw.default_credit_account,
+    archived_at: raw.archived_at ?? null,
   };
 }
 

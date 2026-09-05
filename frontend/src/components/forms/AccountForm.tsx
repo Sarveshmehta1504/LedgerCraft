@@ -24,7 +24,7 @@ const TYPES: AccountType[] = [
 
 export function AccountForm({ account }: { account?: ChartOfAccount }) {
   const router = useRouter();
-  const [form, setForm] = useState<Omit<ChartOfAccount, "id">>(
+  const [form, setForm] = useState<Omit<ChartOfAccount, "id" | "archived_at">>(
     account ?? { code: "", name: "", type: "asset" },
   );
   const [errors, setErrors] = useState<Record<string, string>>({});

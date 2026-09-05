@@ -48,12 +48,16 @@ export interface Contact {
   address_country: string | null;
   address_pin: string | null;
   profile_image: string | null;
+  /** Archived rather than deleted: existing documents still reference it. */
+  archived_at: string | null;
 }
 
 export interface ProductCategory {
   id: number;
   name: string;
   parent_id: number | null;
+  /** Archived rather than deleted: existing documents still reference it. */
+  archived_at: string | null;
 }
 
 export type ProductType = "goods" | "service" | "combo";
@@ -66,6 +70,8 @@ export interface Product {
   cost_price: number;
   category_id: number;
   category?: ProductCategory;
+  /** Archived rather than deleted: existing documents still reference it. */
+  archived_at: string | null;
 }
 
 /** All eight account types from the mockup — the PS's five are a subset. */
@@ -84,6 +90,8 @@ export interface ChartOfAccount {
   code: string;
   name: string;
   type: AccountType;
+  /** Archived rather than deleted: existing documents still reference it. */
+  archived_at: string | null;
 }
 
 export type JournalType = "sales" | "purchase" | "bank" | "cash";
@@ -94,6 +102,8 @@ export interface Journal {
   type: JournalType;
   default_debit_account: number | null;
   default_credit_account: number | null;
+  /** Archived rather than deleted: existing documents still reference it. */
+  archived_at: string | null;
 }
 
 /* ---- Ledger ---- */

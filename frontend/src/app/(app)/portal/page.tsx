@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { FilterBar, SearchInput, SegmentedFilter } from "@/components/shared/FilterBar";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { PortalTabs } from "@/components/shared/PortalTabs";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/States";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -146,6 +147,8 @@ export default function PortalPage() {
 
   return (
     <div className="flex flex-col gap-5">
+      <PortalTabs />
+
       <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-white">
         <PageHeader
           title={user ? `Welcome, ${user.name}` : "Your account"}

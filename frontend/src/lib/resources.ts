@@ -180,7 +180,11 @@ export const JournalEntriesApi = {
 };
 
 export const ContactsApi = {
-  list: () => apiFetch<Raw[]>("/contacts").then((rows) => rows.map(mapContact)),
+  /** Archived rows are excluded unless asked for — `1` includes them, `only` isolates them. */
+  list: (archived?: "1" | "only") =>
+    apiFetch<Raw[]>(`/contacts${archived ? `?archived=${archived}` : ""}`).then((rows) =>
+      rows.map(mapContact),
+    ),
   get: (id: number) => apiFetch<Raw>(`/contacts/${id}`).then(mapContact),
   create: (input: {
     name: string;
@@ -197,18 +201,36 @@ export const ContactsApi = {
   }) => apiFetch<Raw>("/contacts", { method: "POST", body: JSON.stringify(input) }).then(mapContact),
   update: (id: number, input: Partial<Contact>) =>
     apiFetch<Raw>(`/contacts/${id}`, { method: "PUT", body: JSON.stringify(input) }).then(mapContact),
+  /** Archived rather than deleted: posted documents still point at it. Admin only. */
+  archive: (id: number) =>
+    apiFetch<Raw>(`/contacts/${id}/archive`, { method: "PATCH" }).then(mapContact),
+  unarchive: (id: number) =>
+    apiFetch<Raw>(`/contacts/${id}/unarchive`, { method: "PATCH" }).then(mapContact),
 };
 
 export const ProductCategoriesApi = {
-  list: () => apiFetch<Raw[]>("/product-categories").then((rows) => rows.map(mapProductCategory)),
+  /** Archived rows are excluded unless asked for — `1` includes them, `only` isolates them. */
+  list: (archived?: "1" | "only") =>
+    apiFetch<Raw[]>(`/product-categories${archived ? `?archived=${archived}` : ""}`).then((rows) =>
+      rows.map(mapProductCategory),
+    ),
   create: (name: string) =>
     apiFetch<Raw>("/product-categories", { method: "POST", body: JSON.stringify({ name }) }).then(
       mapProductCategory,
     ),
+  /** Archived rather than deleted: posted documents still point at it. Admin only. */
+  archive: (id: number) =>
+    apiFetch<Raw>(`/product-categories/${id}/archive`, { method: "PATCH" }).then(mapProductCategory),
+  unarchive: (id: number) =>
+    apiFetch<Raw>(`/product-categories/${id}/unarchive`, { method: "PATCH" }).then(mapProductCategory),
 };
 
 export const ProductsApi = {
-  list: () => apiFetch<Raw[]>("/products").then((rows) => rows.map(mapProduct)),
+  /** Archived rows are excluded unless asked for — `1` includes them, `only` isolates them. */
+  list: (archived?: "1" | "only") =>
+    apiFetch<Raw[]>(`/products${archived ? `?archived=${archived}` : ""}`).then((rows) =>
+      rows.map(mapProduct),
+    ),
   get: (id: number) => apiFetch<Raw>(`/products/${id}`).then(mapProduct),
   create: (input: {
     name: string;
@@ -219,19 +241,37 @@ export const ProductsApi = {
   }) => apiFetch<Raw>("/products", { method: "POST", body: JSON.stringify(input) }).then(mapProduct),
   update: (id: number, input: Partial<Product>) =>
     apiFetch<Raw>(`/products/${id}`, { method: "PUT", body: JSON.stringify(input) }).then(mapProduct),
+  /** Archived rather than deleted: posted documents still point at it. Admin only. */
+  archive: (id: number) =>
+    apiFetch<Raw>(`/products/${id}/archive`, { method: "PATCH" }).then(mapProduct),
+  unarchive: (id: number) =>
+    apiFetch<Raw>(`/products/${id}/unarchive`, { method: "PATCH" }).then(mapProduct),
 };
 
 export const AccountsApi = {
-  list: () => apiFetch<Raw[]>("/accounts").then((rows) => rows.map(mapAccount)),
+  /** Archived rows are excluded unless asked for — `1` includes them, `only` isolates them. */
+  list: (archived?: "1" | "only") =>
+    apiFetch<Raw[]>(`/accounts${archived ? `?archived=${archived}` : ""}`).then((rows) =>
+      rows.map(mapAccount),
+    ),
   get: (id: number) => apiFetch<Raw>(`/accounts/${id}`).then(mapAccount),
   create: (input: { code: string; name: string; type: string }) =>
     apiFetch<Raw>("/accounts", { method: "POST", body: JSON.stringify(input) }).then(mapAccount),
   update: (id: number, input: Partial<ChartOfAccount>) =>
     apiFetch<Raw>(`/accounts/${id}`, { method: "PUT", body: JSON.stringify(input) }).then(mapAccount),
+  /** Archived rather than deleted: posted documents still point at it. Admin only. */
+  archive: (id: number) =>
+    apiFetch<Raw>(`/accounts/${id}/archive`, { method: "PATCH" }).then(mapAccount),
+  unarchive: (id: number) =>
+    apiFetch<Raw>(`/accounts/${id}/unarchive`, { method: "PATCH" }).then(mapAccount),
 };
 
 export const JournalsApi = {
-  list: () => apiFetch<Raw[]>("/journals").then((rows) => rows.map(mapJournal)),
+  /** Archived rows are excluded unless asked for — `1` includes them, `only` isolates them. */
+  list: (archived?: "1" | "only") =>
+    apiFetch<Raw[]>(`/journals${archived ? `?archived=${archived}` : ""}`).then((rows) =>
+      rows.map(mapJournal),
+    ),
   get: (id: number) => apiFetch<Raw>(`/journals/${id}`).then(mapJournal),
   create: (input: {
     name: string;
@@ -241,6 +281,11 @@ export const JournalsApi = {
   }) => apiFetch<Raw>("/journals", { method: "POST", body: JSON.stringify(input) }).then(mapJournal),
   update: (id: number, input: Partial<Journal>) =>
     apiFetch<Raw>(`/journals/${id}`, { method: "PUT", body: JSON.stringify(input) }).then(mapJournal),
+  /** Archived rather than deleted: posted documents still point at it. Admin only. */
+  archive: (id: number) =>
+    apiFetch<Raw>(`/journals/${id}/archive`, { method: "PATCH" }).then(mapJournal),
+  unarchive: (id: number) =>
+    apiFetch<Raw>(`/journals/${id}/unarchive`, { method: "PATCH" }).then(mapJournal),
 };
 
 export const PurchaseOrdersApi = {

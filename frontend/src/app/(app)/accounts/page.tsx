@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/Button";
+import { ArchiveAction, ShowArchivedToggle, useArchive } from "@/components/shared/Archive";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
+import { EmptyState, ErrorState, InlineAlert, TableSkeleton } from "@/components/ui/States";
 import { titleCase } from "@/lib/format";
 import { AccountsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
@@ -25,11 +26,27 @@ const TYPE_ORDER: AccountType[] = [
 
 export default function ChartOfAccountsPage() {
   const router = useRouter();
-  const fetchData = useCallback(() => AccountsApi.list(), []);
+  // useAsyncData's retry is defined below the hook that needs it, so the
+  // hook refreshes through a ref rather than reordering the file.
+  const retryRef = useRef<() => void>(() => {});
+  const {
+    isAdmin,
+    showArchived,
+    setShowArchived,
+    busyId,
+    error: archiveError,
+    toggle: toggleArchived,
+    listParam: archiveListParam,
+  } = useArchive(AccountsApi, () => retryRef.current());
+
+  const fetchData = useCallback(() => AccountsApi.list(archiveListParam), [archiveListParam]);
   const { data, loading, error, retry } = useAsyncData<ChartOfAccount[]>(
     fetchData,
     "The chart of accounts service did not respond.",
   );
+  useEffect(() => {
+    retryRef.current = retry;
+  });
   const accounts = data ?? [];
 
   const grouped = TYPE_ORDER.map((type) => ({
@@ -49,7 +66,18 @@ export default function ChartOfAccountsPage() {
             </Button>
           </Link>
         }
+        trailing={
+          isAdmin ? (
+            <ShowArchivedToggle value={showArchived} onChange={setShowArchived} />
+          ) : undefined
+        }
       />
+
+      {archiveError && (
+        <div className="border-b border-[var(--line)] p-5">
+          <InlineAlert title={archiveError} />
+        </div>
+      )}
 
       {loading ? (
         <TableSkeleton rows={8} columns={3} />
@@ -57,8 +85,12 @@ export default function ChartOfAccountsPage() {
         <ErrorState message={error} onRetry={retry} />
       ) : accounts.length === 0 ? (
         <EmptyState
-          title="No accounts configured"
-          description="Accounts are normally seeded before the first transaction is recorded."
+          title={showArchived ? "No archived accounts" : "No accounts configured"}
+          description={
+            showArchived
+              ? "Every account in the chart is currently active."
+              : "Accounts are normally seeded before the first transaction is recorded."
+          }
         />
       ) : (
         <div className="divide-y divide-[var(--line)]">
@@ -74,17 +106,24 @@ export default function ChartOfAccountsPage() {
               </div>
               <ul className="divide-y divide-[var(--line)]">
                 {group.accounts.map((account) => (
-                  <li key={account.id}>
+                  <li key={account.id} className="flex items-center gap-2 pr-5">
                     <button
                       type="button"
                       onClick={() => router.push(`/accounts/${account.id}`)}
-                      className="flex w-full cursor-pointer items-center gap-4 px-5 py-2.5 text-left transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:bg-[var(--surface-sunken)] focus:outline-2 focus:-outline-offset-2 focus:outline-[var(--accent)]"
+                      className="flex flex-1 cursor-pointer items-center gap-4 px-5 py-2.5 text-left transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:bg-[var(--surface-sunken)] focus:outline-2 focus:-outline-offset-2 focus:outline-[var(--accent)]"
                     >
                       <span className="tnum w-16 shrink-0 font-mono text-[13px] text-[var(--text-subtle)]">
                         {account.code}
                       </span>
                       <span className="text-sm text-[var(--text)]">{account.name}</span>
                     </button>
+                    {isAdmin && (
+                      <ArchiveAction
+                        row={account}
+                        busy={busyId === account.id}
+                        onToggle={toggleArchived}
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
