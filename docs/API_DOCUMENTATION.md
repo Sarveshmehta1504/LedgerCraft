@@ -64,7 +64,29 @@ duplicate.
   (`admin` | `accountant` | `user`); optionally links `contact_id`
 * `PUT /users/{id}` — update details / link a `contact_id`
 * `PUT /users/{id}/role` — change role, body `{ "role": "accountant" }`
-* `DELETE /users/{id}` — deactivate
+* `DELETE /users/{id}` — **deactivates** the account (sets `deactivated_at`) and
+  revokes its tokens. The row is never deleted: a user is referenced by
+  `journal_entries.created_by`, so removing it would break the audit trail.
+  Idempotent — deactivating an already-deactivated user returns 200.
+* `PATCH /users/{id}/reactivate` — clears `deactivated_at`
+
+`GET /users` **excludes deactivated accounts by default**; pass
+`?deactivated=only` to list just those. Every user payload carries
+`deactivated_at` (`null` when active).
+
+A deactivated account cannot log in: `POST /auth/login` returns **403**
+`This account has been deactivated. Contact your administrator.` — distinct from
+the 401 for bad credentials, since the credentials are valid.
+
+**Guards on the user endpoints** (all return `422` unless noted):
+
+* you cannot remove your own admin role, or delete your own account (`403`)
+* you cannot demote or deactivate the last remaining admin
+* creating or switching to role `user` requires `contact_id` — a portal account
+  must always be linked to a contact, and that link cannot later be set to null
+* changing a password revokes every existing token for that account
+* `PUT /users/{id}` ignores a `role` field; role changes go through
+  `PUT /users/{id}/role` only
 
 All return `403` for Accountant and User. This is the only route to an `admin` or
 `accountant` account — signup can never produce one.
