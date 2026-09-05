@@ -213,6 +213,34 @@ that already reference it keep resolving it.
 
 ---
 
+# Sales Orders
+
+Mirrors Purchase Orders, with tax:
+
+* `GET /sales-orders` — filters: `status`, `contact_id`, `search`
+* `POST /sales-orders` — lines take an optional `tax_percent` (0-100, default 0).
+  `number` generated (`S00001`); line `account_id` defaults to **Sale Income**.
+* `GET|PUT|DELETE /sales-orders/{id}` — draft-only for edit and delete
+* `POST /sales-orders/{id}/confirm` — draft → confirmed
+* `POST /sales-orders/{id}/convert-to-invoice` — confirmed → invoiced, creates a
+  draft Customer Invoice copying customer, products, prices, quantities **and tax**
+
+## Tax and totals
+
+```text
+line.subtotal   = quantity * unit_price        (stored, tax-exclusive)
+line.tax_amount = subtotal * tax_percent / 100 (derived)
+line.line_total = subtotal + tax_amount        (derived)
+header.total    = sum(line_total)              (stored, tax-INCLUSIVE)
+```
+
+`tax_amount` and `line_total` are appended to every sales line in the JSON; they
+are not columns. Posting an invoice debits Debtors for the tax-inclusive
+`total`. Purchase-side documents have no `tax_percent` — a value sent there is
+ignored.
+
+---
+
 # Vendor Bills
 
 * `GET /vendor-bills` — filters: `status`, `contact_id`, `search` (number or reference)
