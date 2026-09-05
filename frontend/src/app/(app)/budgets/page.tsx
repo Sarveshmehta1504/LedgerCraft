@@ -2,15 +2,30 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { ComboboxControl } from "@/components/ui/Combobox";
 import { DataTable, type Column } from "@/components/shared/DataTable";
+import {
+  ClearFilters,
+  FilterBar,
+  SearchInput,
+  SegmentedFilter,
+} from "@/components/shared/FilterBar";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, formatMoney } from "@/lib/format";
 import { AnalyticAccountsApi, BudgetsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
-import type { AnalyticAccount, Budget } from "@/types";
+import type { AnalyticAccount, Budget, BudgetStatus } from "@/types";
+
+const STATUS_FILTERS: { value: BudgetStatus | ""; label: string }[] = [
+  { value: "", label: "All" },
+  { value: "draft", label: "Draft" },
+  { value: "confirmed", label: "Confirmed" },
+  { value: "revised", label: "Revised" },
+  { value: "cancelled", label: "Cancelled" },
+];
 
 /** Achieved % is only meaningful once a budget is confirmed. */
 function achievedPercent(budget: Budget): number | null {
@@ -20,6 +35,10 @@ function achievedPercent(budget: Budget): number | null {
 
 export default function BudgetsPage() {
   const router = useRouter();
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<BudgetStatus | "">("");
+  const [analyticId, setAnalyticId] = useState<number | null>(null);
+
   // Budget rows carry analytic_account_id only, so the names come from the
   // analytic accounts list rather than a per-row lookup.
   const fetchData = useCallback(
@@ -36,11 +55,28 @@ export default function BudgetsPage() {
   const analyticName = (id: number | null): string =>
     analyticAccounts.find((account) => account.id === id)?.name ?? "—";
 
+  const term = search.trim().toLowerCase();
+  const visible = budgets.filter((budget) => {
+    const matchesSearch = !term || budget.name.toLowerCase().includes(term);
+    const matchesStatus = !status || budget.status === status;
+    const matchesAnalytic = analyticId === null || budget.analytic_account_id === analyticId;
+    return matchesSearch && matchesStatus && matchesAnalytic;
+  });
+
+  const filtered = Boolean(term || status || analyticId !== null);
+
+  function clearFilters() {
+    setSearch("");
+    setStatus("");
+    setAnalyticId(null);
+  }
+
   const columns: Column<Budget>[] = [
     {
       key: "name",
       header: "Budget",
       render: (budget) => <span className="font-medium">{budget.name}</span>,
+      sortValue: (budget) => budget.name,
     },
     {
       key: "analytic",
@@ -48,6 +84,7 @@ export default function BudgetsPage() {
       render: (budget) => (
         <span className="text-[var(--text-muted)]">{analyticName(budget.analytic_account_id)}</span>
       ),
+      sortValue: (budget) => analyticName(budget.analytic_account_id),
     },
     {
       key: "period",
@@ -57,12 +94,16 @@ export default function BudgetsPage() {
           {formatDate(budget.period_start)} — {formatDate(budget.period_end)}
         </span>
       ),
+      // Sorted on the start date: a period is ordered by when it opens, and the
+      // rendered string would sort on a formatted day-of-month.
+      sortValue: (budget) => budget.period_start,
     },
     {
       key: "committed",
       header: "Budget",
       numeric: true,
       render: (budget) => formatMoney(budget.committed_amount),
+      sortValue: (budget) => budget.committed_amount,
     },
     {
       key: "actual",
@@ -74,6 +115,7 @@ export default function BudgetsPage() {
         ) : (
           formatMoney(budget.actual_amount)
         ),
+      sortValue: (budget) => (budget.status === "draft" ? null : budget.actual_amount),
     },
     {
       key: "percent",
@@ -89,8 +131,16 @@ export default function BudgetsPage() {
           </span>
         );
       },
+      // Sorting by this is how you find the over-budget rows: descending puts
+      // anything above 100% at the top.
+      sortValue: (budget) => achievedPercent(budget),
     },
-    { key: "status", header: "Status", render: (budget) => <StatusBadge status={budget.status} /> },
+    {
+      key: "status",
+      header: "Status",
+      render: (budget) => <StatusBadge status={budget.status} />,
+      sortValue: (budget) => budget.status,
+    },
   ];
 
   return (
@@ -111,16 +161,51 @@ export default function BudgetsPage() {
           </Link>
         }
       />
+
+      <FilterBar>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search budgets"
+          label="Search budgets"
+        />
+        <SegmentedFilter
+          value={status}
+          options={STATUS_FILTERS}
+          onChange={setStatus}
+          label="Filter by status"
+        />
+        <div className="w-56">
+          <ComboboxControl
+            ariaLabel="Filter by analytic account"
+            size="sm"
+            value={analyticId}
+            onChange={setAnalyticId}
+            options={analyticAccounts.map((account) => ({
+              value: account.id,
+              label: account.name,
+            }))}
+            placeholder="All analytic accounts"
+            clearLabel="All analytic accounts"
+          />
+        </div>
+        {filtered && <ClearFilters onClear={clearFilters} />}
+      </FilterBar>
+
       <DataTable
         columns={columns}
-        rows={budgets}
+        rows={visible}
         rowKey={(budget) => budget.id}
         onRowClick={(budget) => router.push(`/budgets/${budget.id}`)}
         loading={loading}
         error={error}
         onRetry={retry}
-        emptyTitle="No budgets yet"
-        emptyDescription="Set a committed amount against an analytic account for a period."
+        emptyTitle={filtered ? "No budgets match" : "No budgets yet"}
+        emptyDescription={
+          filtered
+            ? "Try a different status or analytic account."
+            : "Set a committed amount against an analytic account for a period."
+        }
       />
     </div>
   );

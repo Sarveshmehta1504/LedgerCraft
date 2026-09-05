@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/shared/DataTable";
+import { FilterBar, SearchInput, SegmentedFilter } from "@/components/shared/FilterBar";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { Pager, usePagination } from "@/components/shared/Pagination";
 import { ViewSwitcher, type ViewMode } from "@/components/shared/ViewSwitcher";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { titleCase } from "@/lib/format";
@@ -78,6 +80,10 @@ export default function ContactsPage() {
 
   const filtered = Boolean(search.trim() || typeFilter);
 
+  // The card view needs its own pager: DataTable pages the list view itself,
+  // and only one of the two is ever mounted.
+  const { visible: cards, pager: cardPager } = usePagination(visible);
+
   const columns: Column<Contact>[] = [
     {
       key: "image",
@@ -88,14 +94,21 @@ export default function ContactsPage() {
       key: "name",
       header: "Name",
       render: (contact) => <span className="font-medium">{contact.name}</span>,
+      sortValue: (contact) => contact.name,
     },
-    { key: "type", header: "Type", render: (contact) => titleCase(contact.type) },
+    {
+      key: "type",
+      header: "Type",
+      render: (contact) => titleCase(contact.type),
+      sortValue: (contact) => contact.type,
+    },
     {
       key: "email",
       header: "Email",
       render: (contact) => (
         <span className="text-[var(--text-muted)]">{contact.email ?? "—"}</span>
       ),
+      sortValue: (contact) => contact.email,
     },
     {
       key: "mobile",
@@ -105,6 +118,7 @@ export default function ContactsPage() {
           {contact.mobile ?? "—"}
         </span>
       ),
+      sortValue: (contact) => contact.mobile,
     },
     {
       key: "city",
@@ -112,6 +126,7 @@ export default function ContactsPage() {
       render: (contact) => (
         <span className="text-[var(--text-muted)]">{contact.address_city ?? "—"}</span>
       ),
+      sortValue: (contact) => contact.address_city,
     },
   ];
 
@@ -130,33 +145,20 @@ export default function ContactsPage() {
         trailing={<ViewSwitcher value={view} onChange={setView} />}
       />
 
-      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] px-5 py-2.5">
-        <input
-          type="search"
+      <FilterBar>
+        <SearchInput
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={setSearch}
           placeholder="Search name or email"
-          aria-label="Search contacts"
-          className="h-8 w-64 rounded-md border border-[var(--line-strong)] px-2.5 text-sm transition-colors duration-150 placeholder:text-[var(--text-subtle)] focus:outline-2 focus:-outline-offset-1 focus:outline-[var(--accent)]"
+          label="Search contacts"
         />
-        <div className="flex items-center gap-1">
-          {TYPE_FILTERS.map((filter) => (
-            <button
-              key={filter.value || "all"}
-              type="button"
-              onClick={() => setTypeFilter(filter.value)}
-              aria-pressed={typeFilter === filter.value}
-              className={`h-8 cursor-pointer rounded-md px-2.5 text-[13px] font-medium transition-colors duration-150 ${
-                typeFilter === filter.value
-                  ? "bg-[var(--surface-raised)] text-[var(--text)]"
-                  : "text-[var(--text-muted)] hover:bg-[var(--surface-raised)]"
-              }`}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
-      </div>
+        <SegmentedFilter
+          value={typeFilter}
+          options={TYPE_FILTERS}
+          onChange={setTypeFilter}
+          label="Filter by contact type"
+        />
+      </FilterBar>
 
       {view === "list" ? (
         <DataTable
@@ -193,8 +195,9 @@ export default function ContactsPage() {
           description="Adjust the search term or type filter to see more records."
         />
       ) : (
+        <>
         <div className="grid gap-px bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-3">
-          {visible.map((contact) => (
+          {cards.map((contact) => (
             <Link
               key={contact.id}
               href={`/contacts/${contact.id}`}
@@ -219,6 +222,8 @@ export default function ContactsPage() {
             </Link>
           ))}
         </div>
+        <Pager state={cardPager} />
+        </>
       )}
     </div>
   );

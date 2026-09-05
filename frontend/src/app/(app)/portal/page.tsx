@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/DataTable";
+import { FilterBar, SearchInput, SegmentedFilter } from "@/components/shared/FilterBar";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/States";
@@ -20,8 +21,21 @@ import type { CustomerInvoice } from "@/types";
  * for this role, which is why the portal has a screen of its own rather than
  * sharing the dashboard.
  */
+/**
+ * "Outstanding" is the useful cut here rather than the raw status: a customer
+ * wants the two invoices they still owe on, not the difference between posted
+ * and partly paid.
+ */
+const STATUS_FILTERS = [
+  { value: "", label: "All" },
+  { value: "outstanding", label: "Outstanding" },
+  { value: "paid", label: "Paid" },
+];
+
 export default function PortalPage() {
   const router = useRouter();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
   const user = typeof window === "undefined" ? null : getCurrentUser();
   // /my/invoices is scoped to the caller's own contact, so it answers 403 for
   // staff accounts. Say that plainly instead of showing a failed request.
@@ -34,9 +48,25 @@ export default function PortalPage() {
   );
   const invoices = data ?? [];
 
+  // Deliberately computed over every invoice, not the filtered view: the tiles
+  // are the state of the account, and would be wrong if a filter moved them.
   const outstanding = invoices
     .filter((invoice) => invoice.status !== "paid")
     .reduce((sum, invoice) => sum + (invoice.total - invoice.amount_paid), 0);
+
+  const term = search.trim().toLowerCase();
+  const visible = invoices.filter((invoice) => {
+    const matchesSearch =
+      !term ||
+      invoice.invoice_number.toLowerCase().includes(term) ||
+      (invoice.invoice_reference ?? "").toLowerCase().includes(term);
+    const matchesStatus =
+      !statusFilter ||
+      (statusFilter === "paid" ? invoice.status === "paid" : invoice.status !== "paid");
+    return matchesSearch && matchesStatus;
+  });
+
+  const filtered = Boolean(term || statusFilter);
 
   const columns: Column<CustomerInvoice>[] = [
     {
@@ -45,30 +75,50 @@ export default function PortalPage() {
       render: (invoice) => (
         <span className="tnum font-mono text-[13px] font-medium">{invoice.invoice_number}</span>
       ),
+      sortValue: (invoice) => invoice.invoice_number,
     },
-    { key: "invoice_date", header: "Date", render: (invoice) => formatDate(invoice.invoice_date) },
+    {
+      key: "invoice_date",
+      header: "Date",
+      render: (invoice) => formatDate(invoice.invoice_date),
+      sortValue: (invoice) => invoice.invoice_date,
+    },
+    {
+      key: "due_date",
+      header: "Due",
+      render: (invoice) => (
+        <span className="text-[var(--text-muted)]">
+          {invoice.due_date ? formatDate(invoice.due_date) : "—"}
+        </span>
+      ),
+      sortValue: (invoice) => invoice.due_date,
+    },
     {
       key: "total",
       header: "Total",
       numeric: true,
       render: (invoice) => formatMoney(invoice.total),
+      sortValue: (invoice) => invoice.total,
     },
     {
       key: "amount_paid",
       header: "Paid",
       numeric: true,
       render: (invoice) => formatMoney(invoice.amount_paid),
+      sortValue: (invoice) => invoice.amount_paid,
     },
     {
       key: "due",
-      header: "Due",
+      header: "Due amount",
       numeric: true,
       render: (invoice) => formatMoney(invoice.total - invoice.amount_paid),
+      sortValue: (invoice) => invoice.total - invoice.amount_paid,
     },
     {
       key: "status",
       header: "Status",
       render: (invoice) => <StatusBadge status={invoice.status} />,
+      sortValue: (invoice) => invoice.status,
     },
   ];
 
@@ -122,16 +172,36 @@ export default function PortalPage() {
 
       <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-white">
         <PageHeader title="Invoices" subtitle="Everything billed to your account" />
+
+        <FilterBar>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search invoice or reference"
+            label="Search your invoices"
+          />
+          <SegmentedFilter
+            value={statusFilter}
+            options={STATUS_FILTERS}
+            onChange={setStatusFilter}
+            label="Filter by settlement"
+          />
+        </FilterBar>
+
         <DataTable
           columns={columns}
-          rows={invoices}
+          rows={visible}
           rowKey={(invoice) => invoice.id}
           onRowClick={(invoice) => router.push(`/portal/invoices/${invoice.id}`)}
           loading={loading}
           error={error}
           onRetry={retry}
-          emptyTitle="No invoices yet"
-          emptyDescription="Invoices raised against your account will appear here."
+          emptyTitle={filtered ? "Nothing matches" : "No invoices yet"}
+          emptyDescription={
+            filtered
+              ? "Try a different search term, or show all invoices."
+              : "Invoices raised against your account will appear here."
+          }
         />
       </div>
     </div>

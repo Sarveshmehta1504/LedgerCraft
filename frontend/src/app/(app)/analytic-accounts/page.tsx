@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/shared/DataTable";
+import { FilterBar, SearchInput, SegmentedFilter } from "@/components/shared/FilterBar";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { Pager, usePagination } from "@/components/shared/Pagination";
 import { ViewSwitcher, type ViewMode } from "@/components/shared/ViewSwitcher";
 import { EmptyState, ErrorState, InlineAlert, TableSkeleton } from "@/components/ui/States";
 import { ApiError } from "@/lib/api";
@@ -13,12 +15,20 @@ import { formatMoney, titleCase } from "@/lib/format";
 import { AnalyticAccountsApi, BudgetsApi } from "@/lib/resources";
 import { getCurrentUser } from "@/lib/session";
 import { useAsyncData } from "@/lib/use-async-data";
-import type { AnalyticAccount, Budget } from "@/types";
+import type { AnalyticAccount, AnalyticAccountType, Budget } from "@/types";
+
+const TYPE_FILTERS: { value: AnalyticAccountType | ""; label: string }[] = [
+  { value: "", label: "All" },
+  { value: "income", label: "Income" },
+  { value: "expense", label: "Expense" },
+];
 
 export default function AnalyticAccountsPage() {
   const router = useRouter();
   const [view, setView] = useState<ViewMode>("list");
   const [showArchived, setShowArchived] = useState(false);
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<AnalyticAccountType | "">("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
 
@@ -38,6 +48,19 @@ export default function AnalyticAccountsPage() {
   );
   const accounts = data?.[0] ?? [];
   const budgets = data?.[1] ?? [];
+
+  const term = search.trim().toLowerCase();
+  const visible = accounts.filter((account) => {
+    const matchesSearch = !term || account.name.toLowerCase().includes(term);
+    const matchesType = !typeFilter || account.type === typeFilter;
+    return matchesSearch && matchesType;
+  });
+
+  const filtered = Boolean(term || typeFilter);
+
+  // The kanban view needs its own pager: DataTable pages the list view itself,
+  // and only one of the two is ever mounted.
+  const { visible: cards, pager: cardPager } = usePagination(visible);
 
   /**
    * Budgets referencing an analytic account — surfaced on the list and kanban card.
@@ -79,19 +102,27 @@ export default function AnalyticAccountsPage() {
       key: "name",
       header: "Analytic account",
       render: (account) => <span className="font-medium">{account.name}</span>,
+      sortValue: (account) => account.name,
     },
-    { key: "type", header: "Type", render: (account) => titleCase(account.type) },
+    {
+      key: "type",
+      header: "Type",
+      render: (account) => titleCase(account.type),
+      sortValue: (account) => account.type,
+    },
     {
       key: "budgets",
       header: "Budgets",
       numeric: true,
       render: (account) => budgetSummary(account.id).count,
+      sortValue: (account) => budgetSummary(account.id).count,
     },
     {
       key: "committed",
       header: "Committed",
       numeric: true,
       render: (account) => formatMoney(budgetSummary(account.id).committed),
+      sortValue: (account) => budgetSummary(account.id).committed,
     },
     ...(isAdmin
       ? [
@@ -150,6 +181,21 @@ export default function AnalyticAccountsPage() {
         }
       />
 
+      <FilterBar>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search analytic accounts"
+          label="Search analytic accounts"
+        />
+        <SegmentedFilter
+          value={typeFilter}
+          options={TYPE_FILTERS}
+          onChange={setTypeFilter}
+          label="Filter by type"
+        />
+      </FilterBar>
+
       {actionError && (
         <div className="border-b border-[var(--line)] p-5">
           <InlineAlert title={actionError} />
@@ -159,20 +205,28 @@ export default function AnalyticAccountsPage() {
       {view === "list" ? (
         <DataTable
           columns={columns}
-          rows={accounts}
+          rows={visible}
           rowKey={(account) => account.id}
           onRowClick={(account) => router.push(`/analytic-accounts/${account.id}`)}
           loading={loading}
           error={error}
           onRetry={retry}
-          emptyTitle={showArchived ? "No archived accounts" : "No analytic accounts yet"}
+          emptyTitle={
+            filtered
+              ? "No accounts match"
+              : showArchived
+                ? "No archived accounts"
+                : "No analytic accounts yet"
+          }
           emptyDescription={
-            showArchived
-              ? "Every cost centre is currently active."
-              : "Create cost centres to track budget against actual spend."
+            filtered
+              ? "Try a different search term or type."
+              : showArchived
+                ? "Every cost centre is currently active."
+                : "Create cost centres to track budget against actual spend."
           }
           emptyAction={
-            showArchived ? undefined : (
+            showArchived || filtered ? undefined : (
             <Link href="/analytic-accounts/new">
               <Button variant="primary" size="sm">
                 New analytic account
@@ -185,14 +239,19 @@ export default function AnalyticAccountsPage() {
         <TableSkeleton rows={4} columns={4} />
       ) : error ? (
         <ErrorState message={error} onRetry={retry} />
-      ) : accounts.length === 0 ? (
+      ) : visible.length === 0 ? (
         <EmptyState
-          title="No analytic accounts yet"
-          description="Create cost centres to track budget against actual spend."
+          title={filtered ? "No accounts match" : "No analytic accounts yet"}
+          description={
+            filtered
+              ? "Try a different search term or type."
+              : "Create cost centres to track budget against actual spend."
+          }
         />
       ) : (
+        <>
         <div className="grid gap-px bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-3">
-          {accounts.map((account) => {
+          {cards.map((account) => {
             const summary = budgetSummary(account.id);
             return (
               <Link
@@ -218,6 +277,8 @@ export default function AnalyticAccountsPage() {
             );
           })}
         </div>
+        <Pager state={cardPager} />
+        </>
       )}
     </div>
   );
