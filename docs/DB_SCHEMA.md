@@ -51,8 +51,10 @@ paid/unpaid status and pays dues from the portal).
 * Admin creates accounts and assigns roles (`admin` / `accountant` / `user`); this
   is the only path to an `admin` or `accountant` account.
 * Signup also creates a linked `contacts` row of type `customer` (same
-  transaction), so every portal user always has exactly one Contact. An existing
-  contact with the same email is reused rather than duplicated.
+  transaction), so every portal user always has exactly one Contact. The contact
+  is **always new** — an existing contact sharing the email is never adopted,
+  because that would let anyone who knows a customer's address inherit their
+  invoices. An admin relinks the account afterwards if needed.
 * A Forgot Password page exists.
 
 > This overrides the design board, which says signup creates an invoicing user —
