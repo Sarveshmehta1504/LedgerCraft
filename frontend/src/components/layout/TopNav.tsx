@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Logo } from "@/components/brand/Logo";
 import { useEffect, useRef, useState } from "react";
 
 /**
@@ -77,12 +78,9 @@ export function TopNav() {
       <div className="flex items-center gap-1 px-5">
         <Link
           href="/dashboard"
-          className="mr-4 flex items-center gap-2 py-2.5 text-[15px] font-semibold tracking-tight text-[var(--text)]"
+          className="mr-4 flex items-center py-2.5"
         >
-          <span className="grid h-5 w-5 place-items-center rounded bg-zinc-900 text-[11px] font-bold text-white">
-            L
-          </span>
-          LedgerCraft
+          <Logo size={20} />
         </Link>
 
         {NAV.map((tab) => {

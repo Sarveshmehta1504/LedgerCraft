@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Logo } from "@/components/brand/Logo";
 
 /**
  * Split shell for the auth screens — the form is deliberately off-centre against a
@@ -8,12 +9,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="grid min-h-[100dvh] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)]">
       <aside className="hidden flex-col justify-between border-r border-[var(--line)] bg-white px-12 py-10 lg:flex">
-        <div className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
-          <span className="grid h-5 w-5 place-items-center rounded bg-zinc-900 text-[11px] font-bold text-white">
-            L
-          </span>
-          LedgerCraft
-        </div>
+        <Logo size={22} />
 
         <div className="max-w-md">
           <h2 className="text-3xl font-semibold leading-tight tracking-tighter text-[var(--text)]">
