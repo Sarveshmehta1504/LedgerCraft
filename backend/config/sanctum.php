@@ -50,7 +50,11 @@ return [
     |
     */
 
-    'expiration' => null,
+    // A leaked token that never expires is valid forever. 24 hours comfortably
+    // outlasts a demo or a working day; clients refresh before it lapses.
+    // Cast: env() returns a string, and Carbon's addMinutes() rejects one,
+    // which would make every login 500.
+    'expiration' => (int) env('SANCTUM_TOKEN_TTL', 60 * 24),
 
     /*
     |--------------------------------------------------------------------------

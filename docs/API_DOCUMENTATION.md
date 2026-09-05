@@ -47,6 +47,25 @@ Login is by **`login_id`**, not email (per the design board).
 * 401 Unauthenticated
 * 422 Validation error
 
+## POST `/auth/refresh`
+Exchanges the current token for a new one and **revokes the old one**. Returns
+the same payload as login. Must be called while the current token is still
+valid — an expired token cannot authenticate this route, so the user has to log
+in again.
+
+## Token lifetime
+
+Tokens expire after `SANCTUM_TOKEN_TTL` minutes (default **1440**, i.e. 24h).
+Login, signup and refresh all return:
+
+```json
+{ "expires_in_minutes": 1440, "expires_at": "2026-09-06T15:37:13+00:00" }
+```
+
+Clients should refresh before `expires_at`; an expired token returns `401` and
+the app should sign the user out. Previously tokens never expired, so a leaked
+one stayed valid indefinitely.
+
 ## POST `/auth/logout`
 Revokes current token. `{ "code": 200, "message": "Logged out" }`
 
