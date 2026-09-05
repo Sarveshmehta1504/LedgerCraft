@@ -2,6 +2,7 @@
 
 import { Eye, EyeOff } from "lucide-react";
 import { useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
+import { Select } from "./Select";
 
 const control =
   "h-9 w-full rounded-md border bg-white px-2.5 text-sm text-[var(--text)] " +
@@ -105,24 +106,25 @@ export function SelectField({
   placeholder,
   id,
   className = "",
-  ...props
+  value,
+  onChange,
+  disabled,
+  required,
 }: SelectFieldProps) {
   const fieldId = id ?? `field-${label.toLowerCase().replace(/\s+/g, "-")}`;
   return (
-    <FieldShell label={label} htmlFor={fieldId} error={error} hint={hint} required={props.required}>
-      <select
+    <FieldShell label={label} htmlFor={fieldId} error={error} hint={hint} required={required}>
+      <Select
         id={fieldId}
-        aria-invalid={Boolean(error)}
-        className={`${control} ${borderFor(error)} cursor-pointer ${className}`}
-        {...props}
-      >
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        value={value as string | number}
+        onChange={(event) => onChange?.(event as React.ChangeEvent<HTMLSelectElement>)}
+        options={options}
+        placeholder={placeholder}
+        disabled={disabled}
+        required={required}
+        error={error}
+        className={className}
+      />
     </FieldShell>
   );
 }
