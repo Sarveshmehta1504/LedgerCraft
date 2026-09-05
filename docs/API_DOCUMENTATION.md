@@ -6,23 +6,35 @@
 /api
 ```
 
-## Authentication
+## Integration notes
 
-Laravel Sanctum, token-based (SPA or personal access token — token is simplest for a
-hackathon: return it on login, frontend sends `Authorization: Bearer <token>`).
-Every route below except `/auth/login` requires auth. Role checks use Spatie
-middleware (`role:admin`, `role:admin,accountant`, etc.) per the matrix in
-`BACKEND_REQUIREMENTS.md`.
+* Base URL `http://127.0.0.1:8000/api`. Set `FRONTEND_URL` in the backend `.env`
+  (default `http://localhost:3000`) — password reset links are built from it.
+* Every response is `{code, message, data?}` and `code` mirrors the HTTP status.
+  Errors add `errors` for field-level validation.
+* Rate limits: `10/min` on login and signup, `6/min` on forgot/reset password.
+  A `429` is the throttle, not a bug.
+* `mock-data.ts` in the frontend should be retired resource by resource — every
+  endpoint listed below is live and returns real data.
 
 ---
 
 # Authentication
 
+Laravel Sanctum, token-based (SPA or personal access token — token is simplest for a
+hackathon: return it on login, frontend sends `Authorization: Bearer <token>`).
+Public routes: `/health`, `/auth/login`, `/auth/signup`, `/auth/forgot-password`,
+`/auth/reset-password`. Everything else requires
+`Authorization: Bearer <token>`. Role checks are enforced by policies (and
+`role:` middleware where simpler) per the matrix in `BACKEND_REQUIREMENTS.md`.
+
+---
+
 ## POST `/auth/login`
 
 ### Request
 ```json
-{ "login_id": "urbanadmin", "password": "Password@1" }
+{ "login_id": "adminuser", "password": "Admin@123" }
 ```
 Login is by **`login_id`**, not email (per the design board).
 

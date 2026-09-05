@@ -20,10 +20,10 @@ names once assigned).
 
 * [x] SETUP-001 Create GitHub repo, push initial scaffold to `main` (see README "Initial Repository Setup")
 * [x] SETUP-002 Laravel 12 install in `backend/`, Sanctum + Spatie installed and configured
-* [ ] SETUP-003 Next.js install in `frontend/`, Tailwind + shadcn/ui configured
-* [-] SETUP-004 `GET /api/health` working, homepage displays it (the AGENTS.md integration test) — API side verified (`{"code":200,"status":"ok","message":"API is healthy"}`); homepage half blocked on SETUP-003
+* [x] SETUP-003 Next.js install in `frontend/`, Tailwind + shadcn/ui configured
+* [x] SETUP-004 `GET /api/health` working, displayed by the frontend at `/health`
 * [x] SETUP-005 MySQL DB created, `.env` configured, `migrate` runs clean — 11 migrations, verified reversible (rollback + re-run)
-* [ ] SETUP-006 Create 4 team branches from `main`, everyone rebases onto latest `main` before starting
+* [x] SETUP-006 Create 4 team branches from `main`, everyone rebases onto latest `main` before starting
 
 ---
 
@@ -94,12 +94,22 @@ the next lane:
 
 ## Integration (whole team, ongoing — do not batch this to the end)
 
+> **Integration phase — branch state.** The backend transaction layer (BE-007
+> → BE-013) lives on `parv` and is **not yet merged to `main`**: 9 migrations,
+> 9 models, 6 services, 6 controllers and the report endpoints. `main` currently
+> has only the master-data half plus `JournalEntryService`. Anyone writing
+> transaction seeders or wiring transaction screens must rebase onto `parv`
+> first, or build against tables that do not exist on their branch.
+>
+> Seeder rules: [`docs/SEEDING.md`](SEEDING.md). Never insert journal entries by
+> hand — it breaks the Balance Sheet silently.
+
 * [ ] INT-001 Auth token flow end-to-end (login → stored token → authenticated request)
 * [ ] INT-002 Contacts/Products/CoA/Journals screens wired to real API (not mocks) by hour 5
-* [ ] INT-003 Full PO→Bill→Payment flow wired end-to-end by hour 7
-* [ ] INT-004 Full SO→Invoice→Payment flow wired end-to-end by hour 7
+* [-] INT-003 Full PO→Bill→Payment flow wired end-to-end by hour 7 — backend verified end-to-end (P00001 → Bill/2026/0001 → part-pay bank → settle cash → `paid`, ledger balanced); awaiting frontend wiring
+* [-] INT-004 Full SO→Invoice→Payment flow wired end-to-end by hour 7 — backend verified end-to-end (S00001 with 18% tax → INV/2026/0001 → part-pay → settle → `paid`); awaiting frontend wiring
 * [-] INT-005 Balance Sheet numbers verified by hand against seed data (assets == liabilities+capital) — verified against a full PO→Bill→Payment and SO→Invoice→Payment cycle: assets 7,250 = retained earnings 7,250, trial balance 54,200/54,200. Re-verify once the frontend drives the flow.
-* [ ] INT-006 Contact portal login + pay-own-invoice flow verified with a real contact-role user
+* [-] INT-006 Contact portal login + pay-own-invoice flow verified with a real contact-role user — backend verified: portal user paid their own invoice, another contact's invoice returns 404, drafts hidden; awaiting frontend portal
 
 **Checkpoint at hour 8: if INT-003, INT-004, INT-005 aren't done, stop starting new P0 work and finish these three before touching anything in P1.**
 
