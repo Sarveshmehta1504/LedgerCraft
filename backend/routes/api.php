@@ -1,10 +1,13 @@
 <?php
 
+use App\Http\Controllers\Api\AnalyticAccountController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BudgetController;
 use App\Http\Controllers\Api\ChartOfAccountController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\CustomerInvoiceController;
 use App\Http\Controllers\Api\JournalController;
+use App\Http\Controllers\Api\JournalEntryController;
 use App\Http\Controllers\Api\PortalController;
 use App\Http\Controllers\Api\ProductCategoryController;
 use App\Http\Controllers\Api\ProductController;
@@ -39,6 +42,7 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->prefix('auth')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
     Route::get('me', [AuthController::class, 'me']);
+    Route::post('refresh', [AuthController::class, 'refresh']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -87,12 +91,16 @@ Route::middleware('auth:sanctum')->group(function () {
         ->parameters(['vendor-bills' => 'vendorBill']);
     Route::post('vendor-bills/{vendorBill}/post', [VendorBillController::class, 'post']);
     Route::post('vendor-bills/{vendorBill}/payments', [VendorBillController::class, 'registerPayment']);
+    Route::get('vendor-bills/{vendorBill}/pdf', [VendorBillController::class, 'pdf']);
+    Route::post('vendor-bills/{vendorBill}/send', [VendorBillController::class, 'send']);
 
     // Customer invoices: draft -> posted (creates the journal entry) -> paid.
     Route::apiResource('customer-invoices', CustomerInvoiceController::class)
         ->parameters(['customer-invoices' => 'customerInvoice']);
     Route::post('customer-invoices/{customerInvoice}/post', [CustomerInvoiceController::class, 'post']);
     Route::post('customer-invoices/{customerInvoice}/payments', [CustomerInvoiceController::class, 'registerPayment']);
+    Route::get('customer-invoices/{customerInvoice}/pdf', [CustomerInvoiceController::class, 'pdf']);
+    Route::post('customer-invoices/{customerInvoice}/send', [CustomerInvoiceController::class, 'send']);
 
     // Contact portal. Scope comes from the authenticated user's contact_id,
     // never from the request, so a portal user cannot widen it.
@@ -107,8 +115,26 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('reports')->group(function () {
         Route::get('profit-and-loss', [ReportController::class, 'profitAndLoss']);
         Route::get('balance-sheet', [ReportController::class, 'balanceSheet']);
+        Route::get('budget', [ReportController::class, 'budget']);
+        Route::get('dashboard', [ReportController::class, 'dashboard']);
+        Route::get('aging', [ReportController::class, 'aging']);
         Route::get('trial-balance', [ReportController::class, 'trialBalance']);
+        Route::get('{report}/pdf', [ReportController::class, 'pdf']);
+        Route::post('{report}/send', [ReportController::class, 'send']);
     });
+
+    Route::apiResource('analytic-accounts', AnalyticAccountController::class)
+        ->parameters(['analytic-accounts' => 'analyticAccount']);
+
+    // Read-only: entries are system-generated when documents are posted.
+    Route::get('journal-entries', [JournalEntryController::class, 'index']);
+    Route::get('journal-entries/{journalEntry}', [JournalEntryController::class, 'show']);
+
+    Route::apiResource('budgets', BudgetController::class);
+    Route::post('budgets/{budget}/confirm', [BudgetController::class, 'confirm']);
+    Route::post('budgets/{budget}/revise', [BudgetController::class, 'revise']);
+    Route::post('budgets/{budget}/cancel', [BudgetController::class, 'cancel']);
+    Route::get('budgets/{budget}/achieved-documents', [BudgetController::class, 'achievedDocuments']);
 
     Route::apiResource('journals', JournalController::class);
     Route::patch('journals/{journal}/archive', [JournalController::class, 'archive']);

@@ -47,6 +47,25 @@ Login is by **`login_id`**, not email (per the design board).
 * 401 Unauthenticated
 * 422 Validation error
 
+## POST `/auth/refresh`
+Exchanges the current token for a new one and **revokes the old one**. Returns
+the same payload as login. Must be called while the current token is still
+valid — an expired token cannot authenticate this route, so the user has to log
+in again.
+
+## Token lifetime
+
+Tokens expire after `SANCTUM_TOKEN_TTL` minutes (default **1440**, i.e. 24h).
+Login, signup and refresh all return:
+
+```json
+{ "expires_in_minutes": 1440, "expires_at": "2026-09-06T15:37:13+00:00" }
+```
+
+Clients should refresh before `expires_at`; an expired token returns `401` and
+the app should sign the user out. Previously tokens never expired, so a leaked
+one stayed valid indefinitely.
+
 ## POST `/auth/logout`
 Revokes current token. `{ "code": 200, "message": "Logged out" }`
 
@@ -135,7 +154,30 @@ Errors: `422` invalid/expired token or weak password.
 
 ---
 
-# Mail & Documents
+# Mail & Documents (implemented)
+
+* `GET /customer-invoices/{id}/pdf` — downloads the invoice PDF
+* `POST /customer-invoices/{id}/send` — body `{to?, subject?}`; `to` defaults to
+  the customer's email
+* `GET /vendor-bills/{id}/pdf`, `POST /vendor-bills/{id}/send` — same shape
+* `GET /reports/{report}/pdf` — `report` is `balance-sheet`, `profit-and-loss`
+  or `budget`; anything else is `404`. Accepts the same date params as the JSON
+  report (`as_of`, `from`, `to`).
+* `POST /reports/{report}/send` — **`to` is required**: a report has no contact
+  to fall back on
+
+Responses: `200 {"code":200,"message":"Invoice sent to nimesh@example.com"}`.
+`422` when the contact has no email on file (a data problem, so the UI can point
+at the contact record), `500` with the transport's real reason if delivery fails
+— never a false success.
+
+Mail is sent **synchronously** with the PDF attached, so a `200` means the
+message reached the transport. Expect roughly a second; the Send button needs a
+spinner.
+
+---
+
+# Mail & Documents (original plan)
 
 Every endpoint below is Admin/Accountant only, except a portal User may print
 their own invoice.
@@ -339,6 +381,66 @@ drift from the ledger.
 * `GET /reports/profit-and-loss?from=&to=` — both dates optional
 * `GET /reports/balance-sheet?as_of=` — optional
 * `GET /reports/trial-balance?as_of=` — every account with debit/credit totals
+* `GET /reports/budget?status=&analytic_account_id=` — committed vs achieved per
+  budget, plus totals. Revised and cancelled budgets are listed with
+  `counted_in_totals: false` and excluded from the totals, so revising a budget
+  does not double the committed figure.
+* `GET /reports/dashboard` — cash, bank, receivable, payable, overdue on each
+  side, net income, document counts, top 5 customers by revenue
+* `GET /reports/aging?as_of=` — AR and AP in `current` / `1_30` / `31_60` /
+  `61_90` / `90_plus` buckets by days past due, with the documents behind each.
+  Uses the **unpaid balance**, not the document total; drafts and fully settled
+  documents are excluded; a document with no due date stays `current`.
+
+---
+
+# Analytic Accounts
+
+* `GET|POST /analytic-accounts`, `GET|PUT|DELETE /analytic-accounts/{id}`
+* `name` is unique; `type` is `income` or `expense`
+* `DELETE` returns `409` while the account is used by a budget or by posted
+  journal lines
+* `show` embeds every budget the account is used in
+
+---
+
+# Journal Entries (read-only)
+
+* `GET /journal-entries` — filters: `journal_id`, `source_type`, `from`, `to`,
+  `search` (reference). Each row carries `total_debit`, `total_credit`, `balanced`.
+* `GET /journal-entries/{id}` — lines with account and analytic account, the
+  journal, and who posted it
+
+**There are no write routes.** Entries are created by the system when a bill,
+invoice or payment is posted; exposing a create endpoint would allow an
+unbalanced entry straight into the ledger. `POST` returns `405`.
+
+---
+
+# Budgets
+
+* `GET|POST /budgets`, `GET|PUT|DELETE /budgets/{id}`
+* `POST /budgets/{id}/confirm` — draft → confirmed
+* `POST /budgets/{id}/revise` — confirmed only. Creates a **new** budget
+  (name + " Revised" unless overridden), links it via `revision_of_id`, and moves
+  the original to `revised`. Returns the new budget.
+* `POST /budgets/{id}/cancel` — a revised budget cannot be cancelled
+* `GET /budgets/{id}/achieved-documents` — the invoices or bills behind the
+  achieved figure
+
+Every budget payload carries derived figures, never stored:
+
+```text
+achieved_amount   sum of posted/paid document lines carrying the analytic
+                  account, within period_start..period_end
+                  income analytic  -> customer invoice lines
+                  expense analytic -> vendor bill lines
+achieved_percent  achieved / committed * 100   (null when committed is 0)
+amount_to_achieve committed - achieved
+```
+
+Only `posted` and `paid` documents count — a draft has not reached the ledger.
+Edits are draft-only (`409` otherwise); delete is draft-only, cancel otherwise.
 
 ## How balances are signed
 

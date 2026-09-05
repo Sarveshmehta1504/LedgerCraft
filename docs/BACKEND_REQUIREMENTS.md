@@ -8,7 +8,11 @@ behind them.
 
 # Authentication & Roles
 
-* [ ] Sanctum token login/logout
+* [x] Sanctum token login/logout
+* [x] Tokens expire (`SANCTUM_TOKEN_TTL`, default 24h) with `POST /auth/refresh`
+      to exchange a live token for a new one and revoke the old. `config()` casts
+      the value to int - `env()` returns a string and Carbon's `addMinutes()`
+      rejects one, which 500s every login.
 * [ ] Forgot Password: `password_reset_tokens` (ships with Laravel's default
       users migration) + reset link email; tokens expire after 60 minutes and are
       single-use. Forgot-password responses must be identical whether or not the

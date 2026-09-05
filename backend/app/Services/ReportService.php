@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Budget;
 use App\Models\ChartOfAccount;
+use App\Services\Concerns\BuildsOperationalReports;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -14,6 +16,8 @@ use Illuminate\Support\Facades\DB;
  */
 class ReportService
 {
+    use BuildsOperationalReports;
+
     /** Balance = debit - credit for these; credit - debit for the rest. */
     private const DEBIT_NORMAL = ['asset', 'bank', 'cash', 'expense', 'other_expense'];
 
@@ -103,7 +107,7 @@ class ReportService
      *
      * @param  array<int, string>  $types
      */
-    private function accountBalances(array $types, ?string $from, ?string $to): array
+    protected function accountBalances(array $types, ?string $from, ?string $to): array
     {
         $rows = DB::table('journal_entry_lines')
             ->join('journal_entries', 'journal_entries.id', '=', 'journal_entry_lines.journal_entry_id')
@@ -148,9 +152,65 @@ class ReportService
         return array_sum(array_map(fn ($a) => (float) $a['balance'], $accounts));
     }
 
-    private function money(float $amount): string
+    protected function money(float $amount): string
     {
         return number_format($amount, 2, '.', '');
+    }
+
+    /**
+     * Budget Report: committed versus achieved for every budget in scope, with
+     * the totals the kanban pie chart needs.
+     */
+    public function budget(?string $status = null, ?int $analyticAccountId = null): array
+    {
+        $budgets = Budget::query()
+            ->with(['analyticAccount:id,name,type', 'responsible:id,name'])
+            ->when($status, fn ($q, $s) => $q->where('status', $s))
+            ->when($analyticAccountId, fn ($q, $id) => $q->where('analytic_account_id', $id))
+            ->orderByDesc('period_start')
+            ->get();
+
+        $service = app(BudgetService::class);
+        $rows = [];
+        $committedTotal = 0.0;
+        $achievedTotal = 0.0;
+
+        foreach ($budgets as $budget) {
+            $figures = $service->figures($budget);
+
+            // A revised budget has been superseded by its replacement and a
+            // cancelled one was abandoned. Both stay in the list for history,
+            // but counting them would double the committed total the moment
+            // anything is revised.
+            $counted = in_array($budget->status, ['draft', 'confirmed'], true);
+
+            if ($counted) {
+                $committedTotal += (float) $figures['committed_amount'];
+                $achievedTotal += (float) $figures['achieved_amount'];
+            }
+
+            $rows[] = array_merge([
+                'counted_in_totals' => $counted,
+                'id' => $budget->id,
+                'name' => $budget->name,
+                'status' => $budget->status,
+                'period_start' => $budget->period_start?->toDateString(),
+                'period_end' => $budget->period_end?->toDateString(),
+                'analytic_account' => $budget->analyticAccount?->only(['id', 'name', 'type']),
+                'responsible' => $budget->responsible?->only(['id', 'name']),
+            ], $figures);
+        }
+
+        return [
+            'filters' => ['status' => $status, 'analytic_account_id' => $analyticAccountId],
+            'budgets' => $rows,
+            'total_committed' => $this->money($committedTotal),
+            'total_achieved' => $this->money($achievedTotal),
+            'total_remaining' => $this->money($committedTotal - $achievedTotal),
+            'overall_achieved_percent' => $committedTotal <= 0.0
+                ? null
+                : round($achievedTotal / $committedTotal * 100, 2),
+        ];
     }
 
     /** Every account, for a trial-balance style sanity check. */
