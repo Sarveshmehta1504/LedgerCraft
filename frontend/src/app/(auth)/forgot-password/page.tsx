@@ -5,9 +5,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
 import { InlineAlert } from "@/components/ui/States";
+import { apiFetch, ApiError } from "@/lib/api";
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
+  const [loginId, setLoginId] = useState("");
   const [fieldError, setFieldError] = useState<string>();
   const [formError, setFormError] = useState<string>();
   const [sent, setSent] = useState(false);
@@ -16,8 +17,8 @@ export default function ForgotPasswordPage() {
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
 
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      setFieldError("Enter a valid email address.");
+    if (!loginId.trim()) {
+      setFieldError("Enter your login ID.");
       return;
     }
     setFieldError(undefined);
@@ -25,12 +26,16 @@ export default function ForgotPasswordPage() {
     setSubmitting(true);
 
     try {
-      // TODO: replace with real API once backend/auth reset endpoints exist
-      // (POST /api/auth/forgot-password — always 200, never reveals whether the account exists).
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      // Always 200 — the backend never reveals whether the account exists.
+      await apiFetch("/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ login_id: loginId }),
+      });
       setSent(true);
-    } catch {
-      setFormError("Could not send the reset link. Try again in a moment.");
+    } catch (err) {
+      setFormError(
+        err instanceof ApiError ? err.message : "Could not send the reset link. Try again in a moment.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -41,7 +46,7 @@ export default function ForgotPasswordPage() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-[var(--text)]">Check your email</h1>
         <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
-          If an account exists for <span className="text-[var(--text)]">{email}</span>, a password
+          If <span className="text-[var(--text)]">{loginId}</span> matches an account, a password
           reset link is on its way. The link expires in 60 minutes.
         </p>
 
@@ -52,10 +57,10 @@ export default function ForgotPasswordPage() {
           <Button
             onClick={() => {
               setSent(false);
-              setEmail("");
+              setLoginId("");
             }}
           >
-            Use another email
+            Try another login ID
           </Button>
         </div>
       </div>
@@ -66,19 +71,18 @@ export default function ForgotPasswordPage() {
     <div>
       <h1 className="text-xl font-semibold tracking-tight text-[var(--text)]">Forgot password</h1>
       <p className="mt-1 text-sm text-[var(--text-muted)]">
-        We&apos;ll email you a link to set a new one.
+        We&apos;ll email a reset link to the address on file.
       </p>
 
       <form onSubmit={onSubmit} className="mt-7 flex flex-col gap-4" noValidate>
         {formError && <InlineAlert title={formError} />}
 
         <TextField
-          label="Email"
-          type="email"
-          name="email"
-          autoComplete="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          label="Login ID"
+          name="login_id"
+          autoComplete="username"
+          value={loginId}
+          onChange={(event) => setLoginId(event.target.value)}
           error={fieldError}
           required
         />
