@@ -7,30 +7,69 @@ into linked sales/purchase/payment transactions, auto-posts correct double-entry
 journal entries for every transaction, and generates live Balance Sheet, P&L, and
 Budget reports straight from the ledger.
 
+This is a solo/team Odoo Hackathon build under a **12–15 hour** compressed window.
+See [`AGENTS.md`](AGENTS.md) for the full AI-agent rules and timeline, and
+[`docs/TEAM_TASKS.md`](docs/TEAM_TASKS.md) for the authoritative task board.
+
 ---
 
-# 📌 Project Overview
+## 📌 Current Status
 
-## Problem
+> Kept honest on purpose — update the checkboxes as work lands instead of
+> rewriting this section from scratch.
+
+**Done (Hour 0–1 setup):**
+
+- ✅ Repo scaffolded — `backend/` (Laravel 12) and `frontend/` (Next.js) created
+- ✅ Laravel 12 installed with **Sanctum** (auth) and **Spatie Laravel Permission** (RBAC) pulled in
+- ✅ `GET /api/health` implemented ([routes/api.php](backend/routes/api.php)) and returns the standard envelope
+- ✅ Next.js homepage (`/health`) calls the backend health endpoint and renders the response — first Next.js ↔ Laravel round trip proven
+- ✅ Base migrations present: users, cache, jobs, personal access tokens, Spatie permission tables
+- ✅ Full project documentation written and finalized in [`docs/`](docs) (requirements, DB schema, API contract, UI guidelines, demo flow, team task board)
+
+**Not started yet (tracked in [`docs/TEAM_TASKS.md`](docs/TEAM_TASKS.md)):**
+
+- ⬜ Master data (Contacts, Products, Chart of Accounts, Journals) — migrations, models, CRUD APIs, screens
+- ⬜ `JournalEntryService` — the core double-entry posting engine
+- ⬜ Purchase Order → Vendor Bill → Payment flow
+- ⬜ Sales Order → Customer Invoice → Payment flow
+- ⬜ Balance Sheet / P&L / Budget reports (computed live from the ledger)
+- ⬜ Auth flows beyond scaffolding: login by `login_id`, signup, forgot/reset password
+- ⬜ Contact portal (`/portal`) for customers/vendors to view and pay their own invoices/bills
+- ⬜ PDF export + email delivery for invoices, bills and reports (Mail, see below)
+- ⬜ AR/AP aging report, dashboard KPIs, bank reconciliation (stretch)
+
+If you're picking this repo up fresh, the fastest way to get oriented is:
+read this README's setup section, get `/health` working end-to-end locally, then
+open [`docs/TEAM_TASKS.md`](docs/TEAM_TASKS.md) and pick up the next unchecked item
+for your area.
+
+---
+
+## 📌 Project Overview
+
+### Problem
 
 Urban Furniture needs an accounting system that records purchases, sales, and payments
-using shared master data, and produces accurate financial and stock reports
+using shared master data, and produces accurate financial reports
 (Balance Sheet, P&L, Budget Report) without manual bookkeeping.
 
-## Solution
+### Solution
 
 A Laravel 12 API + Next.js frontend that models Contacts, Products, Chart of Accounts,
 Journals, and Journal Entries, drives Purchase Order → Vendor Bill → Payment and Sales
 Order → Customer Invoice → Payment flows, and computes reports live from posted
-journal entries.
+journal entries rather than stored snapshots.
 
-## Target Users
+### Target Users
 
-* Admin (Business Owner) — full CRUD on master data, transactions, reports
-* Invoicing User (Accountant) — creates master data, records transactions, views reports
-* Contact (Customer/Vendor) — portal access to their own invoices/bills and payments
+| Role | Access |
+|---|---|
+| **Admin** (Business Owner) | Full CRUD on master data, transactions, reports, user/role management |
+| **Accountant** (Invoicing User) | Creates master data, records transactions, views reports |
+| **Contact** (Customer/Vendor) | Portal-only access to their own invoices/bills, can pay them |
 
-## Core Workflow
+### Core Workflow
 
 ```text
 Master Data (Contacts, Products, CoA, Journals, Budgets)
@@ -38,61 +77,61 @@ Master Data (Contacts, Products, CoA, Journals, Budgets)
 Purchase Order → Vendor Bill → Payment
 Sales Order → Customer Invoice → Payment
     ↓
-Automatic Journal Entry (debit = credit)
+Automatic Journal Entry (debit = credit, enforced in a DB transaction)
     ↓
-Live Reports (Balance Sheet, P&L, Budget Report)
+Live Reports (Balance Sheet, P&L, Budget Report, AR/AP Aging)
 ```
 
-## Odoo Relevance
+### Odoo Relevance
 
 Mirrors Odoo Accounting's core model 1:1 — Contacts, Chart of Accounts, Journals,
 Journal Entries, Analytic Accounts, Budgets — and its Purchase/Sales →
 Invoice/Bill → Payment → Ledger → Report pipeline.
 
+Full detail: [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) and [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
+
 ---
 
-# 🛠️ Technology Stack
+## 🛠️ Technology Stack
 
-## Backend
+### Backend
 
-* Laravel 12
-* PHP 8.3
+* Laravel 12, PHP ^8.2
 * MySQL 8
-* REST APIs
-* Laravel Sanctum — Authentication
-* Spatie Laravel Permission — Roles & Permissions
-* barryvdh/laravel-dompdf — PDF report/invoice export (bonus)
+* REST APIs, consistent `{ code, message, data }` envelope
+* Laravel Sanctum — token authentication
+* Spatie Laravel Permission — roles & permissions (`admin`, `accountant`, `user`)
+* barryvdh/laravel-dompdf — PDF export for invoices/bills/reports (planned)
+* Laravel Mail — invoice/bill/report delivery by email (planned; see [Mail Configuration](#-mail-configuration))
 
-## Frontend
+### Frontend
 
-* Next.js 14+ (App Router)
-* TypeScript
+* Next.js (App Router), React 19, TypeScript
 * Tailwind CSS
-* shadcn/ui — tables, forms, dialogs
-* recharts — dashboard charts (bonus)
-* axios / fetch wrapper for the API client
+* shadcn/ui — tables, forms, dialogs (planned)
+* recharts — dashboard charts (bonus, planned)
 
-## Development Tools
+### Development Tools
 
-* Git
-* GitHub
-* Composer
-* Laravel Artisan
-* Node.js / npm
-* MySQL
+Git, GitHub, Composer, Laravel Artisan, Node.js/npm, MySQL.
 
 ---
 
-# 📁 Project Structure
+## 📁 Project Structure
 
 ```text
 LedgerCraft/
 │
 ├── backend/                       # Laravel 12 application
+│   ├── app/
+│   ├── database/migrations/
+│   ├── routes/api.php
+│   └── .env.example
 │
 ├── frontend/                      # Next.js application
+│   └── src/app/health/            # first backend↔frontend integration screen
 │
-├── docs/                          # Shared project documentation
+├── docs/                          # Shared project documentation (source of truth)
 │   ├── PROJECT_OVERVIEW.md
 │   ├── REQUIREMENTS.md
 │   ├── DB_SCHEMA.md
@@ -109,21 +148,19 @@ LedgerCraft/
 
 ---
 
-# 🏗️ Architecture
-
-The project uses a separate frontend/backend architecture.
+## 🏗️ Architecture
 
 ```text
 ┌──────────────────────┐
 │      Next.js         │
 │      Frontend        │
 └──────────┬───────────┘
-           │
-           │ HTTP / JSON
+           │  HTTP / JSON
            ▼
 ┌──────────────────────┐
 │     Laravel 12       │
 │      REST API        │
+│  Sanctum · Spatie     │
 └──────────┬───────────┘
            │
            ▼
@@ -132,80 +169,29 @@ The project uses a separate frontend/backend architecture.
 └──────────────────────┘
 ```
 
-## Backend Responsibilities
+**Backend owns:** API endpoints, authentication, authorization/RBAC, validation, business logic, database operations.
 
-Laravel owns:
+**Frontend owns:** pages, UI, components, forms, client-side state, API consumption, loading/error/empty states.
 
-* API endpoints
-* Authentication
-* Authorization / RBAC
-* Validation
-* Business logic
-* Database operations
-
-
-## Frontend Responsibilities
-
-Next.js owns:
-
-* Pages
-* UI
-* Components
-* Forms
-* Client-side state
-* API consumption
-* User interaction
-* Loading/error/empty states
+Frontend permission checks are UX-only — the backend is always the source of truth for authorization.
 
 ---
 
-# 🔗 API Response Convention
+## 🔗 API Response Convention
 
-All APIs should follow a consistent basic response structure.
-
-## Success
+Every backend endpoint returns the same envelope shape.
 
 ```json
-{
-  "code": 200,
-  "message": "Hello world"
-}
+{ "code": 200, "message": "Hello world" }
 ```
-
-## Example With Data
 
 ```json
-{
-  "code": 200,
-  "message": "Users fetched successfully",
-  "data": []
-}
+{ "code": 200, "message": "Users fetched successfully", "data": [] }
 ```
-
-## Error
 
 ```json
-{
-  "code": 422,
-  "message": "Validation failed"
-}
+{ "code": 422, "message": "Validation failed", "errors": { "email": ["The email field is required."] } }
 ```
-
-Additional fields may be added when required:
-
-```json
-{
-  "code": 422,
-  "message": "Validation failed",
-  "errors": {
-    "email": [
-      "The email field is required."
-    ]
-  }
-}
-```
-
-### Important
 
 `code` should correspond to the HTTP status code.
 
@@ -267,116 +253,84 @@ must never be inserted by hand.
 
 ---
 
-# 🧪 Initial Integration Test
-
-Before implementing the actual problem statement, the repository should prove that frontend and backend communicate correctly.
-
-## Backend
-
-Create:
+## 🧪 Initial Integration Test (already working)
 
 ```text
-GET /api/health
+GET /api/health  →  { "code": 200, "message": "Backend is running successfully" }
 ```
 
-Example response:
-
-```json
-{
-  "code": 200,
-  "message": "Backend is running successfully"
-}
-```
-
-The endpoint should be intentionally simple.
-
-Its purpose is to verify:
-
-```text
-Next.js
-   ↓
-HTTP request
-   ↓
-Laravel
-   ↓
-JSON response
-   ↓
-Next.js
-   ↓
-Display message
-```
-
-## Frontend
-
-The homepage should call:
-
-```text
-GET /api/health
-```
-
-and display the returned message.
-
-Example:
-
-```text
-Backend Status
-
-Backend is running successfully
-
-Code: 200
-```
-
-This becomes our initial **frontend ↔ backend connectivity test**.
+The Next.js `/health` page calls this endpoint and renders the message + code.
+This proves the full round trip: **Next.js → HTTP → Laravel → JSON → Next.js → UI.**
+Confirm this still works after cloning before building anything else (see
+[Verifying the Setup](#-verifying-the-setup) below).
 
 ---
 
-# ⚙️ Backend Setup
+## 🚀 Setup Guide (Windows & macOS)
 
-Move into the backend:
+Commands are given for both **Windows (PowerShell)** and **macOS/Linux (bash/zsh)**.
+Where a command is identical on both, it's shown once.
+
+### Prerequisites
+
+| Tool | Version | Windows | macOS |
+|---|---|---|---|
+| PHP | ^8.2 | [windows.php.net](https://windows.php.net/download/) or [Laravel Herd](https://herd.laravel.com/windows) | `brew install php` or [Laravel Herd](https://herd.laravel.com) |
+| Composer | latest | [getcomposer.org](https://getcomposer.org/download/) | `brew install composer` |
+| Node.js | 20+ | [nodejs.org](https://nodejs.org/) or `winget install OpenJS.NodeJS.LTS` | `brew install node` |
+| MySQL | 8.x | [MySQL Installer](https://dev.mysql.com/downloads/installer/) or via Herd | `brew install mysql` |
+| Git | latest | [git-scm.com](https://git-scm.com/download/win) | `brew install git` (or Xcode CLT) |
+
+Verify everything is on `PATH`:
+
+```bash
+php -v
+composer -V
+node -v
+npm -v
+mysql --version
+git --version
+```
+
+### 1. Clone the repository
+
+```bash
+git clone <repo-url> LedgerCraft
+cd LedgerCraft
+```
+
+### 2. Backend (Laravel) setup
 
 ```bash
 cd backend
-```
-
-## Install Dependencies
-
-```bash
 composer install
 ```
 
-The project uses the same authentication/RBAC dependencies established in the team's practice project.
-
-Install/configure the required packages according to the project's backend configuration.
-
----
-
-## Environment
-
-Create the environment file.
-
-### Windows
+Create the environment file:
 
 ```bash
+# Windows (PowerShell / cmd)
 copy .env.example .env
-```
 
-### Linux/macOS
-
-```bash
+# macOS / Linux
 cp .env.example .env
 ```
 
-Generate the Laravel application key:
+Generate the app key:
 
 ```bash
 php artisan key:generate
 ```
 
----
+### 3. Database setup
 
-# 🗄️ Database Setup
+Create a MySQL database named `ledgercraft` (via MySQL Workbench, TablePlus, or the CLI):
 
-Configure `.env`:
+```sql
+CREATE DATABASE ledgercraft CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+Edit `backend/.env`:
 
 ```env
 DB_CONNECTION=mysql
@@ -384,28 +338,96 @@ DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=ledgercraft
 DB_USERNAME=root
-DB_PASSWORD=
+DB_PASSWORD=your_local_password
 ```
 
-Then run:
+Run migrations:
 
 ```bash
 php artisan migrate --seed
 ```
 
-For a completely fresh database:
+For a completely fresh database (⚠️ drops all tables/data first):
 
 ```bash
 php artisan migrate:fresh --seed
 ```
 
-> `migrate:fresh` deletes existing tables and data. Use only when you are okay with losing local database data.
+### 4. Mail Configuration
 
----
+Password reset, invoice/bill "send by email", and report emailing all go through
+Laravel Mail. By default `MAIL_MAILER=log` in `.env.example` — mail is written to
+the log file instead of actually sending, which is fine for local dev.
 
-# 🧹 Laravel Cache
+To send real mail (demo/staging), configure an SMTP provider in `backend/.env`, e.g. with
+**Resend**:
 
-If configuration or application state becomes stale:
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.resend.com
+MAIL_PORT=587
+MAIL_USERNAME=resend
+MAIL_PASSWORD=your_resend_api_key
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS="hello@yourdomain.test"
+MAIL_FROM_NAME="LedgerCraft"
+```
+
+> **Do not spam the real Resend quota while developing.** Verify mail-sending code
+> paths using `MAIL_MAILER=log` (or Mailtrap) and only switch to a live SMTP mailer
+> for an actual demo/test send. Mail is sent **synchronously** (no queue worker
+> required) so `php artisan queue:work` is not needed for mail to go out.
+
+After changing `.env`, clear cached config:
+
+```bash
+php artisan config:clear
+```
+
+### 5. Start the backend
+
+```bash
+php artisan serve
+```
+
+Runs at **http://127.0.0.1:8000**. Verify: **http://127.0.0.1:8000/api/health**
+
+Optionally, run backend + queue + logs together (from `backend/`):
+
+```bash
+composer run dev
+```
+
+### 6. Frontend (Next.js) setup
+
+Open a **second terminal**:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Runs at **http://localhost:3000**.
+
+If the frontend needs to know the API base URL explicitly, create `frontend/.env.local`:
+
+```env
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/api
+```
+
+### 7. Verifying the Setup
+
+With both servers running:
+
+1. Open **http://localhost:3000/health**
+2. Confirm it displays `Backend is running successfully` with `Code: 200`
+3. If it fails, check: backend server running? correct port? CORS enabled in
+   `backend/config/cors.php`? `NEXT_PUBLIC_API_URL` correct?
+
+### Clearing stale Laravel state
+
+If config/cache/routes act stale after pulling changes:
 
 ```bash
 php artisan optimize:clear
@@ -413,71 +435,20 @@ php artisan optimize:clear
 
 ---
 
-# ▶️ Start Backend
+## 🔐 Authentication & RBAC
 
-```bash
-php artisan serve
-```
+* Auth: **Laravel Sanctum** (token-based).
+* Login is by **`login_id`**, not email (per the UI design board) — see [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
+* Public signup always assigns role `user` server-side; any `role` field in the request body is ignored to prevent privilege escalation, and creates/links a `customer` Contact in the same DB transaction.
+* Forgot/reset password: token-based flow via `password_reset_tokens`; `forgot-password` always returns `200` regardless of whether the email exists, to avoid account enumeration.
+* RBAC via **Spatie Laravel Permission**, three roles only: `admin`, `accountant` (Invoicing User), `user` (Contact/portal). No extra roles/permissions beyond what the problem statement requires.
+* The backend is always the authorization source of truth — frontend role checks are UX convenience only.
 
-Default:
-
-```text
-http://127.0.0.1:8000
-```
-
-Health endpoint:
-
-```text
-GET http://127.0.0.1:8000/api/health
-```
+Full endpoint contracts: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
 ---
 
-# 🖥️ Frontend Setup
-
-Move into:
-
-```bash
-cd frontend
-```
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Start development server:
-
-```bash
-npm run dev
-```
-
-Default Next.js development URL:
-
-```text
-http://localhost:3000
-```
-
-The homepage should communicate with the Laravel backend.
-
----
-
-# 🔐 Authentication & RBAC
-
-Authentication will use the same backend authentication approach and dependencies used by the team's practice project.
-
-RBAC should be implemented **only if the problem statement requires it or it provides meaningful value**.
-
-Do not build unnecessary permission systems during the hackathon.
-
-The backend remains responsible for enforcing authorization.
-
-Frontend permission checks are for UX only and must not be treated as security.
-
----
-
-# 📚 Project Documentation
+## 📚 Project Documentation
 
 The `docs/` directory is the shared project knowledge base.
 
@@ -599,282 +570,102 @@ After that:
 Before starting work:
 
 ```bash
+# before starting work
 git fetch origin
 git rebase origin/main
-```
 
-Then work on your assigned team branch.
-
-Check:
-
-```bash
+# check what you're about to commit
 git status
 git diff
-```
 
-Commit meaningful changes:
-
-```bash
+# commit with a meaningful message
 git add .
-git commit -m "feat: add dashboard"
-```
+git commit -m "feat: add contacts CRUD API"
 
----
-
-# ⬆️ Push Workflow
-
-Because team branches are rebased regularly, use:
-
-```bash
+# push your own rebased branch
 git push --force-with-lease origin <your-branch>
 ```
 
-Example:
+Never `git push --force` (plain), never reset/delete a teammate's branch, never rewrite shared history without coordinating first.
 
-```bash
-git push --force-with-lease origin parv
-```
-
-Never use:
-
-```bash
-git push --force
-```
-
-unless explicitly approved by the lead.
-
----
-
-# 🔀 Pull Request Workflow
-
-When a meaningful piece of work is complete:
-
-```text
-Team Branch
-    ↓
-Fetch latest main
-    ↓
-Rebase onto main
-    ↓
-Test
-    ↓
-Push
-    ↓
-Pull Request
-    ↓
-Review
-    ↓
-Merge into main
-```
-
-Before creating a PR:
-
-```bash
-git fetch origin
-git rebase origin/main
-```
-
-Resolve conflicts if required.
-
-Then:
-
-```bash
-git push --force-with-lease origin <your-branch>
-```
-
-Create a Pull Request:
-
-```text
-<your-team-branch> → main
-```
-
----
-
-# ⚠️ Important Git Rules
-
-## Never
-
-```text
-❌ Directly commit to main
-❌ git push --force
-❌ Reset another teammate's branch
-❌ Delete another teammate's branch
-❌ Rewrite shared history without coordination
-```
-
-## Prefer
-
-```text
-✅ git fetch origin
-✅ git rebase origin/main
-✅ git push --force-with-lease
-✅ Pull Requests
-✅ Small meaningful commits
-```
-
----
-
-# 📝 Commit Convention
-
-Prefer:
+### Commit message style
 
 ```text
 feat: add product API
-feat: add dashboard
-feat: add login page
-fix: handle invalid order status
-fix: resolve API validation issue
+fix: resolve invalid order status
 refactor: simplify order service
 docs: update API documentation
 chore: configure frontend environment
 ```
 
-Avoid:
+Avoid vague messages like `update`, `final`, `working`, `test`.
 
-```text
-update
-changes
-final
-final2
-working
-test
-asdf
-```
-
----
-
-# 🔁 Rebase Conflict Workflow
-
-If a rebase produces conflicts:
+### Rebase conflicts
 
 ```bash
-git status
-```
-
-Inspect the conflicted files.
-
-Resolve the conflict manually.
-
-Then:
-
-```bash
+git status                 # see conflicted files
+# resolve manually — never blindly take "ours" or "theirs"
 git add .
 git rebase --continue
-```
-
-Repeat until complete.
-
-After the rebase:
-
-```bash
 git push --force-with-lease origin <your-branch>
 ```
 
-If the correct resolution is unclear:
+If the correct resolution isn't obvious, stop and coordinate with the affected teammate.
 
-> Stop and coordinate with the affected teammate/lead.
-
-Do not blindly choose "ours" or "theirs".
+Full rules: [`AGENTS.md`](AGENTS.md) §15–20.
 
 ---
 
-# 🧪 Hackathon Testing Philosophy
+## 👥 Team
 
-Testing should focus on high-value scenarios.
+| Member | Branch | Primary Responsibility |
+|---|---|---|
+| Parv | `parv` | Backend — Master Data + Chart of Accounts + Journals |
+| Nikhil | `nikhil` | Backend — Purchase/Sales/Payment flow + Reports |
+| Sarvesh | `sarvesh` | Frontend — Master Data screens + Auth + Contact portal |
+| Jenish | `jenish` | Frontend — Transaction screens + Reports/Dashboard UI |
 
-Prioritize:
+Agent ownership mirrors this: `frontend/` → Frontend agent, `backend/` → Backend agent,
+Git operations → GitHub agent, quality review → Reviewer agent. Avoid modifying
+another owner's primary area without coordinating first (`AGENTS.md` §13–14).
 
-1. Core workflow
-2. Important business rules
-3. API integration
-4. Authentication
-5. Authorization where required
-6. Demo flow
+---
 
-At minimum:
+## 🧭 Hackathon Engineering Standard
+
+This is a 12–15 hour hackathon build, not a production system. Priority order:
 
 ```text
-Happy path
-+
-Important failure path
+Required Features → Core Workflow → Frontend/Backend Integration
+    → Demo Reliability → Judging Impact → Odoo Relevance → UX Polish → Extras
 ```
 
-Do not block development for exhaustive production-level test coverage.
+Avoid over-engineering: no unnecessary design patterns, premature optimization,
+exhaustive test coverage, or production-scale infrastructure. If a simple
+implementation reliably solves the problem, ship that. Full rules: `AGENTS.md` §9–11.
 
 ---
 
-# 🎯 Hackathon Engineering Standard
-
-This project is being developed in a **24-hour coding round**.
-
-The objective is:
-
-> Build a complete, convincing and reliable solution — not a production enterprise platform.
-
-Prioritize:
+## 🏆 Final Submission Checklist
 
 ```text
-Required functionality
-        ↓
-End-to-end workflow
-        ↓
-Demo reliability
-        ↓
-Judging impact
-        ↓
-Odoo relevance
-        ↓
-UX polish
-        ↓
-Extra features
-```
-
-Avoid spending significant time on:
-
-* Perfect abstractions
-* Excessive refactoring
-* Comprehensive test coverage
-* Rare edge cases
-* Premature optimization
-* Enterprise infrastructure
-* Minor visual imperfections
-
----
-
-# 🏆 Final Submission Checklist
-
-```text
-[ ] Core workflow works
-[ ] Frontend ↔ backend integration works
-[ ] Required features complete
-[ ] Authentication works
-[ ] Required RBAC works
-[ ] Database migrations work
-[ ] Demo data exists
-[ ] Demo flow tested
+[ ] Core workflow works end-to-end (PO→Bill→Payment, SO→Invoice→Payment)
+[ ] Frontend ↔ backend integration works with no mocked data left
+[ ] Required features complete (see docs/REQUIREMENTS.md P0)
+[ ] Authentication works for all 3 roles
+[ ] Required RBAC enforced
+[ ] Database migrations run clean from scratch
+[ ] Demo data seeded
+[ ] Demo flow rehearsed against docs/DEMO_FLOW.md
 [ ] No obvious critical bugs
-[ ] No secrets committed
-[ ] No .env committed
-[ ] No merge conflict markers
-[ ] README updated
-[ ] Documentation updated
-[ ] main contains final working version
-[ ] Repository is clean
+[ ] No secrets or .env files committed
+[ ] No merge conflict markers left in the repo
+[ ] README and docs/ updated to match reality
+[ ] main contains the final working version
 ```
 
 ---
 
-# 👨‍💻 Team
-
-| Member     | Branch            | Primary Responsibility                                    |
-| ---------- | ----------------- | ---------------------------------------------------------- |
-| Parv       | `parv`            | Backend — Master Data + Chart of Accounts + Journals        |
-| Nikhil     | `nikhil`          | Backend — Purchase/Sales/Payment flow + Reports             |
-| Sarvesh    | `sarvesh`         | Frontend — Master Data screens + Auth + Contact portal      |
-| Jenish     | `jenish`          | Frontend — Transaction screens + Reports/Dashboard UI       |
-
----
-
-# 📄 License
+## 📄 License
 
 This project is developed for hackathon purposes.
