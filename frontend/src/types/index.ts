@@ -336,6 +336,37 @@ export interface BudgetReportRow {
   counted_in_totals: boolean;
 }
 
+/** GET /api/reports/trial-balance — every account with what the ledger posted to it. */
+export interface TrialBalanceRow {
+  id: number;
+  code: string;
+  name: string;
+  type: AccountType;
+  debit: number;
+  credit: number;
+  balance: number;
+}
+
+export interface TrialBalance {
+  as_of: string | null;
+  accounts: TrialBalanceRow[];
+  total_debit: number;
+  total_credit: number;
+  balanced: boolean;
+}
+
+/** GET /api/reports/aging — how old the outstanding money is, both directions. */
+export interface AgingSide {
+  buckets: { current: number; d1_30: number; d31_60: number; d61_90: number; d90_plus: number };
+  total: number;
+}
+
+export interface AgingReport {
+  as_of: string;
+  receivable: AgingSide;
+  payable: AgingSide;
+}
+
 /** GET /api/reports/dashboard — the figures the books already know. */
 export interface DashboardSummary {
   cash: number;
