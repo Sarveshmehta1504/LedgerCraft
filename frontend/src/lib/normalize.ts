@@ -11,6 +11,7 @@ import type {
   BalanceSheet,
   Budget,
   BudgetReport,
+  DashboardSummary,
   BudgetReportRow,
   ChartOfAccount,
   Contact,
@@ -82,6 +83,33 @@ export function mapBudgetReportRow(raw: Raw): BudgetReportRow {
     status: raw.status,
     // Absent means countable: only a superseded or cancelled row is flagged off.
     counted_in_totals: raw.counted_in_totals !== false,
+  };
+}
+
+export function mapDashboard(raw: Raw): DashboardSummary {
+  return {
+    cash: num(raw.cash),
+    bank: num(raw.bank),
+    total_receivable: num(raw.total_receivable),
+    total_payable: num(raw.total_payable),
+    overdue_receivable: num(raw.overdue_receivable),
+    overdue_payable: num(raw.overdue_payable),
+    net_income: num(raw.net_income),
+    total_income: num(raw.total_income),
+    total_expenses: num(raw.total_expenses),
+    counts: {
+      purchase_orders: raw.counts?.purchase_orders ?? 0,
+      sales_orders: raw.counts?.sales_orders ?? 0,
+      vendor_bills_unpaid: raw.counts?.vendor_bills_unpaid ?? 0,
+      customer_invoices_unpaid: raw.counts?.customer_invoices_unpaid ?? 0,
+      contacts: raw.counts?.contacts ?? 0,
+      products: raw.counts?.products ?? 0,
+    },
+    top_customers: (raw.top_customers ?? []).map((row: Raw) => ({
+      id: row.id,
+      name: row.name,
+      revenue: num(row.revenue),
+    })),
   };
 }
 
