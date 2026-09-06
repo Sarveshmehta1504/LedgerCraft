@@ -10,6 +10,9 @@ import type {
   AnalyticAccount,
   BalanceSheet,
   Budget,
+  AgingReport,
+  TrialBalance,
+  AgingSide,
   BudgetReport,
   DashboardSummary,
   BudgetReportRow,
@@ -83,6 +86,47 @@ export function mapBudgetReportRow(raw: Raw): BudgetReportRow {
     status: raw.status,
     // Absent means countable: only a superseded or cancelled row is flagged off.
     counted_in_totals: raw.counted_in_totals !== false,
+  };
+}
+
+function mapAgingSide(raw: Raw): AgingSide {
+  const buckets = raw?.buckets ?? {};
+  return {
+    buckets: {
+      current: num(buckets.current),
+      // The API keys are `1_30`-style, which is not a valid identifier here.
+      d1_30: num(buckets["1_30"]),
+      d31_60: num(buckets["31_60"]),
+      d61_90: num(buckets["61_90"]),
+      d90_plus: num(buckets["90_plus"]),
+    },
+    total: num(raw?.total),
+  };
+}
+
+export function mapTrialBalance(raw: Raw): TrialBalance {
+  return {
+    as_of: raw.as_of ?? null,
+    accounts: (raw.accounts ?? []).map((row: Raw) => ({
+      id: row.id,
+      code: row.code,
+      name: row.name,
+      type: row.type,
+      debit: num(row.debit),
+      credit: num(row.credit),
+      balance: num(row.balance),
+    })),
+    total_debit: num(raw.total_debit),
+    total_credit: num(raw.total_credit),
+    balanced: Boolean(raw.balanced),
+  };
+}
+
+export function mapAging(raw: Raw): AgingReport {
+  return {
+    as_of: raw.as_of,
+    receivable: mapAgingSide(raw.receivable),
+    payable: mapAgingSide(raw.payable),
   };
 }
 

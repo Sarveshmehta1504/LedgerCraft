@@ -11,6 +11,8 @@ import {
   mapBalanceSheet,
   mapBudget,
   mapBudgetReport,
+  mapAging,
+  mapTrialBalance,
   mapDashboard,
   mapContact,
   mapCustomerInvoice,
@@ -29,7 +31,7 @@ import {
   mapVendorBillDetail,
 } from "./normalize";
 export type { VendorBillDetail, CustomerInvoiceDetail, PortalInvoice, PortalInvoiceLine } from "./normalize";
-import type { AnalyticAccountType, BudgetReport, DashboardSummary, ChartOfAccount, Contact, ContactType, DocumentLine, Journal, JournalType, PaymentVia, Product, ProductType, Role } from "@/types";
+import type { AgingReport, AnalyticAccountType, TrialBalance, BudgetReport, DashboardSummary, ChartOfAccount, Contact, ContactType, DocumentLine, Journal, JournalType, PaymentVia, Product, ProductType, Role } from "@/types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Raw = any;
@@ -399,6 +401,11 @@ export const ReportsApi = {
       method: "POST",
       body: JSON.stringify({ to }),
     }),
+  /** Every account's posted debit, credit and balance. */
+  trialBalance: () =>
+    apiFetch<Raw>("/reports/trial-balance").then(mapTrialBalance) as Promise<TrialBalance>,
+  /** Outstanding money bucketed by age, both receivable and payable. */
+  aging: () => apiFetch<Raw>("/reports/aging").then(mapAging) as Promise<AgingReport>,
   /** Cash, receivables, payables and net income, computed server-side from the ledger. */
   dashboard: () => apiFetch<Raw>("/reports/dashboard").then(mapDashboard) as Promise<DashboardSummary>,
   /**

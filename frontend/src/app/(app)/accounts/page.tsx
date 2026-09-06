@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/Button";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArchiveAction, ShowArchivedToggle, useArchive } from "@/components/shared/Archive";
+import { DataTable, type Column } from "@/components/shared/DataTable";
+import { FilterBar, SearchInput, SegmentedFilter } from "@/components/shared/FilterBar";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { EmptyState, ErrorState, InlineAlert, TableSkeleton } from "@/components/ui/States";
-import { titleCase } from "@/lib/format";
-import { AccountsApi } from "@/lib/resources";
+import { Button } from "@/components/ui/Button";
+import { InlineAlert } from "@/components/ui/States";
+import { formatMoney, titleCase } from "@/lib/format";
+import { AccountsApi, ReportsApi } from "@/lib/resources";
 import { useAsyncData } from "@/lib/use-async-data";
-import type { AccountType, ChartOfAccount } from "@/types";
+import type { AccountType, ChartOfAccount, TrialBalance } from "@/types";
 
-/** All eight types, in report order — this list doubles as a reference screen. */
+/** All eight types, in report order — assets first, expenses last. */
 const TYPE_ORDER: AccountType[] = [
   "asset",
   "bank",
@@ -24,8 +26,19 @@ const TYPE_ORDER: AccountType[] = [
   "other_expense",
 ];
 
+const TYPE_FILTERS: { value: "" | AccountType; label: string }[] = [
+  { value: "", label: "All" },
+  ...TYPE_ORDER.map((type) => ({ value: type, label: titleCase(type) })),
+];
+
+/** Report order, so sorting by type reads asset → expense rather than alphabetically. */
+const TYPE_RANK = new Map(TYPE_ORDER.map((type, index) => [type, index]));
+
 export default function ChartOfAccountsPage() {
   const router = useRouter();
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"" | AccountType>("");
+
   // useAsyncData's retry is defined below the hook that needs it, so the
   // hook refreshes through a ref rather than reordering the file.
   const retryRef = useRef<() => void>(() => {});
@@ -49,16 +62,108 @@ export default function ChartOfAccountsPage() {
   });
   const accounts = data ?? [];
 
-  const grouped = TYPE_ORDER.map((type) => ({
-    type,
-    accounts: accounts.filter((account) => account.type === type),
-  })).filter((group) => group.accounts.length > 0);
+  // The chart itself carries no figures, so what each account has actually taken
+  // comes from the trial balance and is joined on id. A missing row means the
+  // account has never been posted to, which is a zero, not a failure.
+  const fetchBalances = useCallback(() => ReportsApi.trialBalance(), []);
+  const { data: trial } = useAsyncData<TrialBalance>(
+    fetchBalances,
+    "Could not load account balances.",
+  );
+
+  const balanceOf = useMemo(() => {
+    const index = new Map((trial?.accounts ?? []).map((row) => [row.id, row]));
+    return (id: number) => index.get(id) ?? { debit: 0, credit: 0, balance: 0 };
+  }, [trial]);
+
+  const term = search.trim().toLowerCase();
+  const visible = accounts.filter((account) => {
+    const matchesSearch =
+      !term ||
+      account.name.toLowerCase().includes(term) ||
+      account.code.toLowerCase().includes(term);
+    return matchesSearch && (!typeFilter || account.type === typeFilter);
+  });
+
+  const filtered = Boolean(term || typeFilter);
+
+  const columns: Column<ChartOfAccount>[] = [
+    {
+      key: "code",
+      header: "Code",
+      width: "6rem",
+      render: (account) => (
+        <span className="tnum font-mono text-[13px] text-[var(--text-muted)]">{account.code}</span>
+      ),
+      sortValue: (account) => account.code,
+    },
+    {
+      key: "name",
+      header: "Account",
+      render: (account) => <span className="font-medium">{account.name}</span>,
+      sortValue: (account) => account.name,
+    },
+    {
+      key: "type",
+      header: "Type",
+      render: (account) => (
+        <span className="text-[var(--text-muted)]">{titleCase(account.type)}</span>
+      ),
+      // Ranked, not alphabetical: a chart of accounts is read in report order.
+      sortValue: (account) => TYPE_RANK.get(account.type) ?? TYPE_ORDER.length,
+    },
+    {
+      key: "debit",
+      header: "Debit",
+      numeric: true,
+      render: (account) => {
+        const debit = balanceOf(account.id).debit;
+        return debit > 0 ? formatMoney(debit) : "";
+      },
+      sortValue: (account) => balanceOf(account.id).debit,
+    },
+    {
+      key: "credit",
+      header: "Credit",
+      numeric: true,
+      render: (account) => {
+        const credit = balanceOf(account.id).credit;
+        return credit > 0 ? formatMoney(credit) : "";
+      },
+      sortValue: (account) => balanceOf(account.id).credit,
+    },
+    {
+      key: "balance",
+      header: "Balance",
+      numeric: true,
+      render: (account) => {
+        const figures = balanceOf(account.id);
+        // Never posted to, so a formatted zero would read as a real balance.
+        if (figures.debit === 0 && figures.credit === 0) {
+          return <span className="text-[var(--text-subtle)]">Unused</span>;
+        }
+        return <span className="font-medium">{formatMoney(figures.balance)}</span>;
+      },
+      sortValue: (account) => balanceOf(account.id).balance,
+    },
+    ...(isAdmin
+      ? [
+          {
+            key: "archive",
+            header: "",
+            render: (row: ChartOfAccount) => (
+              <ArchiveAction row={row} busy={busyId === row.id} onToggle={toggleArchived} />
+            ),
+          } satisfies Column<ChartOfAccount>,
+        ]
+      : []),
+  ];
 
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-white">
       <PageHeader
         title="Chart of Accounts"
-        subtitle="Grouped by account type"
+        subtitle="Every account the ledger posts to"
         actions={
           <Link href="/accounts/new">
             <Button variant="primary" size="sm">
@@ -73,63 +178,76 @@ export default function ChartOfAccountsPage() {
         }
       />
 
+      <FilterBar>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search code or account"
+          label="Search the chart of accounts"
+        />
+        <SegmentedFilter
+          value={typeFilter}
+          options={TYPE_FILTERS}
+          onChange={setTypeFilter}
+          label="Filter by account type"
+        />
+      </FilterBar>
+
       {archiveError && (
         <div className="border-b border-[var(--line)] p-5">
           <InlineAlert title={archiveError} />
         </div>
       )}
 
-      {loading ? (
-        <TableSkeleton rows={8} columns={3} />
-      ) : error ? (
-        <ErrorState message={error} onRetry={retry} />
-      ) : accounts.length === 0 ? (
-        <EmptyState
-          title={showArchived ? "No archived accounts" : "No accounts configured"}
-          description={
-            showArchived
-              ? "Every account in the chart is currently active."
+      <DataTable
+        columns={columns}
+        rows={visible}
+        rowKey={(account) => account.id}
+        onRowClick={(account) => router.push(`/accounts/${account.id}`)}
+        loading={loading}
+        error={error}
+        onRetry={retry}
+        emptyTitle={
+          showArchived
+            ? "No archived accounts"
+            : filtered
+              ? "No accounts match"
+              : "No accounts configured"
+        }
+        emptyDescription={
+          showArchived
+            ? "Every account in the chart is currently active."
+            : filtered
+              ? "Try a different code, name or account type."
               : "Accounts are normally seeded before the first transaction is recorded."
-          }
-        />
-      ) : (
-        <div className="divide-y divide-[var(--line)]">
-          {grouped.map((group) => (
-            <section key={group.type}>
-              <div className="flex items-baseline justify-between bg-[var(--surface-sunken)] px-5 py-1.5">
-                <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                  {titleCase(group.type)}
-                </h2>
-                <span className="tnum font-mono text-[11px] text-[var(--text-subtle)]">
-                  {group.accounts.length}
-                </span>
-              </div>
-              <ul className="divide-y divide-[var(--line)]">
-                {group.accounts.map((account) => (
-                  <li key={account.id} className="flex items-center gap-2 pr-5">
-                    <button
-                      type="button"
-                      onClick={() => router.push(`/accounts/${account.id}`)}
-                      className="flex flex-1 cursor-pointer items-center gap-4 px-5 py-2.5 text-left transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:bg-[var(--surface-sunken)] focus:outline-2 focus:-outline-offset-2 focus:outline-[var(--accent)]"
-                    >
-                      <span className="tnum w-16 shrink-0 font-mono text-[13px] text-[var(--text-subtle)]">
-                        {account.code}
-                      </span>
-                      <span className="text-sm text-[var(--text)]">{account.name}</span>
-                    </button>
-                    {isAdmin && (
-                      <ArchiveAction
-                        row={account}
-                        busy={busyId === account.id}
-                        onToggle={toggleArchived}
-                      />
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
+        }
+      />
+
+      {/* The ledger's own proof, under the list it describes. */}
+      {trial && !showArchived && (
+        <dl className="flex flex-wrap items-center gap-x-8 gap-y-2 border-t border-[var(--line)] bg-[var(--surface-sunken)] px-4 py-2.5 text-[13px]">
+          <div className="flex items-baseline gap-2">
+            <dt className="text-[var(--text-muted)]">Total debit</dt>
+            <dd className="tnum font-mono font-medium">{formatMoney(trial.total_debit)}</dd>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <dt className="text-[var(--text-muted)]">Total credit</dt>
+            <dd className="tnum font-mono font-medium">{formatMoney(trial.total_credit)}</dd>
+          </div>
+          <p
+            className={`ml-auto inline-flex items-center gap-1.5 text-[12px] font-medium ${
+              trial.balanced ? "text-[var(--status-paid)]" : "text-[var(--danger)]"
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`h-1.5 w-1.5 rounded-full ${
+                trial.balanced ? "bg-[var(--status-paid)]" : "bg-[var(--danger)]"
+              }`}
+            />
+            {trial.balanced ? "Ledger balanced" : "Out of balance"}
+          </p>
+        </dl>
       )}
     </div>
   );
