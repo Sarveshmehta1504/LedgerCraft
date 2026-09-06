@@ -7,20 +7,70 @@ import { TextField } from "@/components/ui/Field";
 import { InlineAlert } from "@/components/ui/States";
 import { apiFetch, ApiError } from "@/lib/api";
 
+type Mode = "login_id" | "email";
+
+/**
+ * The endpoint takes either identifier but refuses both at once, so the form
+ * has to pick one. An explicit toggle rather than sniffing the input for an
+ * "@": the user knows which of the two they typed, and a wrong guess would send
+ * the wrong field and come back as the same deliberately-vague "if it matches
+ * an account" answer, with nothing on screen to explain it.
+ */
+const MODES: { value: Mode; label: string }[] = [
+  { value: "login_id", label: "Login ID" },
+  { value: "email", label: "Email" },
+];
+
+const COPY: Record<Mode, { label: string; placeholder: string; hint: string; missing: string }> = {
+  login_id: {
+    label: "Login ID",
+    placeholder: "e.g. accountant1",
+    hint: "The ID you sign in with, issued by your administrator.",
+    missing: "Enter your login ID.",
+  },
+  email: {
+    label: "Email address",
+    placeholder: "name@company.com",
+    hint: "The address on your account.",
+    missing: "Enter your email address.",
+  },
+};
+
 export default function ForgotPasswordPage() {
-  const [loginId, setLoginId] = useState("");
+  const [mode, setMode] = useState<Mode>("login_id");
+  const [identifier, setIdentifier] = useState("");
   const [fieldError, setFieldError] = useState<string>();
   const [formError, setFormError] = useState<string>();
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const copy = COPY[mode];
+
+  function switchMode(next: Mode) {
+    setMode(next);
+    // The value rarely carries over meaningfully between the two, and a stale
+    // error under a field that has just changed meaning reads as a bug.
+    setIdentifier("");
+    setFieldError(undefined);
+    setFormError(undefined);
+  }
+
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
 
-    if (!loginId.trim()) {
-      setFieldError("Enter your login ID.");
+    const value = identifier.trim();
+    if (!value) {
+      setFieldError(copy.missing);
       return;
     }
+    // A login ID is alpha_dash on the server, so it can never contain an "@".
+    // Catching it here saves a round trip that would answer "if it matches an
+    // account" and leave the user none the wiser.
+    if (mode === "login_id" && value.includes("@")) {
+      setFieldError('That looks like an email address — switch to "Email" above.');
+      return;
+    }
+
     setFieldError(undefined);
     setFormError(undefined);
     setSubmitting(true);
@@ -29,7 +79,7 @@ export default function ForgotPasswordPage() {
       // Always 200 — the backend never reveals whether the account exists.
       await apiFetch("/auth/forgot-password", {
         method: "POST",
-        body: JSON.stringify({ login_id: loginId }),
+        body: JSON.stringify({ [mode]: value }),
       });
       setSent(true);
     } catch (err) {
@@ -46,8 +96,8 @@ export default function ForgotPasswordPage() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-[var(--text)]">Check your email</h1>
         <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
-          If <span className="text-[var(--text)]">{loginId}</span> matches an account, a password
-          reset link is on its way. The link expires in 60 minutes.
+          If <span className="text-[var(--text)]">{identifier.trim()}</span> matches an account, a
+          password reset link is on its way. The link expires in 60 minutes.
         </p>
 
         <div className="mt-6 flex items-center gap-3">
@@ -57,10 +107,10 @@ export default function ForgotPasswordPage() {
           <Button
             onClick={() => {
               setSent(false);
-              setLoginId("");
+              setIdentifier("");
             }}
           >
-            Try another login ID
+            Try another
           </Button>
         </div>
       </div>
@@ -77,12 +127,44 @@ export default function ForgotPasswordPage() {
       <form onSubmit={onSubmit} className="mt-7 flex flex-col gap-4" noValidate>
         {formError && <InlineAlert title={formError} />}
 
+        <div>
+          <span className="text-[13px] font-medium text-[var(--text)]">Find my account by</span>
+          <div
+            role="radiogroup"
+            aria-label="Find my account by"
+            className="mt-1.5 flex gap-1 rounded-md border border-[var(--line-strong)] p-0.5"
+          >
+            {MODES.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={mode === option.value}
+                onClick={() => switchMode(option.value)}
+                className={`h-8 flex-1 cursor-pointer rounded text-[13px] font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)] ${
+                  mode === option.value
+                    ? "bg-[var(--surface-raised)] text-[var(--text)]"
+                    : "text-[var(--text-muted)] hover:bg-[var(--surface-raised)]"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <TextField
-          label="Login ID"
-          name="login_id"
-          autoComplete="username"
-          value={loginId}
-          onChange={(event) => setLoginId(event.target.value)}
+          // Remounts on switch, so the browser does not offer email
+          // autocompletions in a field that now wants a login ID.
+          key={mode}
+          label={copy.label}
+          name={mode}
+          type={mode === "email" ? "email" : "text"}
+          autoComplete={mode === "email" ? "email" : "username"}
+          placeholder={copy.placeholder}
+          hint={copy.hint}
+          value={identifier}
+          onChange={(event) => setIdentifier(event.target.value)}
           error={fieldError}
           required
         />
