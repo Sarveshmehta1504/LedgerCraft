@@ -1,336 +1,239 @@
 # LedgerCraft
 
-> **A real double-entry accounting system for Urban Furniture — built like Odoo Accounting, sized for a hackathon.**
+> A double-entry accounting system for **Urban Furniture** — master data, purchase and
+> sales cycles, payments, and financial reports computed live from the ledger.
 
-LedgerCraft turns master data (contacts, products, chart of accounts, journals, budgets)
-into linked sales/purchase/payment transactions, auto-posts correct double-entry
-journal entries for every transaction, and generates live Balance Sheet, P&L, and
-Budget reports straight from the ledger.
-
-This is a solo/team Odoo Hackathon build under a **12–15 hour** compressed window.
-See [`AGENTS.md`](AGENTS.md) for the full AI-agent rules and timeline, and
-[`docs/TEAM_TASKS.md`](docs/TEAM_TASKS.md) for the authoritative task board.
+Built for the Odoo Hackathon. LedgerCraft models the same core objects Odoo Accounting
+does — Contacts, Products, Chart of Accounts, Journals, Journal Entries, Analytic
+Accounts and Budgets — and drives the full pipeline from a purchase or sales order
+through to a posted, balanced ledger entry and a financial statement.
 
 ---
 
-## 📌 Current Status
+## Table of contents
 
-> Kept honest on purpose — update the checkboxes as work lands instead of
-> rewriting this section from scratch.
-
-**Done (Hour 0–1 setup):**
-
-- ✅ Repo scaffolded — `backend/` (Laravel 12) and `frontend/` (Next.js) created
-- ✅ Laravel 12 installed with **Sanctum** (auth) and **Spatie Laravel Permission** (RBAC) pulled in
-- ✅ `GET /api/health` implemented ([routes/api.php](backend/routes/api.php)) and returns the standard envelope
-- ✅ Next.js homepage (`/health`) calls the backend health endpoint and renders the response — first Next.js ↔ Laravel round trip proven
-- ✅ Base migrations present: users, cache, jobs, personal access tokens, Spatie permission tables
-- ✅ Full project documentation written and finalized in [`docs/`](docs) (requirements, DB schema, API contract, UI guidelines, demo flow, team task board)
-
-**Not started yet (tracked in [`docs/TEAM_TASKS.md`](docs/TEAM_TASKS.md)):**
-
-- ⬜ Master data (Contacts, Products, Chart of Accounts, Journals) — migrations, models, CRUD APIs, screens
-- ⬜ `JournalEntryService` — the core double-entry posting engine
-- ⬜ Purchase Order → Vendor Bill → Payment flow
-- ⬜ Sales Order → Customer Invoice → Payment flow
-- ⬜ Balance Sheet / P&L / Budget reports (computed live from the ledger)
-- ⬜ Auth flows beyond scaffolding: login by `login_id`, signup, forgot/reset password
-- ⬜ Contact portal (`/portal`) for customers/vendors to view and pay their own invoices/bills
-- ⬜ PDF export + email delivery for invoices, bills and reports (Mail, see below)
-- ⬜ AR/AP aging report, dashboard KPIs, bank reconciliation (stretch)
-
-If you're picking this repo up fresh, the fastest way to get oriented is:
-read this README's setup section, get `/health` working end-to-end locally, then
-open [`docs/TEAM_TASKS.md`](docs/TEAM_TASKS.md) and pick up the next unchecked item
-for your area.
+- [What it does](#what-it-does)
+- [Roles](#roles)
+- [Feature status](#feature-status)
+- [Technology stack](#technology-stack)
+- [Architecture](#architecture)
+- [Setup](#setup)
+- [Demo accounts](#demo-accounts)
+- [Suggested demo walkthrough](#suggested-demo-walkthrough)
+- [API conventions](#api-conventions)
+- [Project structure](#project-structure)
+- [Documentation](#documentation)
+- [Tests](#tests)
+- [Team](#team)
 
 ---
 
-## 📌 Project Overview
+## What it does
 
-### Problem
+### The problem
 
-Urban Furniture needs an accounting system that records purchases, sales, and payments
-using shared master data, and produces accurate financial reports
-(Balance Sheet, P&L, Budget Report) without manual bookkeeping.
+Urban Furniture needs to record purchases, sales and payments against shared master
+data, and produce accurate financial statements without keeping the books by hand.
 
-### Solution
+### The approach
 
-A Laravel 12 API + Next.js frontend that models Contacts, Products, Chart of Accounts,
-Journals, and Journal Entries, drives Purchase Order → Vendor Bill → Payment and Sales
-Order → Customer Invoice → Payment flows, and computes reports live from posted
-journal entries rather than stored snapshots.
-
-### Target Users
-
-| Role | Access |
-|---|---|
-| **Admin** (Business Owner) | Full CRUD on master data, transactions, reports, user/role management |
-| **Accountant** (Invoicing User) | Creates master data, records transactions, views reports |
-| **Contact** (Customer/Vendor) | Portal-only access to their own invoices/bills, can pay them |
-
-### Core Workflow
+Every financial document — a vendor bill, a customer invoice, a payment — posts a
+**balanced double-entry journal entry** when it is confirmed. Reports are then
+projections over those entries. Nothing is stored as a snapshot, so the Balance Sheet
+cannot drift away from the transactions behind it.
 
 ```text
-Master Data (Contacts, Products, CoA, Journals, Budgets)
-    ↓
-Purchase Order → Vendor Bill → Payment
-Sales Order → Customer Invoice → Payment
-    ↓
-Automatic Journal Entry (debit = credit, enforced in a DB transaction)
-    ↓
-Live Reports (Balance Sheet, P&L, Budget Report, AR/AP Aging)
+Master data          Contacts · Products · Chart of Accounts · Journals · Analytic Accounts
+      │
+      ▼
+Purchase cycle       Purchase Order → Vendor Bill → Payment
+Sales cycle          Sales Order    → Customer Invoice → Payment
+      │
+      ▼
+Ledger               Journal entries, debit = credit, enforced inside the DB transaction
+      │
+      ▼
+Reports              Balance Sheet · Profit & Loss · Budget · Trial Balance · AR/AP Aging
 ```
 
-### Odoo Relevance
+### How the double entry works
 
-Mirrors Odoo Accounting's core model 1:1 — Contacts, Chart of Accounts, Journals,
-Journal Entries, Analytic Accounts, Budgets — and its Purchase/Sales →
-Invoice/Bill → Payment → Ledger → Report pipeline.
+A single service, `JournalEntryService`, is the only code in the system that writes to
+`journal_entries` and `journal_entry_lines`. Before committing, it asserts that the
+entry has at least two lines, that no line carries both a debit and a credit, that no
+amount is negative, and that total debits equal total credits — compared as **integer
+paise**, so floating-point rounding can never let an unbalanced entry through. A
+failure raises `UnbalancedJournalEntryException` and the whole transaction rolls back.
 
-Full detail: [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) and [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
+The postings are the standard ones:
 
----
+| Event | Debit | Credit |
+| --- | --- | --- |
+| Vendor bill posted | Purchase Expense | Creditors (AP) |
+| Bill paid | Creditors (AP) | Bank / Cash |
+| Customer invoice posted | Debtors (AR) | Sale Income |
+| Invoice paid | Bank / Cash | Debtors (AR) |
 
-## 🛠️ Technology Stack
+Because every entry is balanced by construction, the Balance Sheet balances, the Trial
+Balance balances, and retained earnings equals net income from the P&L — all three are
+checked by the test suite.
 
-### Backend
+### Odoo relevance
 
-* Laravel 12, PHP ^8.2
-* MySQL 8
-* REST APIs, consistent `{ code, message, data }` envelope
-* Laravel Sanctum — token authentication
-* Spatie Laravel Permission — roles & permissions (`admin`, `accountant`, `user`)
-* barryvdh/laravel-dompdf — PDF export for invoices/bills/reports (planned)
-* Laravel Mail — invoice/bill/report delivery by email (planned; see [Mail Configuration](#-mail-configuration))
-
-### Frontend
-
-* Next.js (App Router), React 19, TypeScript
-* Tailwind CSS
-* shadcn/ui — tables, forms, dialogs (planned)
-* recharts — dashboard charts (bonus, planned)
-
-### Development Tools
-
-Git, GitHub, Composer, Laravel Artisan, Node.js/npm, MySQL.
+The domain model maps one-to-one onto Odoo Accounting: the same master data objects,
+the same order → invoice/bill → payment → ledger → report pipeline, the same use of
+analytic accounts as cost/revenue centres with budgets measured against them, and the
+same practice of archiving master data rather than deleting records that transactions
+still reference.
 
 ---
 
-## 📁 Project Structure
+## Roles
+
+| Role | Can do | Cannot do |
+| --- | --- | --- |
+| **Admin** (Business Owner) | Everything below, plus archive/restore master data, delete records, and manage users and their roles | — |
+| **Accountant** (Invoicing User) | Create and edit all master data; run the full purchase and sales cycles; post documents; register payments; create and revise budgets; read the ledger and every report | Archive, delete, or manage users |
+| **Customer** (Contact portal) | See only their own posted and paid invoices and bills, download them as PDF, and pay outstanding dues | See anything belonging to another contact, or any back-office screen |
+
+Authorization is enforced by Laravel policies on the server. Portal scope is derived
+from the signed-in user's linked contact and is never read from the request, so a
+portal account cannot widen its own scope. Requests for another contact's document
+answer `404` rather than `403`, so probing cannot confirm that a record exists.
+
+Frontend role checks exist only to hide controls that would fail — the backend is
+always the authority.
+
+---
+
+## Feature status
+
+**Master data**
+
+- Contacts (customer / vendor / both) with full address and avatar, archive and restore
+- Products with nested categories, three product types (goods, service, combo)
+- Chart of Accounts across all eight account types
+- Journals (sales, purchase, bank, cash) with default debit/credit accounts
+- Analytic accounts as income or expense cost centres
+
+**Transactions**
+
+- Purchase Order → confirm → convert to Vendor Bill → post → register payment
+- Sales Order → confirm → convert to Customer Invoice → post → register payment
+- Tax per line on the sales side; payment by bank or cash, in full or in instalments
+- Credit terms (`due_date`) agreed on the order and carried onto the bill or invoice
+- Overpayment is rejected; only draft documents can be edited
+
+**Ledger and reporting**
+
+- Journal entries, read-only, generated by the system when a document is posted
+- Balance Sheet, Profit & Loss, Budget report, Trial Balance, AR/AP Aging, dashboard KPIs
+- Budgets with draft / confirmed / revised / cancelled states; achieved amounts derived
+  live from posted document lines, so a superseded budget is listed but never
+  double-counted in the totals
+- PDF export and email delivery for invoices, bills and reports
+
+**Accounts and access**
+
+- Token authentication with a fixed lifetime and refresh
+- Login by `login_id`; self-registration always creates a portal-only account
+- Forgot / reset password by either login ID or email address
+- Customer portal: own invoices and bills, PDF download, pay dues
+
+**Frontend**
+
+- 46 screens, list and card views, sortable columns, filtering and pagination throughout
+
+---
+
+## Technology stack
+
+**Backend** — Laravel 12 · PHP 8.2 · MySQL 8 · Laravel Sanctum (token auth) ·
+Spatie Laravel Permission (RBAC) · barryvdh/laravel-dompdf (PDF) · Resend (mail)
+
+**Frontend** — Next.js 16 (App Router) · React 19 · TypeScript 5 · Tailwind CSS 4 ·
+Recharts
+
+---
+
+## Architecture
 
 ```text
-LedgerCraft/
-│
-├── backend/                       # Laravel 12 application
-│   ├── app/
-│   ├── database/migrations/
-│   ├── routes/api.php
-│   └── .env.example
-│
-├── frontend/                      # Next.js application
-│   └── src/app/health/            # first backend↔frontend integration screen
-│
-├── docs/                          # Shared project documentation (source of truth)
-│   ├── PROJECT_OVERVIEW.md
-│   ├── REQUIREMENTS.md
-│   ├── DB_SCHEMA.md
-│   ├── API_DOCUMENTATION.md
-│   ├── FRONTEND_REQUIREMENTS.md
-│   ├── BACKEND_REQUIREMENTS.md
-│   ├── UI_GUIDELINES.md
-│   ├── TEAM_TASKS.md
-│   └── DEMO_FLOW.md
-│
-├── README.md
-└── .gitignore
+┌──────────────────────────────┐
+│  Next.js frontend            │   pages, forms, client state,
+│  React 19 · TypeScript       │   loading / error / empty states
+└──────────────┬───────────────┘
+               │  JSON over HTTP, bearer token
+               ▼
+┌──────────────────────────────┐
+│  Laravel 12 REST API         │   validation, policies, business
+│  Sanctum · Spatie Permission │   logic, double-entry posting
+└──────────────┬───────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│  MySQL 8                     │
+└──────────────────────────────┘
 ```
+
+Business rules live in service classes (`app/Services/`), not in controllers, so the
+purchase and sales sides share the same posting, numbering and payment logic.
+Authorization lives in policies (`app/Policies/`) and is checked before validation
+runs, so an unauthorized request never learns anything about the data it was refused.
 
 ---
 
-## 🏗️ Architecture
+## Setup
 
-```text
-┌──────────────────────┐
-│      Next.js         │
-│      Frontend        │
-└──────────┬───────────┘
-           │  HTTP / JSON
-           ▼
-┌──────────────────────┐
-│     Laravel 12       │
-│      REST API        │
-│  Sanctum · Spatie     │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│        MySQL         │
-└──────────────────────┘
-```
-
-**Backend owns:** API endpoints, authentication, authorization/RBAC, validation, business logic, database operations.
-
-**Frontend owns:** pages, UI, components, forms, client-side state, API consumption, loading/error/empty states.
-
-Frontend permission checks are UX-only — the backend is always the source of truth for authorization.
-
----
-
-## 🔗 API Response Convention
-
-Every backend endpoint returns the same envelope shape.
-
-```json
-{ "code": 200, "message": "Hello world" }
-```
-
-```json
-{ "code": 200, "message": "Users fetched successfully", "data": [] }
-```
-
-```json
-{ "code": 422, "message": "Validation failed", "errors": { "email": ["The email field is required."] } }
-```
-
-`code` should correspond to the HTTP status code.
-
-For example:
-
-```text
-200 → Success
-201 → Created
-400 → Bad Request
-401 → Unauthenticated
-403 → Unauthorized
-404 → Not Found
-409 → Conflict
-422 → Validation Error
-500 → Server Error
-```
-
-Keep API responses predictable across the backend.
-
----
-
-# 🔌 Backend API (integration quick reference)
-
-Full contract: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
-
-Base URL `http://127.0.0.1:8000/api`. Every endpoint except `/health` and the
-public auth routes needs `Authorization: Bearer <token>`.
-
-**Login is by `login_id`, not email.** Seeded accounts:
-
-| login_id      | password      | role       |
-| ------------- | ------------- | ---------- |
-| `adminuser`   | `Admin@123`   | admin      |
-| `accountant1` | `Account@123` | accountant |
-| `nimeshp`     | `Nimesh@123`  | user (portal) |
-
-The portal account is linked to the *Nimesh Patel* contact and has outstanding
-invoices, so "pay my dues from the portal" can be demonstrated.
-
-```text
-auth        POST /auth/login | /auth/signup | /auth/logout | /auth/forgot-password
-            POST /auth/reset-password   GET /auth/me
-master      /contacts  /products  /product-categories  /accounts  /journals
-            + PATCH {id}/archive and {id}/unarchive on each
-users       /users (admin only) + PUT /users/{id}/role + PATCH {id}/reactivate
-purchase    /purchase-orders + {id}/confirm + {id}/convert-to-bill
-            /vendor-bills    + {id}/post    + {id}/payments
-sales       /sales-orders    + {id}/confirm + {id}/convert-to-invoice
-            /customer-invoices + {id}/post  + {id}/payments
-portal      GET /my/invoices | /my/bills    POST /my/invoices/{id}/pay
-reports     GET /reports/profit-and-loss | /reports/balance-sheet | /reports/trial-balance
-```
-
-Every response uses the `{code, message, data?}` envelope, and `code` mirrors the
-HTTP status.
-
-Adding seeders? Read [`docs/SEEDING.md`](docs/SEEDING.md) first — journal entries
-must never be inserted by hand.
-
----
-
-## 🧪 Initial Integration Test (already working)
-
-```text
-GET /api/health  →  { "code": 200, "message": "Backend is running successfully" }
-```
-
-The Next.js `/health` page calls this endpoint and renders the message + code.
-This proves the full round trip: **Next.js → HTTP → Laravel → JSON → Next.js → UI.**
-Confirm this still works after cloning before building anything else (see
-[Verifying the Setup](#-verifying-the-setup) below).
-
----
-
-## 🚀 Setup Guide (Windows & macOS)
-
-Commands are given for both **Windows (PowerShell)** and **macOS/Linux (bash/zsh)**.
-Where a command is identical on both, it's shown once.
+Commands are shown for both Windows (PowerShell) and macOS/Linux where they differ.
 
 ### Prerequisites
 
-| Tool | Version | Windows | macOS |
-|---|---|---|---|
-| PHP | ^8.2 | [windows.php.net](https://windows.php.net/download/) or [Laravel Herd](https://herd.laravel.com/windows) | `brew install php` or [Laravel Herd](https://herd.laravel.com) |
-| Composer | latest | [getcomposer.org](https://getcomposer.org/download/) | `brew install composer` |
-| Node.js | 20+ | [nodejs.org](https://nodejs.org/) or `winget install OpenJS.NodeJS.LTS` | `brew install node` |
-| MySQL | 8.x | [MySQL Installer](https://dev.mysql.com/downloads/installer/) or via Herd | `brew install mysql` |
-| Git | latest | [git-scm.com](https://git-scm.com/download/win) | `brew install git` (or Xcode CLT) |
+| Tool | Version |
+| --- | --- |
+| PHP | 8.2 or newer |
+| Composer | latest |
+| Node.js | 20 or newer |
+| MySQL | 8.x |
+| Git | latest |
 
-Verify everything is on `PATH`:
+Check they are all on your `PATH`:
 
 ```bash
-php -v
-composer -V
-node -v
-npm -v
-mysql --version
-git --version
+php -v && composer -V && node -v && npm -v && mysql --version
 ```
 
-### 1. Clone the repository
+### 1. Clone
 
 ```bash
-git clone <repo-url> LedgerCraft
+git clone <repository-url> LedgerCraft
 cd LedgerCraft
 ```
 
-### 2. Backend (Laravel) setup
+### 2. Create the database
+
+```sql
+CREATE DATABASE ledgercraft CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+### 3. Backend
 
 ```bash
 cd backend
 composer install
 ```
 
-Create the environment file:
+Copy the environment file:
 
 ```bash
-# Windows (PowerShell / cmd)
+# Windows
 copy .env.example .env
 
 # macOS / Linux
 cp .env.example .env
 ```
 
-Generate the app key:
-
-```bash
-php artisan key:generate
-```
-
-### 3. Database setup
-
-Create a MySQL database named `ledgercraft` (via MySQL Workbench, TablePlus, or the CLI):
-
-```sql
-CREATE DATABASE ledgercraft CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-Edit `backend/.env`:
+Set the database credentials in `backend/.env`:
 
 ```env
 DB_CONNECTION=mysql
@@ -341,331 +244,239 @@ DB_USERNAME=root
 DB_PASSWORD=your_local_password
 ```
 
-Run migrations:
+Generate the application key, build the schema and load the demo data:
 
 ```bash
-php artisan migrate --seed
-```
-
-For a completely fresh database (⚠️ drops all tables/data first):
-
-```bash
+php artisan key:generate
 php artisan migrate:fresh --seed
-```
-
-### 4. Mail Configuration
-
-Password reset, invoice/bill "send by email", and report emailing all go through
-Laravel Mail. By default `MAIL_MAILER=log` in `.env.example` — mail is written to
-the log file instead of actually sending, which is fine for local dev.
-
-To send real mail (demo/staging), configure an SMTP provider in `backend/.env`, e.g. with
-**Resend**:
-
-```env
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.resend.com
-MAIL_PORT=587
-MAIL_USERNAME=resend
-MAIL_PASSWORD=your_resend_api_key
-MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS="hello@yourdomain.test"
-MAIL_FROM_NAME="LedgerCraft"
-```
-
-> **Do not spam the real Resend quota while developing.** Verify mail-sending code
-> paths using `MAIL_MAILER=log` (or Mailtrap) and only switch to a live SMTP mailer
-> for an actual demo/test send. Mail is sent **synchronously** (no queue worker
-> required) so `php artisan queue:work` is not needed for mail to go out.
-
-After changing `.env`, clear cached config:
-
-```bash
-php artisan config:clear
-```
-
-### 5. Start the backend
-
-```bash
 php artisan serve
 ```
 
-Runs at **http://127.0.0.1:8000**. Verify: **http://127.0.0.1:8000/api/health**
+The API is now on **http://127.0.0.1:8000**. Confirm with
+**http://127.0.0.1:8000/api/health**.
 
-Optionally, run backend + queue + logs together (from `backend/`):
+### 4. Frontend
 
-```bash
-composer run dev
-```
-
-### 6. Frontend (Next.js) setup
-
-Open a **second terminal**:
+In a second terminal:
 
 ```bash
 cd frontend
 npm install
+```
+
+Create `frontend/.env.local`:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+> Note the URL has **no `/api` suffix** — the frontend appends it. Adding it here
+> produces requests to `/api/api/...` and every call fails.
+
+```bash
 npm run dev
 ```
 
-Runs at **http://localhost:3000**.
+The app is now on **http://localhost:3000**.
 
-If the frontend needs to know the API base URL explicitly, create `frontend/.env.local`:
+### 5. Verify
 
-```env
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/api
-```
+1. Open **http://localhost:3000/health** — it should report the backend as reachable.
+2. Sign in at **http://localhost:3000/login** as `adminuser` / `Admin@123`.
+3. The dashboard should show cash and bank balances, receivables and payables.
 
-### 7. Verifying the Setup
+### Mail (optional)
 
-With both servers running:
+Password reset and "send by email" go through Laravel Mail. `.env.example` ships with
+`MAIL_MAILER=log`, which writes messages to `storage/logs/laravel.log` instead of
+sending them — enough to exercise the whole flow locally. To send real mail, set
+`RESEND_API_KEY` and `MAIL_MAILER=resend` in `backend/.env`. Mail is sent
+synchronously, so no queue worker is required.
 
-1. Open **http://localhost:3000/health**
-2. Confirm it displays `Backend is running successfully` with `Code: 200`
-3. If it fails, check: backend server running? correct port? CORS enabled in
-   `backend/config/cors.php`? `NEXT_PUBLIC_API_URL` correct?
+After editing `.env`, run `php artisan config:clear`.
 
-### Clearing stale Laravel state
+### Troubleshooting
 
-If config/cache/routes act stale after pulling changes:
-
-```bash
-php artisan optimize:clear
-```
-
----
-
-## 🔐 Authentication & RBAC
-
-* Auth: **Laravel Sanctum** (token-based).
-* Login is by **`login_id`**, not email (per the UI design board) — see [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
-* Public signup always assigns role `user` server-side; any `role` field in the request body is ignored to prevent privilege escalation, and creates/links a `customer` Contact in the same DB transaction.
-* Forgot/reset password: token-based flow via `password_reset_tokens`; `forgot-password` always returns `200` regardless of whether the email exists, to avoid account enumeration.
-* RBAC via **Spatie Laravel Permission**, three roles only: `admin`, `accountant` (Invoicing User), `user` (Contact/portal). No extra roles/permissions beyond what the problem statement requires.
-* The backend is always the authorization source of truth — frontend role checks are UX convenience only.
-
-Full endpoint contracts: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
+| Symptom | Fix |
+| --- | --- |
+| Frontend shows "could not load" everywhere | Backend not running, or `NEXT_PUBLIC_API_URL` has a trailing `/api` |
+| `419` or CORS errors | Check `FRONTEND_URL` in `backend/.env` matches your frontend origin |
+| Config changes ignored | `php artisan config:clear` |
+| Stale routes or views after pulling | `php artisan optimize:clear` |
+| Tests appear to target your dev database | Run `php artisan config:clear` before `php artisan test` |
 
 ---
 
-## 📚 Project Documentation
+## Demo accounts
 
-The `docs/` directory is the shared project knowledge base.
+Login is by **`login_id`**, not email.
+
+| Login ID | Password | Role | Notes |
+| --- | --- | --- | --- |
+| `adminuser` | `Admin@123` | Admin | Full access, including user management |
+| `accountant1` | `Account@123` | Accountant | Priya Desai |
+| `accountant2` | `Harsh@1234` | Accountant | Harsh Bhavsar |
+| `exaccountant` | `Vikram@123` | Accountant | **Deactivated** — login is refused |
+| `nimeshp` | `Nimesh@123` | Customer portal | Has invoices outstanding to pay |
+| `saffrongrand` | `Saffron@123` | Customer portal | Corporate account, heavily overdue |
+| `zenithco` | `Zenith@1234` | Customer portal | Fully settled |
+
+`php artisan migrate:fresh --seed` builds roughly seven months of trading history:
+20 contacts, 45 products across 18 categories, 20 purchase orders, 24 sales orders,
+18 vendor bills, 23 customer invoices, 20 payments, 12 budgets across two periods, and
+59 balanced journal entries. Dates are relative to the day you seed, so the data never
+goes stale.
+
+The dataset deliberately covers every document status, all five ageing buckets on both
+the receivable and payable sides, all four tax rates in use, budgets that are over and
+under target, and archived master data — so no screen is empty and no state is
+unreachable during a demo.
+
+---
+
+## Suggested demo walkthrough
+
+1. **Dashboard** — cash and bank balances, receivables and payables with overdue
+   amounts, top customers, recent transactions.
+2. **Master data** — open Contacts and Products; note search, filters, sorting and the
+   archived-records toggle.
+3. **Purchase cycle** — create a Purchase Order, confirm it, convert it to a Vendor
+   Bill, post the bill, then register a payment.
+4. **Journal Entries** — open the entry the posting created and show that debits equal
+   credits, with the source document and the accountant who posted it.
+5. **Sales cycle** — the same flow from Sales Order to Customer Invoice to receipt.
+6. **Reports** — Balance Sheet (it balances), Profit & Loss, Budget report (note the
+   superseded budget listed but excluded from totals), and AR/AP Ageing.
+7. **Customer portal** — sign in as `nimeshp` and pay an outstanding invoice; confirm
+   that only that customer's own documents are visible.
+8. **Access control** — sign in as `accountant1` and note that user management is
+   unavailable.
+
+A fuller script is in [`docs/DEMO_FLOW.md`](docs/DEMO_FLOW.md).
+
+---
+
+## API conventions
+
+Base URL `http://127.0.0.1:8000/api`. Every route except `/health` and the public auth
+routes requires `Authorization: Bearer <token>`.
+
+Every response uses the same envelope, and `code` always mirrors the HTTP status:
+
+```json
+{ "code": 200, "message": "Contacts fetched successfully", "data": [] }
+```
+
+```json
+{ "code": 422, "message": "Validation failed", "errors": { "name": ["The name field is required."] } }
+```
+
+### Endpoint groups
 
 ```text
-docs/
+auth       POST /auth/login · /auth/signup · /auth/logout · /auth/refresh
+           POST /auth/forgot-password · /auth/reset-password    GET /auth/me
+master     /contacts · /products · /product-categories · /accounts · /journals
+           · /analytic-accounts   + PATCH {id}/archive and {id}/unarchive
+users      /users (admin only) + PUT /users/{id}/role + PATCH {id}/reactivate
+purchase   /purchase-orders + {id}/confirm + {id}/convert-to-bill
+           /vendor-bills    + {id}/post + {id}/payments + {id}/pdf + {id}/send
+sales      /sales-orders    + {id}/confirm + {id}/convert-to-invoice
+           /customer-invoices + {id}/post + {id}/payments + {id}/pdf + {id}/send
+budgets    /budgets + {id}/confirm + {id}/revise + {id}/cancel
+ledger     GET /journal-entries · /journal-entries/{id}          (read-only)
+reports    GET /reports/balance-sheet · /profit-and-loss · /budget
+           · /trial-balance · /aging · /dashboard   + /{report}/pdf · /{report}/send
+portal     GET /my/invoices · /my/bills   POST /my/invoices/{id}/pay
+```
+
+The full contract, with request and response bodies, is in
+[`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
+
+---
+
+## Project structure
+
+```text
+LedgerCraft/
+├── backend/                     Laravel 12 API
+│   ├── app/
+│   │   ├── Http/Controllers/Api/    16 resource controllers
+│   │   ├── Http/Requests/           validation + authorization
+│   │   ├── Models/                  19 Eloquent models
+│   │   ├── Policies/                12 authorization policies
+│   │   └── Services/                business logic, incl. JournalEntryService
+│   ├── database/
+│   │   ├── migrations/              29 migrations
+│   │   └── seeders/                 demo dataset
+│   ├── routes/api.php
+│   └── tests/                       70 tests
 │
-├── PROJECT_OVERVIEW.md
-├── REQUIREMENTS.md
-├── DB_SCHEMA.md
-├── API_DOCUMENTATION.md
-├── FRONTEND_REQUIREMENTS.md
-├── BACKEND_REQUIREMENTS.md
-├── UI_GUIDELINES.md
-├── TEAM_TASKS.md
-└── DEMO_FLOW.md
-```
-
-These documents should describe important project decisions and contracts.
-
----
-
-# 🌿 Git Workflow
-
-The team uses **exactly five branches**:
-
-```text
-main
+├── frontend/                    Next.js 16 application
+│   └── src/
+│       ├── app/                     routes (App Router)
+│       ├── components/              shared UI, forms, tables
+│       ├── lib/                     API client, session, formatting
+│       └── types/                   domain types mirrored from the API
 │
-├── parv
-├── sarvesh
-├── nikhil
-└── jenish
-```
-
-
-## Important Rule
-
-> **No team member directly commits to `main` after initial project setup.**
-
-The only exception is the initial repository/project setup performed by the designated setup person.
-
-After setup, all development happens on one of the four team branches.
-
----
-
-# 👥 Team Branches
-
-Each member owns one permanent development branch.
-
-Example:
-
-```text
-main
-
-parv
-sarvesh
-nikhil
-jenish
-```
-
-Do NOT create a new feature branch for every task.
-
-Tasks are tracked in:
-
-```text
-docs/TEAM_TASKS.md
+└── docs/                        project documentation
 ```
 
 ---
 
-# 🚀 Initial Repository Setup
+## Documentation
 
-The initial setup should happen in this order:
-
-```text
-1. Create GitHub repository
-        ↓
-2. Clone repository
-        ↓
-3. Create backend/
-        ↓
-4. Create frontend/
-        ↓
-5. Create docs/
-        ↓
-6. Configure Laravel
-        ↓
-7. Configure Next.js
-        ↓
-8. Configure authentication/RBAC dependencies
-        ↓
-9. Configure documentation
-        ↓
-10. Create /api/health
-        ↓
-11. Connect frontend homepage
-        ↓
-12. Verify frontend ↔ backend
-        ↓
-13. Commit initial setup
-        ↓
-14. Create four team branches
-```
-
-The initial setup commit may be made directly to:
-
-```text
-main
-```
-
-After that:
-
-> **Do not directly commit to main.**
+| Document | Contents |
+| --- | --- |
+| [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) | Problem, solution, scope |
+| [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) | Functional requirements by priority |
+| [`docs/DB_SCHEMA.md`](docs/DB_SCHEMA.md) | Tables, columns, relationships |
+| [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) | Full endpoint contract |
+| [`docs/BACKEND_REQUIREMENTS.md`](docs/BACKEND_REQUIREMENTS.md) | Backend rules and conventions |
+| [`docs/FRONTEND_REQUIREMENTS.md`](docs/FRONTEND_REQUIREMENTS.md) | Screens and behaviour |
+| [`docs/UI_GUIDELINES.md`](docs/UI_GUIDELINES.md) | Visual language |
+| [`docs/SEEDING.md`](docs/SEEDING.md) | Seeding rules and what the demo data contains |
+| [`docs/PDF_SERVICE.md`](docs/PDF_SERVICE.md) | PDF generation and mail delivery |
+| [`docs/DEMO_FLOW.md`](docs/DEMO_FLOW.md) | Demo script |
+| [`docs/TEAM_TASKS.md`](docs/TEAM_TASKS.md) | Task board |
 
 ---
 
-# 🔄 Daily Team Workflow
-
-Before starting work:
+## Tests
 
 ```bash
-# before starting work
-git fetch origin
-git rebase origin/main
-
-# check what you're about to commit
-git status
-git diff
-
-# commit with a meaningful message
-git add .
-git commit -m "feat: add contacts CRUD API"
-
-# push your own rebased branch
-git push --force-with-lease origin <your-branch>
+cd backend
+php artisan config:clear   # ensures the test database configuration is used
+php artisan test
 ```
 
-Never `git push --force` (plain), never reset/delete a teammate's branch, never rewrite shared history without coordinating first.
+**70 tests, 130 assertions.** They cover the double-entry invariants (an unbalanced
+entry is rejected; the Balance Sheet balances; retained earnings equals net income),
+budget lifecycle and achieved-amount derivation, the operational reports, PDF and mail
+generation, token expiry and refresh, and portal isolation between contacts.
 
-### Commit message style
-
-```text
-feat: add product API
-fix: resolve invalid order status
-refactor: simplify order service
-docs: update API documentation
-chore: configure frontend environment
-```
-
-Avoid vague messages like `update`, `final`, `working`, `test`.
-
-### Rebase conflicts
+Frontend checks:
 
 ```bash
-git status                 # see conflicted files
-# resolve manually — never blindly take "ours" or "theirs"
-git add .
-git rebase --continue
-git push --force-with-lease origin <your-branch>
-```
-
-If the correct resolution isn't obvious, stop and coordinate with the affected teammate.
-
-Full rules: [`AGENTS.md`](AGENTS.md) §15–20.
-
----
-
-## 👥 Team
-
-| Member | Branch | Primary Responsibility |
-|---|---|---|
-| Parv | `parv` | Backend — Master Data + Chart of Accounts + Journals |
-| Nikhil | `nikhil` | Backend — Purchase/Sales/Payment flow + Reports |
-| Sarvesh | `sarvesh` | Frontend — Master Data screens + Auth + Contact portal |
-| Jenish | `jenish` | Frontend — Transaction screens + Reports/Dashboard UI |
-
-Agent ownership mirrors this: `frontend/` → Frontend agent, `backend/` → Backend agent,
-Git operations → GitHub agent, quality review → Reviewer agent. Avoid modifying
-another owner's primary area without coordinating first (`AGENTS.md` §13–14).
-
----
-
-## 🧭 Hackathon Engineering Standard
-
-This is a 12–15 hour hackathon build, not a production system. Priority order:
-
-```text
-Required Features → Core Workflow → Frontend/Backend Integration
-    → Demo Reliability → Judging Impact → Odoo Relevance → UX Polish → Extras
-```
-
-Avoid over-engineering: no unnecessary design patterns, premature optimization,
-exhaustive test coverage, or production-scale infrastructure. If a simple
-implementation reliably solves the problem, ship that. Full rules: `AGENTS.md` §9–11.
-
----
-
-## 🏆 Final Submission Checklist
-
-```text
-[ ] Core workflow works end-to-end (PO→Bill→Payment, SO→Invoice→Payment)
-[ ] Frontend ↔ backend integration works with no mocked data left
-[ ] Required features complete (see docs/REQUIREMENTS.md P0)
-[ ] Authentication works for all 3 roles
-[ ] Required RBAC enforced
-[ ] Database migrations run clean from scratch
-[ ] Demo data seeded
-[ ] Demo flow rehearsed against docs/DEMO_FLOW.md
-[ ] No obvious critical bugs
-[ ] No secrets or .env files committed
-[ ] No merge conflict markers left in the repo
-[ ] README and docs/ updated to match reality
-[ ] main contains the final working version
+cd frontend
+npx tsc --noEmit    # type check
+npx eslint src      # lint
+npm run build       # production build
 ```
 
 ---
 
-## 📄 License
+## Team
 
-This project is developed for hackathon purposes.
+| Member | Area |
+| --- | --- |
+| Parv | Backend — master data, chart of accounts, journals, ledger |
+| Nikhil | Backend — purchase/sales/payment flows, reports |
+| Sarvesh | Frontend — master data screens, authentication, customer portal |
+| Jenish | Frontend — transaction screens, reports and dashboard |
+
+---
+
+## License
+
+Developed for the Odoo Hackathon.
