@@ -11,6 +11,7 @@ import {
   mapBalanceSheet,
   mapBudget,
   mapBudgetReport,
+  mapDashboard,
   mapContact,
   mapCustomerInvoice,
   mapCustomerInvoiceDetail,
@@ -28,7 +29,7 @@ import {
   mapVendorBillDetail,
 } from "./normalize";
 export type { VendorBillDetail, CustomerInvoiceDetail, PortalInvoice, PortalInvoiceLine } from "./normalize";
-import type { AnalyticAccountType, BudgetReport, ChartOfAccount, Contact, ContactType, DocumentLine, Journal, JournalType, PaymentVia, Product, ProductType, Role } from "@/types";
+import type { AnalyticAccountType, BudgetReport, DashboardSummary, ChartOfAccount, Contact, ContactType, DocumentLine, Journal, JournalType, PaymentVia, Product, ProductType, Role } from "@/types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Raw = any;
@@ -398,6 +399,8 @@ export const ReportsApi = {
       method: "POST",
       body: JSON.stringify({ to }),
     }),
+  /** Cash, receivables, payables and net income, computed server-side from the ledger. */
+  dashboard: () => apiFetch<Raw>("/reports/dashboard").then(mapDashboard) as Promise<DashboardSummary>,
   /**
    * Rows *and* the API's own totals. The totals already leave out superseded
    * and cancelled budgets, so re-summing the rows here would reintroduce the

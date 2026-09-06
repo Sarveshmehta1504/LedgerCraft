@@ -336,6 +336,28 @@ export interface BudgetReportRow {
   counted_in_totals: boolean;
 }
 
+/** GET /api/reports/dashboard — the figures the books already know. */
+export interface DashboardSummary {
+  cash: number;
+  bank: number;
+  total_receivable: number;
+  total_payable: number;
+  overdue_receivable: number;
+  overdue_payable: number;
+  net_income: number;
+  total_income: number;
+  total_expenses: number;
+  counts: {
+    purchase_orders: number;
+    sales_orders: number;
+    vendor_bills_unpaid: number;
+    customer_invoices_unpaid: number;
+    contacts: number;
+    products: number;
+  };
+  top_customers: { id: number; name: string; revenue: number }[];
+}
+
 /** The budget report as the API returns it: rows plus its own correct totals. */
 export interface BudgetReport {
   rows: BudgetReportRow[];
